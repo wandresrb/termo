@@ -828,7 +828,7 @@ mode_tree_draw(struct mode_tree_data *mtd)
 	char			*text, *prefix;
 	const char		*tag, *separator;
 	size_t			 n;
-	int			 keylen, alignlen[mtd->maxdepth + 1];
+	int			 keylen, *alignlen;
 	int			 dfg, dfg0;
 
 	if (mtd->line_size == 0)
@@ -861,8 +861,7 @@ mode_tree_draw(struct mode_tree_data *mtd)
 			keylen = mti->keylen + 3;
 	}
 
-	for (i = 0; i < mtd->maxdepth + 1; i++)
-		alignlen[i] = 0;
+	alignlen = xcalloc(mtd->maxdepth + 1, sizeof *alignlen);
 	for (i = 0; i < mtd->line_size; i++) {
 		line = &mtd->line_list[i];
 		mti = line->item;
@@ -972,6 +971,7 @@ mode_tree_draw(struct mode_tree_data *mtd)
 			gc0.fg = dfg0;
 		}
 	}
+	free(alignlen);
 	format_free(ft);
 
 	if (mtd->preview == MODE_TREE_PREVIEW_OFF)
@@ -1293,7 +1293,7 @@ mode_tree_search_set(struct mode_tree_data *mtd)
 }
 
 static enum prompt_result
-mode_tree_search_callback(__unused struct client *c, void *data, const char *s,
+mode_tree_search_callback([[maybe_unused]] struct client *c, void *data, const char *s,
     enum prompt_key_result key)
 {
 	struct mode_tree_data	*mtd = data;
@@ -1316,7 +1316,7 @@ mode_tree_search_callback(__unused struct client *c, void *data, const char *s,
 }
 
 static enum prompt_result
-mode_tree_filter_callback(__unused struct client *c, void *data, const char *s,
+mode_tree_filter_callback([[maybe_unused]] struct client *c, void *data, const char *s,
     enum prompt_key_result key)
 {
 	struct mode_tree_data	*mtd = data;
@@ -1352,7 +1352,7 @@ mode_tree_clear_filter(struct mode_tree_data *mtd)
 }
 
 static void
-mode_tree_menu_callback(__unused struct menu *menu, __unused u_int idx,
+mode_tree_menu_callback([[maybe_unused]] struct menu *menu, [[maybe_unused]] u_int idx,
     key_code key, void *data)
 {
 	struct mode_tree_menu	*mtm = data;

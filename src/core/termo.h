@@ -28,9 +28,6 @@
 #include <termios.h>
 #include <wchar.h>
 
-#ifdef HAVE_UTEMPTER
-#include <utempter.h>
-#endif
 
 #include "compat.h"
 #include "termo-protocol.h"
@@ -107,12 +104,12 @@ struct winlink;
 #endif
 
 /* Minimum and maximum layout cell size, NOT including border lines. */
-#define PANE_MINIMUM 1
-#define PANE_MAXIMUM 10000
+constexpr int PANE_MINIMUM = 1;
+constexpr int PANE_MAXIMUM = 10000;
 
 /* Minimum and maximum window size. */
-#define WINDOW_MINIMUM PANE_MINIMUM
-#define WINDOW_MAXIMUM 10000
+constexpr int WINDOW_MINIMUM = PANE_MINIMUM;
+constexpr int WINDOW_MAXIMUM = 10000;
 
 /* Automatic name refresh interval, in microseconds. Must be < 1 second. */
 #define NAME_INTERVAL 500000
@@ -120,9 +117,6 @@ struct winlink;
 /* Default pixel cell sizes. */
 #define DEFAULT_XPIXEL 16
 #define DEFAULT_YPIXEL 32
-
-/* Attribute to make GCC check printf-like arguments. */
-#define printflike(a, b) __attribute__ ((format (printf, a, b)))
 
 /* Number of items in array. */
 #ifndef nitems
@@ -140,27 +134,30 @@ struct winlink;
 #define VISUAL_ON 1
 #define VISUAL_BOTH 2
 
+/* A key code: type, modifiers, flags and the key itself. */
+typedef unsigned long long key_code;
+
 /* Key modifier bits. */
-#define KEYC_META            0x00100000000000ULL
-#define KEYC_CTRL            0x00200000000000ULL
-#define KEYC_SHIFT           0x00400000000000ULL
+constexpr key_code KEYC_META = 0x00100000000000ULL;
+constexpr key_code KEYC_CTRL = 0x00200000000000ULL;
+constexpr key_code KEYC_SHIFT = 0x00400000000000ULL;
 
 /* Key flag bits. */
-#define KEYC_LITERAL	     0x01000000000000ULL
-#define KEYC_KEYPAD	     0x02000000000000ULL
-#define KEYC_CURSOR	     0x04000000000000ULL
-#define KEYC_IMPLIED_META    0x08000000000000ULL
-#define KEYC_BUILD_MODIFIERS 0x10000000000000ULL
-#define KEYC_VI		     0x20000000000000ULL
-#define KEYC_SENT	     0x40000000000000ULL
+constexpr key_code KEYC_LITERAL = 0x01000000000000ULL;
+constexpr key_code KEYC_KEYPAD = 0x02000000000000ULL;
+constexpr key_code KEYC_CURSOR = 0x04000000000000ULL;
+constexpr key_code KEYC_IMPLIED_META = 0x08000000000000ULL;
+constexpr key_code KEYC_BUILD_MODIFIERS = 0x10000000000000ULL;
+constexpr key_code KEYC_VI = 0x20000000000000ULL;
+constexpr key_code KEYC_SENT = 0x40000000000000ULL;
 
 /* Masks for key bits. */
-#define KEYC_MASK_TYPE       0x0000ff00000000ULL
-#define KEYC_MASK_MODIFIERS  0x00ff0000000000ULL
-#define KEYC_MASK_FLAGS      0xff000000000000ULL
-#define KEYC_MASK_KEY        0x0000ffffffffffULL
+constexpr key_code KEYC_MASK_TYPE = 0x0000ff00000000ULL;
+constexpr key_code KEYC_MASK_MODIFIERS = 0x00ff0000000000ULL;
+constexpr key_code KEYC_MASK_FLAGS = 0xff000000000000ULL;
+constexpr key_code KEYC_MASK_KEY = 0x0000ffffffffffULL;
 
-#define KEYC_NUSER           1000
+constexpr u_int KEYC_NUSER = 1000;
 #define KEYC_SHIFT_TYPE(t)   ((unsigned long long)(t) << 32)
 #define KEYC_IS_TYPE(k, t)   (((k) & KEYC_MASK_TYPE) == KEYC_SHIFT_TYPE(t))
 enum key_code_type {
@@ -230,7 +227,7 @@ enum key_code_mouse_location {
 	 ((key) & KEYC_MASK_KEY) == KEYC_PASTE_END))
 
 /* Multiple click timeout. */
-#define KEYC_CLICK_TIMEOUT 300
+constexpr int KEYC_CLICK_TIMEOUT = 300;
 
 /* Bit shift for mouse events. */
 #define KEYC_MOUSE_LOCATION_SHIFT  0
@@ -299,10 +296,9 @@ enum key_code_mouse_location {
  * A single key. This can be ASCII or Unicode or one of the keys between
  * KEYC_BASE and KEYC_BASE_END.
  */
-typedef unsigned long long key_code;
 
 /* C0 control characters */
-enum {
+enum : key_code {
 	C0_NUL,
 	C0_SOH,
 	C0_STX,
@@ -338,7 +334,7 @@ enum {
 };
 
 /* Special key codes. */
-enum {
+enum : key_code {
 	/* User key code range. */
 	KEYC_USER = KEYC_SHIFT_TYPE(KEYC_TYPE_USER),
 
@@ -673,39 +669,41 @@ enum tty_code_code {
 #define MODEKEY_VI 1
 
 /* Modes. */
-#define MODE_CURSOR 0x1
-#define MODE_INSERT 0x2
-#define MODE_KCURSOR 0x4
-#define MODE_KKEYPAD 0x8
-#define MODE_WRAP 0x10
-#define MODE_MOUSE_STANDARD 0x20
-#define MODE_MOUSE_BUTTON 0x40
-#define MODE_CURSOR_BLINKING 0x80
-#define MODE_MOUSE_UTF8 0x100
-#define MODE_MOUSE_SGR 0x200
-#define MODE_BRACKETPASTE 0x400
-#define MODE_FOCUSON 0x800
-#define MODE_MOUSE_ALL 0x1000
-#define MODE_ORIGIN 0x2000
-#define MODE_CRLF 0x4000
-#define MODE_KEYS_EXTENDED 0x8000
-#define MODE_CURSOR_VERY_VISIBLE 0x10000
-#define MODE_CURSOR_BLINKING_SET 0x20000
-#define MODE_KEYS_EXTENDED_2 0x40000
-#define MODE_THEME_UPDATES 0x80000
-#define MODE_SYNC 0x100000
-
-#define ALL_MODES 0xffffff
-#define ALL_MOUSE_MODES (MODE_MOUSE_STANDARD|MODE_MOUSE_BUTTON|MODE_MOUSE_ALL)
-#define MOTION_MOUSE_MODES (MODE_MOUSE_BUTTON|MODE_MOUSE_ALL)
-#define CURSOR_MODES (MODE_CURSOR|MODE_CURSOR_BLINKING|MODE_CURSOR_VERY_VISIBLE)
-#define EXTENDED_KEY_MODES (MODE_KEYS_EXTENDED|MODE_KEYS_EXTENDED_2)
+enum screen_mode : int {
+	MODE_CURSOR = 0x1,
+	MODE_INSERT = 0x2,
+	MODE_KCURSOR = 0x4,
+	MODE_KKEYPAD = 0x8,
+	MODE_WRAP = 0x10,
+	MODE_MOUSE_STANDARD = 0x20,
+	MODE_MOUSE_BUTTON = 0x40,
+	MODE_CURSOR_BLINKING = 0x80,
+	MODE_MOUSE_UTF8 = 0x100,
+	MODE_MOUSE_SGR = 0x200,
+	MODE_BRACKETPASTE = 0x400,
+	MODE_FOCUSON = 0x800,
+	MODE_MOUSE_ALL = 0x1000,
+	MODE_ORIGIN = 0x2000,
+	MODE_CRLF = 0x4000,
+	MODE_KEYS_EXTENDED = 0x8000,
+	MODE_CURSOR_VERY_VISIBLE = 0x10000,
+	MODE_CURSOR_BLINKING_SET = 0x20000,
+	MODE_KEYS_EXTENDED_2 = 0x40000,
+	MODE_THEME_UPDATES = 0x80000,
+	MODE_SYNC = 0x100000,
+	ALL_MODES = 0xffffff,
+	ALL_MOUSE_MODES = (MODE_MOUSE_STANDARD|MODE_MOUSE_BUTTON|MODE_MOUSE_ALL),
+	MOTION_MOUSE_MODES = (MODE_MOUSE_BUTTON|MODE_MOUSE_ALL),
+	CURSOR_MODES = (MODE_CURSOR|MODE_CURSOR_BLINKING|MODE_CURSOR_VERY_VISIBLE),
+	EXTENDED_KEY_MODES = (MODE_KEYS_EXTENDED|MODE_KEYS_EXTENDED_2),
+};
+static_assert(sizeof(enum screen_mode) == sizeof(int));
 
 /* Mouse protocol constants. */
-#define MOUSE_PARAM_MAX 0xff
-#define MOUSE_PARAM_UTF8_MAX 0x7ff
-#define MOUSE_PARAM_BTN_OFF 0x20
-#define MOUSE_PARAM_POS_OFF 0x21
+constexpr u_int MOUSE_PARAM_MAX = 0xff;
+constexpr u_int MOUSE_PARAM_UTF8_MAX = 0x7ff;
+constexpr u_int MOUSE_PARAM_BTN_OFF = 0x20;
+constexpr u_int MOUSE_PARAM_POS_OFF = 0x21;
 
 /* A single UTF-8 character. */
 typedef u_int utf8_char;
@@ -715,7 +713,7 @@ typedef u_int utf8_char;
  * characters as well. It can't be more than 32 bytes without changes to how
  * characters are stored.
  */
-#define UTF8_SIZE 32
+constexpr u_int UTF8_SIZE = 32;
 struct utf8_data {
 	u_char	data[UTF8_SIZE];
 
@@ -771,65 +769,65 @@ struct colour_palette {
 };
 
 /* Grid attributes. Anything above 0xff is stored in an extended cell. */
-#define GRID_ATTR_BRIGHT 0x1
-#define GRID_ATTR_DIM 0x2
-#define GRID_ATTR_UNDERSCORE 0x4
-#define GRID_ATTR_BLINK 0x8
-#define GRID_ATTR_REVERSE 0x10
-#define GRID_ATTR_HIDDEN 0x20
-#define GRID_ATTR_ITALICS 0x40
-#define GRID_ATTR_CHARSET 0x80	/* alternative character set */
-#define GRID_ATTR_STRIKETHROUGH 0x100
-#define GRID_ATTR_UNDERSCORE_2 0x200
-#define GRID_ATTR_UNDERSCORE_3 0x400
-#define GRID_ATTR_UNDERSCORE_4 0x800
-#define GRID_ATTR_UNDERSCORE_5 0x1000
-#define GRID_ATTR_OVERLINE 0x2000
-#define GRID_ATTR_NOATTR 0x4000
-
-/* All underscore attributes. */
-#define GRID_ATTR_ALL_UNDERSCORE \
-	(GRID_ATTR_UNDERSCORE|	 \
-	 GRID_ATTR_UNDERSCORE_2| \
-	 GRID_ATTR_UNDERSCORE_3| \
-	 GRID_ATTR_UNDERSCORE_4| \
-	 GRID_ATTR_UNDERSCORE_5)
+enum grid_attr : u_short {
+	GRID_ATTR_BRIGHT = 0x1,
+	GRID_ATTR_DIM = 0x2,
+	GRID_ATTR_UNDERSCORE = 0x4,
+	GRID_ATTR_BLINK = 0x8,
+	GRID_ATTR_REVERSE = 0x10,
+	GRID_ATTR_HIDDEN = 0x20,
+	GRID_ATTR_ITALICS = 0x40,
+	GRID_ATTR_CHARSET = 0x80,	/* alternative character set */
+	GRID_ATTR_STRIKETHROUGH = 0x100,
+	GRID_ATTR_UNDERSCORE_2 = 0x200,
+	GRID_ATTR_UNDERSCORE_3 = 0x400,
+	GRID_ATTR_UNDERSCORE_4 = 0x800,
+	GRID_ATTR_UNDERSCORE_5 = 0x1000,
+	GRID_ATTR_OVERLINE = 0x2000,
+	GRID_ATTR_NOATTR = 0x4000,
+	/* All underscore attributes. */
+	GRID_ATTR_ALL_UNDERSCORE = (GRID_ATTR_UNDERSCORE| GRID_ATTR_UNDERSCORE_2| GRID_ATTR_UNDERSCORE_3| GRID_ATTR_UNDERSCORE_4| GRID_ATTR_UNDERSCORE_5),
+};
+static_assert(sizeof(enum grid_attr) == sizeof(u_short));
 
 /* Grid flags. */
-#define GRID_FLAG_FG256 0x1
-#define GRID_FLAG_BG256 0x2
-#define GRID_FLAG_PADDING 0x4
-#define GRID_FLAG_EXTENDED 0x8
-#define GRID_FLAG_SELECTED 0x10
-#define GRID_FLAG_NOPALETTE 0x20
-#define GRID_FLAG_CLEARED 0x40
-#define GRID_FLAG_TAB 0x80
+enum grid_flag : u_char {
+	GRID_FLAG_FG256 = 0x1,
+	GRID_FLAG_BG256 = 0x2,
+	GRID_FLAG_PADDING = 0x4,
+	GRID_FLAG_EXTENDED = 0x8,
+	GRID_FLAG_SELECTED = 0x10,
+	GRID_FLAG_NOPALETTE = 0x20,
+	GRID_FLAG_CLEARED = 0x40,
+	GRID_FLAG_TAB = 0x80,
+};
+static_assert(sizeof(enum grid_flag) == sizeof(u_char));
 
 /* Grid line flags. */
-#define GRID_LINE_WRAPPED 0x1
-#define GRID_LINE_EXTENDED 0x2
-#define GRID_LINE_DEAD 0x4
-#define GRID_LINE_START_PROMPT 0x8
-#define GRID_LINE_SECOND_PROMPT 0x10
-#define GRID_LINE_START_COMMAND 0x20
-#define GRID_LINE_START_OUTPUT 0x40
-#define GRID_LINE_END_OUTPUT 0x80
-#define GRID_LINE_HYPERLINK 0x100
-
-/* All OSC 133 flags. */
-#define GRID_LINE_OSC133_FLAGS \
-	(GRID_LINE_START_PROMPT| \
-	 GRID_LINE_SECOND_PROMPT| \
-	 GRID_LINE_START_COMMAND| \
-	 GRID_LINE_START_OUTPUT| \
-	 GRID_LINE_END_OUTPUT)
+enum grid_line_flag : u_short {
+	GRID_LINE_WRAPPED = 0x1,
+	GRID_LINE_EXTENDED = 0x2,
+	GRID_LINE_DEAD = 0x4,
+	GRID_LINE_START_PROMPT = 0x8,
+	GRID_LINE_SECOND_PROMPT = 0x10,
+	GRID_LINE_START_COMMAND = 0x20,
+	GRID_LINE_START_OUTPUT = 0x40,
+	GRID_LINE_END_OUTPUT = 0x80,
+	GRID_LINE_HYPERLINK = 0x100,
+	/* All OSC 133 flags. */
+	GRID_LINE_OSC133_FLAGS = (GRID_LINE_START_PROMPT| GRID_LINE_SECOND_PROMPT| GRID_LINE_START_COMMAND| GRID_LINE_START_OUTPUT| GRID_LINE_END_OUTPUT),
+};
+static_assert(sizeof(enum grid_line_flag) == sizeof(u_short));
 
 /* Grid string flags. */
-#define GRID_STRING_WITH_SEQUENCES 0x1
-#define GRID_STRING_ESCAPE_SEQUENCES 0x2
-#define GRID_STRING_TRIM_SPACES 0x4
-#define GRID_STRING_USED_ONLY 0x8
-#define GRID_STRING_EMPTY_CELLS 0x10
+enum grid_string_flag : int {
+	GRID_STRING_WITH_SEQUENCES = 0x1,
+	GRID_STRING_ESCAPE_SEQUENCES = 0x2,
+	GRID_STRING_TRIM_SPACES = 0x4,
+	GRID_STRING_USED_ONLY = 0x8,
+	GRID_STRING_EMPTY_CELLS = 0x10,
+};
+static_assert(sizeof(enum grid_string_flag) == sizeof(int));
 
 /*
  * Cell border characters. Border cells are named for the directions they
@@ -867,7 +865,7 @@ struct grid_cell {
 };
 
 /* Grid extended cell entry. */
-struct grid_extd_entry {
+struct [[gnu::packed]] grid_extd_entry {
 	utf8_char		data;
 	u_short			attr;
 	u_char			flags;
@@ -875,10 +873,10 @@ struct grid_extd_entry {
 	int			bg;
 	int			us;
 	u_int			link;
-} __packed;
+};
 
 /* Grid cell entry. */
-struct grid_cell_entry {
+struct [[gnu::packed]] grid_cell_entry {
 	union {
 		u_int		offset;
 		struct {
@@ -889,7 +887,7 @@ struct grid_cell_entry {
 		} data;
 	};
 	u_char			flags;
-} __packed;
+};
 
 /* OSC 133 data for a grid line. */
 struct osc133_data {
@@ -1164,10 +1162,29 @@ enum pane_lines {
 #define WINDOW_PANE_VIEW_MODE 2
 
 /* Screen size. */
-#define screen_size_x(s) ((s)->grid->sx)
-#define screen_size_y(s) ((s)->grid->sy)
-#define screen_hsize(s) ((s)->grid->hsize)
-#define screen_hlimit(s) ((s)->grid->hlimit)
+static inline u_int
+screen_size_x(const struct screen *s)
+{
+	return (s->grid->sx);
+}
+
+static inline u_int
+screen_size_y(const struct screen *s)
+{
+	return (s->grid->sy);
+}
+
+static inline u_int
+screen_hsize(const struct screen *s)
+{
+	return (s->grid->hsize);
+}
+
+static inline u_int
+screen_hlimit(const struct screen *s)
+{
+	return (s->grid->hlimit);
+}
 
 /* Menu. */
 struct menu_item {
@@ -1298,6 +1315,32 @@ struct visible_ranges {
 };
 
 /* Child window structure. */
+enum pane_flag : int {
+	PANE_REDRAW = 0x1,
+	PANE_DROP = 0x2,
+	PANE_FOCUSED = 0x4,
+	PANE_VISITED = 0x8,
+	PANE_ZOOMED = 0x10,
+	PANE_NEWSTATUS = 0x20,
+	PANE_INPUTOFF = 0x40,
+	PANE_CHANGED = 0x80,
+	PANE_EXITED = 0x100,
+	PANE_STATUSREADY = 0x200,
+	PANE_STATUSDRAWN = 0x400,
+	PANE_EMPTY = 0x800,
+	PANE_STYLECHANGED = 0x1000,
+	PANE_THEMECHANGED = 0x2000,
+	PANE_UNSEENCHANGES = 0x4000,
+	PANE_REDRAWSCROLLBAR = 0x8000,
+	PANE_DESTROYED = 0x10000,
+	PANE_CMDRUNNING = 0x20000,
+	PANE_ACTIVITY = 0x40000,
+	PANE_CLOSEONCLICK = 0x80000,
+	PANE_CAPTUREALLKEYS = 0x100000,
+	PANE_FLOATOVERZOOM = 0x200000,
+};
+static_assert(sizeof(enum pane_flag) == sizeof(int));
+
 struct window_pane {
 	u_int		 id;
 	int		 references;
@@ -1316,28 +1359,6 @@ struct window_pane {
 	int		 yoff;
 
 	int		 flags;
-#define PANE_REDRAW 0x1
-#define PANE_DROP 0x2
-#define PANE_FOCUSED 0x4
-#define PANE_VISITED 0x8
-#define PANE_ZOOMED 0x10
-#define PANE_NEWSTATUS 0x20
-#define PANE_INPUTOFF 0x40
-#define PANE_CHANGED 0x80
-#define PANE_EXITED 0x100
-#define PANE_STATUSREADY 0x200
-#define PANE_STATUSDRAWN 0x400
-#define PANE_EMPTY 0x800
-#define PANE_STYLECHANGED 0x1000
-#define PANE_THEMECHANGED 0x2000
-#define PANE_UNSEENCHANGES 0x4000
-#define PANE_REDRAWSCROLLBAR 0x8000
-#define PANE_DESTROYED 0x10000
-#define PANE_CMDRUNNING 0x20000
-#define PANE_ACTIVITY 0x40000
-#define PANE_CLOSEONCLICK 0x80000
-#define PANE_CAPTUREALLKEYS 0x100000
-#define PANE_FLOATOVERZOOM 0x200000
 
 	bitstr_t	*sync_dirty;
 	u_int		 sync_dirty_size;
@@ -1428,6 +1449,18 @@ TAILQ_HEAD(window_panes_zindex, window_pane);
 RB_HEAD(window_pane_tree, window_pane);
 
 /* Window structure. */
+enum window_flag : int {
+	WINDOW_BELL = 0x1,
+	WINDOW_ACTIVITY = 0x2,
+	WINDOW_SILENCE = 0x4,
+	WINDOW_ZOOMED = 0x8,
+	WINDOW_WASZOOMED = 0x10,
+	WINDOW_RESIZE = 0x20,
+	WINDOW_DESTROYING = 0x40,
+	WINDOW_ALERTFLAGS = (WINDOW_BELL|WINDOW_ACTIVITY|WINDOW_SILENCE),
+};
+static_assert(sizeof(enum window_flag) == sizeof(int));
+
 struct window {
 	u_int			 id;
 	void			*latest;
@@ -1482,14 +1515,6 @@ struct window {
 	struct grid_cell	 inside_cell;
 	struct grid_cell	 outside_cell;
 	int			 flags;
-#define WINDOW_BELL 0x1
-#define WINDOW_ACTIVITY 0x2
-#define WINDOW_SILENCE 0x4
-#define WINDOW_ZOOMED 0x8
-#define WINDOW_WASZOOMED 0x10
-#define WINDOW_RESIZE 0x20
-#define WINDOW_DESTROYING 0x40
-#define WINDOW_ALERTFLAGS (WINDOW_BELL|WINDOW_ACTIVITY|WINDOW_SILENCE)
 
 	int			 alerts_queued;
 	TAILQ_ENTRY(window)	 alerts_entry;
@@ -1504,17 +1529,21 @@ struct window {
 RB_HEAD(windows, window);
 
 /* Entry on local window list. */
+enum winlink_flag : int {
+	WINLINK_BELL = 0x1,
+	WINLINK_ACTIVITY = 0x2,
+	WINLINK_SILENCE = 0x4,
+	WINLINK_ALERTFLAGS = (WINLINK_BELL|WINLINK_ACTIVITY|WINLINK_SILENCE),
+	WINLINK_VISITED = 0x8,
+};
+static_assert(sizeof(enum winlink_flag) == sizeof(int));
+
 struct winlink {
 	int		 idx;
 	struct session	*session;
 	struct window	*window;
 
 	int		 flags;
-#define WINLINK_BELL 0x1
-#define WINLINK_ACTIVITY 0x2
-#define WINLINK_SILENCE 0x4
-#define WINLINK_ALERTFLAGS (WINLINK_BELL|WINLINK_ACTIVITY|WINLINK_SILENCE)
-#define WINLINK_VISITED 0x8
 
 	RB_ENTRY(winlink) entry;
 	TAILQ_ENTRY(winlink) wentry;
@@ -1752,6 +1781,28 @@ struct tty_style_ctx {
 };
 
 /* Client terminal. */
+enum tty_flag : int {
+	TTY_NOCURSOR = 0x1,
+	TTY_FREEZE = 0x2,
+	TTY_TIMER = 0x4,
+	TTY_NOBLOCK = 0x8,
+	TTY_STARTED = 0x10,
+	TTY_OPENED = 0x20,
+	TTY_OSC52QUERY = 0x40,
+	TTY_BLOCK = 0x80,
+	TTY_HAVEDA = 0x100,
+	TTY_HAVEXDA = 0x200,
+	TTY_SYNCING = 0x400,
+	TTY_HAVEDA2 = 0x800,
+	TTY_WINSIZEQUERY = 0x1000,
+	TTY_WAITFG = 0x2000,
+	TTY_WAITBG = 0x4000,
+	TTY_BRACKETPASTE = 0x8000,
+	TTY_HAVESYNC = 0x10000,
+	TTY_ALL_REQUEST_FLAGS = (TTY_HAVEDA|TTY_HAVEDA2|TTY_HAVEXDA|TTY_HAVESYNC),
+};
+static_assert(sizeof(enum tty_flag) == sizeof(int));
+
 struct tty {
 	struct client	*client;
 	struct event	 start_timer;
@@ -1800,25 +1851,6 @@ struct tty {
 	struct grid_cell cell;
 	struct grid_cell last_cell;
 
-#define TTY_NOCURSOR 0x1
-#define TTY_FREEZE 0x2
-#define TTY_TIMER 0x4
-#define TTY_NOBLOCK 0x8
-#define TTY_STARTED 0x10
-#define TTY_OPENED 0x20
-#define TTY_OSC52QUERY 0x40
-#define TTY_BLOCK 0x80
-#define TTY_HAVEDA 0x100
-#define TTY_HAVEXDA 0x200
-#define TTY_SYNCING 0x400
-#define TTY_HAVEDA2 0x800
-#define TTY_WINSIZEQUERY 0x1000
-#define TTY_WAITFG 0x2000
-#define TTY_WAITBG 0x4000
-#define TTY_BRACKETPASTE 0x8000
-#define TTY_HAVESYNC 0x10000
-#define TTY_ALL_REQUEST_FLAGS \
-	(TTY_HAVEDA|TTY_HAVEDA2|TTY_HAVEXDA|TTY_HAVESYNC)
 	int		 flags;
 
 	struct tty_term	*term;
@@ -2203,6 +2235,54 @@ typedef void (*overlay_free_cb)(struct client *, void *);
 typedef void (*overlay_resize_cb)(struct client *, void *);
 
 /* Client connection. */
+enum client_flag : uint64_t {
+	CLIENT_TERMINAL = 0x1,
+	CLIENT_LOGIN = 0x2,
+	CLIENT_EXIT = 0x4,
+	CLIENT_REDRAWWINDOW = 0x8,
+	CLIENT_REDRAWSTATUS = 0x10,
+	CLIENT_REPEAT = 0x20,
+	CLIENT_SUSPENDED = 0x40,
+	CLIENT_ATTACHED = 0x80,
+	CLIENT_EXITED = 0x100,
+	CLIENT_DEAD = 0x200,
+	CLIENT_REDRAWBORDERS = 0x400,
+	CLIENT_READONLY = 0x800,
+	CLIENT_NOSTARTSERVER = 0x1000,
+	CLIENT_CONTROL = 0x2000,
+	CLIENT_CONTROLCONTROL = 0x4000,
+	CLIENT_FOCUSED = 0x8000,
+	CLIENT_UTF8 = 0x10000,
+	CLIENT_IGNORESIZE = 0x20000,
+	CLIENT_IDENTIFIED = 0x40000,
+	CLIENT_STATUSFORCE = 0x80000,
+	CLIENT_DOUBLECLICK = 0x100000,
+	CLIENT_TRIPLECLICK = 0x200000,
+	CLIENT_SIZECHANGED = 0x400000,
+	CLIENT_STATUSOFF = 0x800000,
+	CLIENT_REDRAWSTATUSALWAYS = 0x1000000,
+	CLIENT_REDRAWOVERLAY = 0x2000000,
+	CLIENT_CONTROL_NOOUTPUT = 0x4000000,
+	CLIENT_DEFAULTSOCKET = 0x8000000,
+	CLIENT_STARTSERVER = 0x10000000,
+	CLIENT_REDRAWMENU = 0x20000000,
+	CLIENT_NOFORK = 0x40000000,
+	CLIENT_REDRAWSCROLLBARS = 0x80000000ULL,
+	CLIENT_CONTROL_PAUSEAFTER = 0x100000000ULL,
+	CLIENT_CONTROL_WAITEXIT = 0x200000000ULL,
+	CLIENT_WINDOWSIZECHANGED = 0x400000000ULL,
+	/* 0x800000000ULL unused */
+	CLIENT_BRACKETPASTING = 0x1000000000ULL,
+	CLIENT_ASSUMEPASTING = 0x2000000000ULL,
+	CLIENT_WRITE_ACK = 0x4000000000ULL,
+	CLIENT_NO_DETACH_ON_DESTROY = 0x8000000000ULL,
+	CLIENT_ALLREDRAWFLAGS = (CLIENT_REDRAWWINDOW| CLIENT_REDRAWSTATUS| CLIENT_REDRAWSTATUSALWAYS| CLIENT_REDRAWBORDERS| CLIENT_REDRAWOVERLAY| CLIENT_REDRAWMENU),
+	CLIENT_UNATTACHEDFLAGS = (CLIENT_DEAD| CLIENT_SUSPENDED| CLIENT_EXIT),
+	CLIENT_NODETACHFLAGS = (CLIENT_DEAD| CLIENT_EXIT),
+	CLIENT_NOSIZEFLAGS = (CLIENT_DEAD| CLIENT_SUSPENDED| CLIENT_EXIT),
+};
+static_assert(sizeof(enum client_flag) == sizeof(uint64_t));
+
 struct client {
 	const char		*name;
 	struct tmuxpeer		*peer;
@@ -2262,64 +2342,6 @@ struct client {
 
 	struct input_requests	 input_requests;
 
-#define CLIENT_TERMINAL 0x1
-#define CLIENT_LOGIN 0x2
-#define CLIENT_EXIT 0x4
-#define CLIENT_REDRAWWINDOW 0x8
-#define CLIENT_REDRAWSTATUS 0x10
-#define CLIENT_REPEAT 0x20
-#define CLIENT_SUSPENDED 0x40
-#define CLIENT_ATTACHED 0x80
-#define CLIENT_EXITED 0x100
-#define CLIENT_DEAD 0x200
-#define CLIENT_REDRAWBORDERS 0x400
-#define CLIENT_READONLY 0x800
-#define CLIENT_NOSTARTSERVER 0x1000
-#define CLIENT_CONTROL 0x2000
-#define CLIENT_CONTROLCONTROL 0x4000
-#define CLIENT_FOCUSED 0x8000
-#define CLIENT_UTF8 0x10000
-#define CLIENT_IGNORESIZE 0x20000
-#define CLIENT_IDENTIFIED 0x40000
-#define CLIENT_STATUSFORCE 0x80000
-#define CLIENT_DOUBLECLICK 0x100000
-#define CLIENT_TRIPLECLICK 0x200000
-#define CLIENT_SIZECHANGED 0x400000
-#define CLIENT_STATUSOFF 0x800000
-#define CLIENT_REDRAWSTATUSALWAYS 0x1000000
-#define CLIENT_REDRAWOVERLAY 0x2000000
-#define CLIENT_CONTROL_NOOUTPUT 0x4000000
-#define CLIENT_DEFAULTSOCKET 0x8000000
-#define CLIENT_STARTSERVER 0x10000000
-#define CLIENT_REDRAWMENU 0x20000000
-#define CLIENT_NOFORK 0x40000000
-#define CLIENT_REDRAWSCROLLBARS 0x80000000ULL
-#define CLIENT_CONTROL_PAUSEAFTER 0x100000000ULL
-#define CLIENT_CONTROL_WAITEXIT 0x200000000ULL
-#define CLIENT_WINDOWSIZECHANGED 0x400000000ULL
-/* 0x800000000ULL unused */
-#define CLIENT_BRACKETPASTING 0x1000000000ULL
-#define CLIENT_ASSUMEPASTING 0x2000000000ULL
-#define CLIENT_WRITE_ACK 0x4000000000ULL
-#define CLIENT_NO_DETACH_ON_DESTROY 0x8000000000ULL
-#define CLIENT_ALLREDRAWFLAGS		\
-	(CLIENT_REDRAWWINDOW|		\
-	 CLIENT_REDRAWSTATUS|		\
-	 CLIENT_REDRAWSTATUSALWAYS|	\
-	 CLIENT_REDRAWBORDERS|		\
-	 CLIENT_REDRAWOVERLAY|		\
-	 CLIENT_REDRAWMENU)
-#define CLIENT_UNATTACHEDFLAGS	\
-	(CLIENT_DEAD|		\
-	 CLIENT_SUSPENDED|	\
-	 CLIENT_EXIT)
-#define CLIENT_NODETACHFLAGS	\
-	(CLIENT_DEAD|		\
-	 CLIENT_EXIT)
-#define CLIENT_NOSIZEFLAGS	\
-	(CLIENT_DEAD|		\
-	 CLIENT_SUSPENDED|	\
-	 CLIENT_EXIT)
 	uint64_t		 flags;
 
 	enum {
@@ -2628,7 +2650,7 @@ int	load_cfg(const char *, struct client *, struct cmdq_item *,
 int	load_cfg_from_buffer(const void *, size_t, const char *,
   	    struct client *, struct cmdq_item *, struct cmd_find_state *,
 	    int, struct cmdq_item **);
-void printflike(1, 2) cfg_add_cause(const char *, ...);
+[[gnu::format(printf, 1, 2)]] void cfg_add_cause(const char *, ...);
 void	cfg_print_causes(struct cmdq_item *);
 void	cfg_show_causes(struct session *);
 
@@ -2671,14 +2693,17 @@ struct key_binding	**sort_get_key_bindings_table(struct key_table *,
 			      u_int *, struct sort_criteria *);
 
 /* format.c */
-#define FORMAT_STATUS 0x1
-#define FORMAT_FORCE 0x2
-#define FORMAT_NOJOBS 0x4
-#define FORMAT_VERBOSE 0x8
-#define FORMAT_LAST 0x10
-#define FORMAT_NONE 0
-#define FORMAT_PANE 0x80000000U
-#define FORMAT_WINDOW 0x40000000U
+enum format_flag : u_int {
+	FORMAT_STATUS = 0x1,
+	FORMAT_FORCE = 0x2,
+	FORMAT_NOJOBS = 0x4,
+	FORMAT_VERBOSE = 0x8,
+	FORMAT_LAST = 0x10,
+	FORMAT_NONE = 0,
+	FORMAT_PANE = 0x80000000U,
+	FORMAT_WINDOW = 0x40000000U,
+};
+static_assert(sizeof(enum format_flag) == sizeof(u_int));
 struct format_tree;
 struct format_modifier;
 typedef void *(*format_cb)(struct format_tree *);
@@ -2690,7 +2715,7 @@ struct format_tree *format_create(struct client *, struct cmdq_item *, int,
 void		 format_free(struct format_tree *);
 void		 format_merge(struct format_tree *, struct format_tree *);
 struct window_pane *format_get_pane(struct format_tree *);
-void printflike(3, 4) format_add(struct format_tree *, const char *,
+[[gnu::format(printf, 3, 4)]] void format_add(struct format_tree *, const char *,
 		     const char *, ...);
 void		 format_add_tv(struct format_tree *, const char *,
 		     struct timeval *);
@@ -2728,14 +2753,14 @@ char		*format_grid_line(struct grid *, u_int);
 /* events-payload.c */
 struct event_payload *event_payload_create(void);
 void	 event_payload_free(struct event_payload *);
-void printflike(2, 3) event_payload_log(struct event_payload *, const char *,
+[[gnu::format(printf, 2, 3)]] void event_payload_log(struct event_payload *, const char *,
 	     ...);
 char	*event_payload_item_print(struct event_payload_item *);
 void	 event_payload_set_target(struct event_payload *,
 	     struct cmd_find_state *);
 int	 event_payload_get_target(struct event_payload *,
 	     struct cmd_find_state *);
-void printflike(3, 4) event_payload_set_string(struct event_payload *,
+[[gnu::format(printf, 3, 4)]] void event_payload_set_string(struct event_payload *,
 	     const char *, const char *, ...);
 void	 event_payload_set_time(struct event_payload *, const char *, time_t);
 void	 event_payload_set_int(struct event_payload *, const char *, int);
@@ -2827,7 +2852,7 @@ struct options_entry *options_get_only(struct options *, const char *);
 struct options_entry *options_get(struct options *, const char *);
 void		 options_array_clear(struct options_entry *);
 union options_value *options_array_get(struct options_entry *, const char *);
-union options_value * printflike(2, 3) options_array_getv(
+[[gnu::format(printf, 2, 3)]] union options_value *options_array_getv(
 		     struct options_entry *, const char *, ...);
 int		 options_array_set(struct options_entry *, const char *,
 		     const char *, int, char **);
@@ -2850,7 +2875,7 @@ struct options_entry *options_match_get(struct options *, const char *,
 const char	*options_get_string(struct options *, const char *);
 long long	 options_get_number(struct options *, const char *);
 struct cmd_list *options_get_command(struct options *, const char *);
-struct options_entry * printflike(4, 5) options_set_string(struct options *,
+[[gnu::format(printf, 4, 5)]] struct options_entry *options_set_string(struct options *,
 		     const char *, int, const char *, ...);
 struct options_entry *options_set_number(struct options *, const char *,
 		     long long);
@@ -2906,14 +2931,14 @@ struct environ_entry *environ_first(struct environ *);
 struct environ_entry *environ_next(struct environ_entry *);
 void	environ_copy(struct environ *, struct environ *);
 struct environ_entry *environ_find(struct environ *, const char *);
-void printflike(4, 5) environ_set(struct environ *, const char *, int,
+[[gnu::format(printf, 4, 5)]] void environ_set(struct environ *, const char *, int,
 	    const char *, ...);
 void	environ_clear(struct environ *, const char *);
 void	environ_put(struct environ *, const char *, int);
 void	environ_unset(struct environ *, const char *);
 void	environ_update(struct options *, struct environ *, struct environ *);
 void	environ_push(struct environ *);
-void printflike(2, 3) environ_log(struct environ *, const char *, ...);
+[[gnu::format(printf, 2, 3)]] void environ_log(struct environ *, const char *, ...);
 struct environ *environ_for_session(struct session *, int);
 
 /* tty-draw.c */
@@ -3128,7 +3153,7 @@ int		 cmd_find_from_nothing(struct cmd_find_state *, int);
 /* cmd.c */
 extern const struct cmd_entry *cmd_table[];
 const struct cmd_entry *cmd_find(const char *, char **);
-void printflike(3, 4) cmd_log_argv(int, char **, const char *, ...);
+[[gnu::format(printf, 3, 4)]] void cmd_log_argv(int, char **, const char *, ...);
 void		 cmd_prepend_argv(int *, char ***, const char *);
 void		 cmd_append_argv(int *, char ***, const char *);
 int		 cmd_pack_argv(int, char **, char *, size_t);
@@ -3193,7 +3218,7 @@ struct cmdq_state *cmdq_link_state(struct cmdq_state *);
 struct cmdq_state *cmdq_copy_state(struct cmdq_state *,
 		     struct cmd_find_state *);
 void		  cmdq_free_state(struct cmdq_state *);
-void printflike(3, 4) cmdq_add_format(struct cmdq_state *, const char *,
+[[gnu::format(printf, 3, 4)]] void cmdq_add_format(struct cmdq_state *, const char *,
 		     const char *, ...);
 void		  cmdq_add_formats(struct cmdq_state *, struct format_tree *);
 void		  cmdq_merge_formats(struct cmdq_item *, struct format_tree *);
@@ -3215,15 +3240,15 @@ struct cmdq_item *cmdq_get_callback1(const char *, cmdq_cb, void *);
 struct cmdq_item *cmdq_get_error(const char *);
 struct cmdq_item *cmdq_insert_after(struct cmdq_item *, struct cmdq_item *);
 struct cmdq_item *cmdq_append(struct client *, struct cmdq_item *);
-void printflike(4, 5) cmdq_insert_hook(struct session *, struct cmdq_item *,
+[[gnu::format(printf, 4, 5)]] void cmdq_insert_hook(struct session *, struct cmdq_item *,
 		     struct cmd_find_state *, const char *, ...);
 void		 cmdq_continue(struct cmdq_item *);
 u_int		 cmdq_next(struct client *);
 struct cmdq_item *cmdq_running(struct client *);
 void		 cmdq_guard(struct cmdq_item *, const char *, int);
-void printflike(2, 3) cmdq_print(struct cmdq_item *, const char *, ...);
+[[gnu::format(printf, 2, 3)]] void cmdq_print(struct cmdq_item *, const char *, ...);
 void 		 cmdq_print_data(struct cmdq_item *, struct evbuffer *);
-void printflike(2, 3) cmdq_error(struct cmdq_item *, const char *, ...);
+[[gnu::format(printf, 2, 3)]] void cmdq_error(struct cmdq_item *, const char *, ...);
 
 /* cmd-wait-for.c */
 void	cmd_wait_for_flush(void);
@@ -3272,10 +3297,10 @@ void	 file_free(struct client_file *);
 void	 file_fire_done(struct client_file *);
 void	 file_fire_read(struct client_file *);
 int	 file_can_print(struct client *);
-void printflike(2, 3) file_print(struct client *, const char *, ...);
-void printflike(2, 0) file_vprint(struct client *, const char *, va_list);
+[[gnu::format(printf, 2, 3)]] void file_print(struct client *, const char *, ...);
+[[gnu::format(printf, 2, 0)]] void file_vprint(struct client *, const char *, va_list);
 void	 file_print_buffer(struct client *, void *, size_t);
-void printflike(2, 3) file_error(struct client *, const char *, ...);
+[[gnu::format(printf, 2, 3)]] void file_error(struct client *, const char *, ...);
 void	 file_write(struct client *, const char *, int, const void *, size_t,
 	     client_file_cb, void *);
 struct client_file *file_read(struct client *, const char *, client_file_cb,
@@ -3311,7 +3336,7 @@ int	 server_start(struct tmuxproc *, uint64_t, struct event_base *, int,
 	     char *);
 void	 server_update_socket(void);
 void	 server_add_accept(int);
-void printflike(1, 2) server_add_message(const char *, ...);
+[[gnu::format(printf, 1, 2)]] void server_add_message(const char *, ...);
 int	 server_create_socket(uint64_t, char **);
 
 /* server-client.c */
@@ -3383,7 +3408,7 @@ struct style_range *status_get_range(struct client *, u_int, u_int);
 void	 status_init(struct client *);
 void	 status_free(struct client *);
 int	 status_redraw(struct client *);
-void printflike(6, 7) status_message_set(struct client *, int, int, int, int,
+[[gnu::format(printf, 6, 7)]] void status_message_set(struct client *, int, int, int, int,
 	     const char *, ...);
 void	 status_message_clear(struct client *);
 int	 status_message_redraw(struct client *);
@@ -3579,14 +3604,14 @@ void	 screen_write_start_callback(struct screen_write_ctx *, struct screen *,
 	     screen_write_init_ctx_cb, void *);
 void	 screen_write_stop(struct screen_write_ctx *);
 void	 screen_write_reset(struct screen_write_ctx *);
-size_t printflike(1, 2) screen_write_strlen(const char *, ...);
-int printflike(7, 8) screen_write_text(struct screen_write_ctx *, u_int, u_int,
+[[gnu::format(printf, 1, 2)]] size_t screen_write_strlen(const char *, ...);
+[[gnu::format(printf, 7, 8)]] int screen_write_text(struct screen_write_ctx *, u_int, u_int,
 	     u_int, int, const struct grid_cell *, const char *, ...);
-void printflike(3, 4) screen_write_puts(struct screen_write_ctx *,
+[[gnu::format(printf, 3, 4)]] void screen_write_puts(struct screen_write_ctx *,
 	     const struct grid_cell *, const char *, ...);
-void printflike(4, 5) screen_write_nputs(struct screen_write_ctx *,
+[[gnu::format(printf, 4, 5)]] void screen_write_nputs(struct screen_write_ctx *,
 	     ssize_t, const struct grid_cell *, const char *, ...);
-void printflike(4, 0) screen_write_vnputs(struct screen_write_ctx *, ssize_t,
+[[gnu::format(printf, 4, 0)]] void screen_write_vnputs(struct screen_write_ctx *, ssize_t,
 	     const struct grid_cell *, const char *, va_list);
 void	 screen_write_putc(struct screen_write_ctx *, const struct grid_cell *,
 	     u_char);
@@ -3998,9 +4023,9 @@ extern const struct window_mode window_client_mode;
 /* window-copy.c */
 extern const struct window_mode window_copy_mode;
 extern const struct window_mode window_view_mode;
-void printflike(3, 4) window_copy_add(struct window_pane *, int, const char *,
+[[gnu::format(printf, 3, 4)]] void window_copy_add(struct window_pane *, int, const char *,
 		     ...);
-void printflike(3, 0) window_copy_vadd(struct window_pane *, int, const char *,
+[[gnu::format(printf, 3, 0)]] void window_copy_vadd(struct window_pane *, int, const char *,
 		     va_list);
 void		 window_copy_scroll(struct window_pane *, int, u_int, u_int, int);
 void		 window_copy_pageup(struct window_pane *, int);
@@ -4051,8 +4076,8 @@ void	control_clear_window_size(struct client *, u_int);
 struct window_pane_offset *control_pane_offset(struct client *,
 	   struct window_pane *, int *);
 void	control_reset_offsets(struct client *);
-void printflike(2, 3) control_write(struct client *, const char *, ...);
-void printflike(2, 3) control_notify_write(struct client *, const char *, ...);
+[[gnu::format(printf, 2, 3)]] void control_write(struct client *, const char *, ...);
+[[gnu::format(printf, 2, 3)]] void control_notify_write(struct client *, const char *, ...);
 void	control_write_guard(struct client *, const char *, long, u_int, int);
 void	control_write_output(struct client *, struct window_pane *);
 int	control_all_done(struct client *);
@@ -4152,9 +4177,9 @@ int	log_get_level(void);
 void	log_open(const char *);
 void	log_toggle(const char *);
 void	log_close(void);
-void printflike(1, 2) log_debug(const char *, ...);
-__dead void printflike(1, 2) fatal(const char *, ...);
-__dead void printflike(1, 2) fatalx(const char *, ...);
+[[gnu::format(printf, 1, 2)]] void log_debug(const char *, ...);
+[[gnu::format(printf, 1, 2)]] [[noreturn]] void fatal(const char *, ...);
+[[gnu::format(printf, 1, 2)]] [[noreturn]] void fatalx(const char *, ...);
 
 /* menu.c */
 #define MENU_NOMOUSE 0x1

@@ -335,7 +335,7 @@ window_switch_draw_screen(struct window_mode_entry *wme)
 
 static struct screen *
 window_switch_init(struct window_mode_entry *wme,
-    __unused struct cmdq_item *item, struct cmd_find_state *fs,
+    [[maybe_unused]] struct cmdq_item *item, struct cmd_find_state *fs,
     struct args *args)
 {
 	struct window_pane		*wp = wme->wp;
@@ -509,7 +509,7 @@ window_switch_prompt_callback(void *arg, const char *s,
 
 static void
 window_switch_key(struct window_mode_entry *wme, struct client *c,
-    __unused struct session *s, __unused struct winlink *wl, key_code key,
+    [[maybe_unused]] struct session *s, [[maybe_unused]] struct winlink *wl, key_code key,
     struct mouse_event *m)
 {
 	struct window_pane		*wp = wme->wp;

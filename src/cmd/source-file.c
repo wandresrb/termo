@@ -113,7 +113,7 @@ cmd_source_file_complete(struct cmd_source_file_data *cdata)
 }
 
 static void
-cmd_source_file_done(__unused struct client *oc, const char *path,
+cmd_source_file_done([[maybe_unused]] struct client *oc, const char *path,
     int error, int closed, struct evbuffer *buffer, void *data)
 {
 	struct cmd_source_file_data	*cdata = data;

@@ -24,8 +24,8 @@ jobs:
           - os: ubuntu-24.04
             cc: gcc-14
           - os: ubuntu-24.04
-            cc: clang-18
-          - os: macos-15
+            cc: clang-20
+          - os: macos-26
             cc: clang
     env:
       CC: ${{ matrix.cc }}
@@ -38,8 +38,13 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y ${{ matrix.cc }} meson ninja-build bison pkg-config ccache \
+          sudo apt-get install -y meson ninja-build bison pkg-config ccache \
             libevent-dev libncurses-dev libutf8proc-dev libluajit-5.1-dev
+          case "${{ matrix.cc }}" in
+            gcc-*)   sudo apt-get install -y ${{ matrix.cc }} ;;
+            clang-*) wget -qO /tmp/llvm.sh https://apt.llvm.org/llvm.sh && \
+                     sudo bash /tmp/llvm.sh "${CC#clang-}" ;;
+          esac
           # ASAN needs fewer ASLR bits than the runner kernel default
           sudo sysctl vm.mmap_rnd_bits=28
 
@@ -53,10 +58,8 @@ jobs:
 
       - name: configure
         run: |
-          extra=""
-          [ "$RUNNER_OS" = macOS ] && extra="-Db_lundef=false"
           meson setup build -Db_sanitize=address,undefined -Dbuildtype=debugoptimized \
-            -Dwerror=true $extra
+            -Dwerror=true
 
       - name: build
         run: ninja -C build

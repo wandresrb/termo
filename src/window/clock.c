@@ -145,7 +145,7 @@ window_clock_start_timer(struct window_mode_entry *wme)
 }
 
 static void
-window_clock_timer_callback(__unused int fd, __unused short events, void *arg)
+window_clock_timer_callback([[maybe_unused]] int fd, [[maybe_unused]] short events, void *arg)
 {
 	struct window_mode_entry	*wme = arg;
 	struct window_pane		*wp = wme->wp;
@@ -170,8 +170,8 @@ window_clock_timer_callback(__unused int fd, __unused short events, void *arg)
 
 static struct screen *
 window_clock_init(struct window_mode_entry *wme,
-    __unused struct cmdq_item *item, __unused struct cmd_find_state *fs,
-    __unused struct args *args)
+    [[maybe_unused]] struct cmdq_item *item, [[maybe_unused]] struct cmd_find_state *fs,
+    [[maybe_unused]] struct args *args)
 {
 	struct window_pane		*wp = wme->wp;
 	struct window_clock_mode_data	*data;
@@ -213,9 +213,9 @@ window_clock_resize(struct window_mode_entry *wme, u_int sx, u_int sy)
 }
 
 static void
-window_clock_key(struct window_mode_entry *wme, __unused struct client *c,
-    __unused struct session *s, __unused struct winlink *wl,
-    __unused key_code key, __unused struct mouse_event *m)
+window_clock_key(struct window_mode_entry *wme, [[maybe_unused]] struct client *c,
+    [[maybe_unused]] struct session *s, [[maybe_unused]] struct winlink *wl,
+    [[maybe_unused]] key_code key, [[maybe_unused]] struct mouse_event *m)
 {
 	window_pane_reset_mode(wme->wp);
 }

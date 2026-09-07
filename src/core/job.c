@@ -306,7 +306,7 @@ job_resize(struct job *job, u_int sx, u_int sy)
 
 /* Job buffer read callback. */
 static void
-job_read_callback(__unused struct bufferevent *bufev, void *data)
+job_read_callback([[maybe_unused]] struct bufferevent *bufev, void *data)
 {
 	struct job	*job = data;
 
@@ -320,7 +320,7 @@ job_read_callback(__unused struct bufferevent *bufev, void *data)
  * event.
  */
 static void
-job_write_callback(__unused struct bufferevent *bufev, void *data)
+job_write_callback([[maybe_unused]] struct bufferevent *bufev, void *data)
 {
 	struct job	*job = data;
 	size_t		 len = EVBUFFER_LENGTH(EVBUFFER_OUTPUT(job->event));
@@ -336,7 +336,7 @@ job_write_callback(__unused struct bufferevent *bufev, void *data)
 
 /* Job buffer error callback. */
 static void
-job_error_callback(__unused struct bufferevent *bufev, __unused short events,
+job_error_callback([[maybe_unused]] struct bufferevent *bufev, [[maybe_unused]] short events,
     void *data)
 {
 	struct job	*job = data;

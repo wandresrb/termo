@@ -915,7 +915,7 @@ window_tree_draw(void *modedata, void *itemdata, struct screen_write_ctx *ctx,
 }
 
 static int
-window_tree_search(__unused void *modedata, void *itemdata, const char *ss,
+window_tree_search([[maybe_unused]] void *modedata, void *itemdata, const char *ss,
     int icase)
 {
 	struct window_tree_itemdata	*item = itemdata;
@@ -1105,7 +1105,7 @@ window_tree_help(u_int *width, const char **item)
 
 static struct screen *
 window_tree_init(struct window_mode_entry *wme,
-    __unused struct cmdq_item *item, struct cmd_find_state *fs,
+    [[maybe_unused]] struct cmdq_item *item, struct cmd_find_state *fs,
     struct args *args)
 {
 	struct window_pane		*wp = wme->wp;
@@ -1246,7 +1246,7 @@ window_tree_get_target(struct window_tree_itemdata *item,
 
 static void
 window_tree_command_each(void *modedata, void *itemdata, struct client *c,
-    __unused key_code key)
+    [[maybe_unused]] key_code key)
 {
 	struct window_tree_modedata	*data = modedata;
 	struct window_tree_itemdata	*item = itemdata;
@@ -1260,7 +1260,7 @@ window_tree_command_each(void *modedata, void *itemdata, struct client *c,
 }
 
 static enum cmd_retval
-window_tree_command_done(__unused struct cmdq_item *item, void *modedata)
+window_tree_command_done([[maybe_unused]] struct cmdq_item *item, void *modedata)
 {
 	struct window_tree_modedata	*data = modedata;
 
@@ -1275,7 +1275,7 @@ window_tree_command_done(__unused struct cmdq_item *item, void *modedata)
 
 static enum prompt_result
 window_tree_command_callback(struct client *c, void *modedata, const char *s,
-    __unused enum prompt_key_result key)
+    [[maybe_unused]] enum prompt_key_result key)
 {
 	struct window_tree_modedata	*data = modedata;
 
@@ -1302,8 +1302,8 @@ window_tree_command_free(void *modedata)
 }
 
 static void
-window_tree_kill_each(__unused void *modedata, void *itemdata,
-    __unused struct client *c, __unused key_code key)
+window_tree_kill_each([[maybe_unused]] void *modedata, void *itemdata,
+    [[maybe_unused]] struct client *c, [[maybe_unused]] key_code key)
 {
 	struct window_tree_itemdata	*item = itemdata;
 	struct session			*s;
@@ -1334,7 +1334,7 @@ window_tree_kill_each(__unused void *modedata, void *itemdata,
 
 static enum prompt_result
 window_tree_kill_current_callback(struct client *c, void *modedata,
-    const char *s, __unused enum prompt_key_result key)
+    const char *s, [[maybe_unused]] enum prompt_key_result key)
 {
 	struct window_tree_modedata	*data = modedata;
 	struct mode_tree_data		*mtd = data->data;
@@ -1355,7 +1355,7 @@ window_tree_kill_current_callback(struct client *c, void *modedata,
 
 static enum prompt_result
 window_tree_kill_tagged_callback(struct client *c, void *modedata,
-    const char *s, __unused enum prompt_key_result key)
+    const char *s, [[maybe_unused]] enum prompt_key_result key)
 {
 	struct window_tree_modedata	*data = modedata;
 	struct mode_tree_data		*mtd = data->data;
@@ -1437,7 +1437,7 @@ window_tree_mouse(struct window_tree_modedata *data, key_code key, u_int x,
 
 static void
 window_tree_key(struct window_mode_entry *wme, struct client *c,
-    __unused struct session *s, __unused struct winlink *wl, key_code key,
+    [[maybe_unused]] struct session *s, [[maybe_unused]] struct winlink *wl, key_code key,
     struct mouse_event *m)
 {
 	struct window_pane		*wp = wme->wp;

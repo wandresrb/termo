@@ -33,14 +33,14 @@
 
 #include "termo.h"
 
-static __dead void	 usage(int);
+[[noreturn]] static void	 usage(int);
 static char		*make_label(const char *, char **);
 
 static const char	*getshell(void);
 
 #ifdef ASAN
-__attribute__((used)) const char *__asan_default_options(void);
-__attribute__((used)) const char *
+[[gnu::used]] const char *__asan_default_options(void);
+[[gnu::used]] const char *
 __asan_default_options(void)
 {
 	return (
@@ -55,8 +55,8 @@ __asan_default_options(void)
 	);
 }
 
-__attribute__((used)) const char *__ubsan_default_options(void);
-__attribute__((used)) const char *
+[[gnu::used]] const char *__ubsan_default_options(void);
+[[gnu::used]] const char *
 __ubsan_default_options(void)
 {
 	return (
@@ -68,7 +68,7 @@ __ubsan_default_options(void)
 }
 #endif
 
-static __dead void
+[[noreturn]] static void
 usage(int status)
 {
 	fprintf(status ? stderr : stdout,

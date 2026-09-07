@@ -67,8 +67,8 @@ struct cmd_run_shell_data {
 };
 
 static enum args_parse_type
-cmd_run_shell_args_parse(struct args *args, __unused u_int idx,
-    __unused char **cause)
+cmd_run_shell_args_parse(struct args *args, [[maybe_unused]] u_int idx,
+    [[maybe_unused]] char **cause)
 {
 	if (args_has(args, 'C'))
 		return (ARGS_PARSE_COMMANDS_OR_STRING);
@@ -190,7 +190,7 @@ cmd_run_shell_exec(struct cmd *self, struct cmdq_item *item)
 }
 
 static void
-cmd_run_shell_timer(__unused int fd, __unused short events, void* arg)
+cmd_run_shell_timer([[maybe_unused]] int fd, [[maybe_unused]] short events, void* arg)
 {
 	struct cmd_run_shell_data	*cdata = arg;
 	struct client			*c = cdata->client;

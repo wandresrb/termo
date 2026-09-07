@@ -190,7 +190,7 @@ cmd_resize_pane_exec(struct cmd *self, struct cmdq_item *item)
 }
 
 static enum cmd_retval
-cmd_resize_pane_mouse_update(__unused struct cmd *self, struct cmdq_item *item)
+cmd_resize_pane_mouse_update([[maybe_unused]] struct cmd *self, struct cmdq_item *item)
 {
 	struct cmd_find_state	*target = cmdq_get_target(item);
 	struct key_event	*event = cmdq_get_event(item);

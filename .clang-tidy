@@ -1,0 +1,15 @@
+# Checks the tree is expected to hold at zero; nightly compares against tools/clang-tidy-baseline.
+Checks: >
+  -*,
+  bugprone-*,
+  -bugprone-easily-swappable-parameters,
+  -bugprone-narrowing-conversions,
+  cert-*,
+  -cert-err33-c,
+  misc-*,
+  -misc-no-recursion,
+  -misc-include-cleaner,
+  readability-implicit-bool-conversion
+WarningsAsErrors: ''
+HeaderFilterRegex: 'src/.*'
+FormatStyle: none

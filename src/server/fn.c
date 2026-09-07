@@ -363,10 +363,6 @@ server_destroy_pane(struct window_pane *wp, int notify)
 	u_int			 sy = screen_size_y(&wp->base);
 
 	if (wp->fd != -1) {
-#ifdef HAVE_UTEMPTER
-		utempter_remove_record(wp->fd);
-		kill(getpid(), SIGCHLD);
-#endif
 		bufferevent_free(wp->event);
 		wp->event = NULL;
 		close(wp->fd);
@@ -388,7 +384,7 @@ server_destroy_pane(struct window_pane *wp, int notify)
 	case 2:
 		if (WIFEXITED(wp->status) && WEXITSTATUS(wp->status) == 0)
 			break;
-		/* FALLTHROUGH */
+		[[fallthrough]];
 	case 1:
 	case 3:
 		if (wp->flags & PANE_STATUSDRAWN)

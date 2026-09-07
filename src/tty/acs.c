@@ -249,7 +249,7 @@ tty_acs_get(struct tty *tty, u_char ch)
 
 /* Reverse UTF-8 into ACS. */
 int
-tty_acs_reverse_get(__unused struct tty *tty, const char *s, size_t slen)
+tty_acs_reverse_get([[maybe_unused]] struct tty *tty, const char *s, size_t slen)
 {
 	const struct tty_acs_reverse_entry	*table, *entry;
 	u_int					 items;

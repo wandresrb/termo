@@ -1,13 +1,25 @@
 project('termo', 'c',
   version: '0.1.0',
   default_options: [
-    'c_std=c23,c2x,gnu17,c11',
+    'c_std=c23',
     'warning_level=2',
   ],
 )
 
 cc = meson.get_compiler('c')
 host_os = host_machine.system()
+
+# The tree uses these C23 features; fail here, not in the middle of the build.
+c23_probe = '''
+#include <stdckdint.h>
+constexpr int termo_c23 = 1;
+enum termo_c23_enum : unsigned char { TERMO_C23 = termo_c23 };
+int main(void) { int *p = nullptr; int r; return ckd_add(&r, 1, 2) || p != nullptr; }
+'''
+if not cc.compiles(c23_probe, args: ['-std=c23'],
+    name: 'C23 (nullptr, constexpr, fixed-type enum, stdckdint.h)')
+  error('termo needs C23: GCC 14+, Clang 20+ or Xcode 26+ (Apple clang 21)')
+endif
 
 # Basic include directories
 inc_dirs = include_directories('.', 'src', 'src/core', 'src/compat')
@@ -323,17 +335,10 @@ sources += files('src/compat/getopt_long.c', 'src/compat/fdforkpty.c')
 # OS-specific settings and sources
 if host_os == 'darwin'
   sources += files('src/osdep/osdep-darwin.c', 'src/compat/daemon.c', 'src/compat/daemon-darwin.c')
-  c_args += [
-    '-DBROKEN___DEAD',
-    '-DBROKEN_CMSG_FIRSTHDR',
-    '-DIS_DARWIN=1',
-  ]
+  c_args += '-DBROKEN_CMSG_FIRSTHDR'
 elif host_os == 'linux'
   sources += files('src/osdep/osdep-linux.c')
-  c_args += [
-    '-D_GNU_SOURCE',
-    '-DIS_LINUX=1',
-  ]
+  c_args += '-D_GNU_SOURCE'
 elif host_os == 'freebsd'
   sources += files('src/osdep/osdep-freebsd.c')
 elif host_os == 'openbsd'
@@ -341,22 +346,8 @@ elif host_os == 'openbsd'
 elif host_os == 'netbsd'
   sources += files('src/osdep/osdep-netbsd.c')
   c_args += '-D_OPENBSD_SOURCE'
-elif host_os == 'sunos'
-  sources += files('src/osdep/osdep-sunos.c')
-  c_args += '-D_XPG6'
-elif host_os == 'cygwin'
-  sources += files('src/osdep/osdep-cygwin.c')
-  c_args += '-DTMUX_SOCK_PERM=0'
-elif host_os == 'haiku'
-  sources += files('src/osdep/osdep-haiku.c')
-  c_args += '-D_BSD_SOURCE'
-elif host_os == 'aix'
-  sources += files('src/osdep/osdep-aix.c')
-  c_args += '-D_LINUX_SOURCE_COMPAT=1'
-elif host_os == 'dragonfly'
-  sources += files('src/osdep/osdep-dragonfly.c')
 else
-  sources += files('src/osdep/osdep-unknown.c')
+  error('unsupported host: ' + host_os + ' (termo targets Linux, macOS, FreeBSD, OpenBSD, NetBSD)')
 endif
 
 # Check headers
@@ -378,12 +369,6 @@ foreach item : check_headers
   endif
 endforeach
 
-if cc.has_header('err.h')
-  c_args += '-DHAVE_ERR_H=1'
-else
-  sources += files('src/compat/err.c')
-endif
-
 # Check queue.h
 if cc.has_header_symbol('sys/queue.h', 'TAILQ_REPLACE') and \
    cc.has_header_symbol('sys/queue.h', 'TAILQ_CONCAT') and \
@@ -399,30 +384,16 @@ endif
 
 # Check functions and compile compat shims if missing
 check_functions = [
-  ['asprintf', 'src/compat/asprintf.c', '#include <stdio.h>'],
-  ['cfmakeraw', 'src/compat/cfmakeraw.c', '#include <termios.h>'],
-  ['clock_gettime', 'src/compat/clock_gettime.c', '#include <time.h>'],
   ['closefrom', 'src/compat/closefrom.c', '#include <unistd.h>'],
   ['explicit_bzero', 'src/compat/explicit_bzero.c', '#include <string.h>'],
   ['freezero', 'src/compat/freezero.c', '#include <stdlib.h>'],
-  ['getdtablecount', 'src/compat/getdtablecount.c', '#include <unistd.h>'],
-  ['getdtablesize', 'src/compat/getdtablesize.c', '#include <unistd.h>'],
-  ['getline', 'src/compat/getline.c', '#include <stdio.h>'],
   ['getpeereid', 'src/compat/getpeereid.c', '#include <sys/types.h>\n#include <unistd.h>'],
   ['getprogname', 'src/compat/getprogname.c', '#include <stdlib.h>'],
   ['htonll', 'src/compat/htonll.c', '#include <sys/types.h>\n#include <arpa/inet.h>'],
   ['ntohll', 'src/compat/ntohll.c', '#include <sys/types.h>\n#include <arpa/inet.h>'],
-  ['memmem', 'src/compat/memmem.c', '#include <string.h>'],
   ['reallocarray', 'src/compat/reallocarray.c', '#include <stdlib.h>'],
   ['recallocarray', 'src/compat/recallocarray.c', '#include <stdlib.h>'],
-  ['setenv', 'src/compat/setenv.c', '#include <stdlib.h>'],
   ['setproctitle', 'src/compat/setproctitle.c', '#include <stdlib.h>'],
-  ['strcasestr', 'src/compat/strcasestr.c', '#include <string.h>'],
-  ['strlcat', 'src/compat/strlcat.c', '#include <string.h>'],
-  ['strlcpy', 'src/compat/strlcpy.c', '#include <string.h>'],
-  ['strndup', 'src/compat/strndup.c', '#include <string.h>'],
-  ['strnlen', 'src/compat/strnlen.c', '#include <string.h>'],
-  ['strsep', 'src/compat/strsep.c', '#include <string.h>'],
   ['strtonum', 'src/compat/strtonum.c', '#include <stdlib.h>'],
 ]
 
@@ -439,6 +410,22 @@ foreach item : check_functions
 endforeach
 sources += compat_sources
 
+# Small platform facts the tree reads directly
+if cc.has_header_symbol('signal.h', 'sys_signame', prefix: '#define _DARWIN_C_SOURCE\n#define _GNU_SOURCE')
+  c_args += '-DHAVE_SYS_SIGNAME=1'
+endif
+if cc.has_function('malloc_trim', prefix: '#include <malloc.h>')
+  c_args += '-DHAVE_MALLOC_TRIM=1'
+endif
+
+# systemd: socket activation and one cgroup per pane (Linux)
+systemd_dep = dependency('libsystemd', required: get_option('systemd'))
+if systemd_dep.found()
+  sources += files('src/compat/systemd.c')
+  deps += systemd_dep
+  c_args += ['-DHAVE_SYSTEMD=1', '-DENABLE_CGROUPS=1']
+endif
+
 # vis(3): macOS libc has strnvis() with the dst/len arguments swapped, so
 # probing for the symbol is not enough; check the OpenBSD prototype compiles.
 if cc.compiles('''
@@ -446,7 +433,7 @@ if cc.compiles('''
 int strnvis(char *, const char *, size_t, int);
 int main(void) { return VIS_DQ; }
 ''', name: 'OpenBSD-compatible strnvis')
-  c_args += ['-DHAVE_VIS=1', '-DHAVE_UNVIS=1']
+  c_args += '-DHAVE_VIS=1'
 else
   sources += files('src/compat/vis.c', 'src/compat/unvis.c')
 endif
@@ -456,11 +443,6 @@ if cc.has_function('b64_ntop', prefix: '#include <sys/types.h>\n#include <netine
   c_args += '-DHAVE_B64_NTOP=1'
 else
   sources += files('src/compat/base64.c')
-endif
-
-# Check for forkpty
-if cc.has_function('forkpty', prefix: '#include <sys/types.h>\n#include <util.h>', dependencies: deps)
-  c_args += '-DHAVE_FORKPTY=1'
 endif
 
 # Check for imsg
@@ -477,15 +459,22 @@ elif cc.has_function('tiparm', prefix: '#include <curses.h>\n#include <term.h>',
   c_args += '-DHAVE_TIPARM=1'
 endif
 
-# Warning and diagnostic flags
+# Warnings the tree holds at zero (measured 2026-09-07, clang 21); CI adds -Werror.
+# Measured and left off: -Wconversion (1574), -Wcast-qual (60).
 supported_c_args = cc.get_supported_arguments([
-  '-Wno-deprecated-declarations',
+  '-Wimplicit-fallthrough',
+  '-Wshadow',
+  '-Wmissing-prototypes',
+  '-Wstrict-prototypes',
+  '-Wvla',
+  '-Wformat=2',
+  '-Wsign-compare',
+  # compat/queue.h coexists with the system <sys/queue.h> that macOS headers pull in
   '-Wno-macro-redefined',
+  # u_char buffers passed to char APIs, 66 sites of upstream style
   '-Wno-pointer-sign',
-  '-Wno-attributes',
+  # glibc _FORTIFY_SOURCE marks write(2) and friends; not fixable with (void)
   '-Wno-unused-result',
-  '-Wno-unknown-warning-option',
-  '-Wno-format-y2k',
 ])
 c_args += supported_c_args
 

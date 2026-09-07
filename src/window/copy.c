@@ -365,7 +365,7 @@ struct window_copy_mode_data {
 };
 
 static void
-window_copy_scroll_timer(__unused int fd, __unused short events, void *arg)
+window_copy_scroll_timer([[maybe_unused]] int fd, [[maybe_unused]] short events, void *arg)
 {
 	struct window_mode_entry	*wme = arg;
 	struct window_pane		*wp = wme->wp;
@@ -599,7 +599,7 @@ window_copy_common_init(struct window_mode_entry *wme)
 
 static struct screen *
 window_copy_init(struct window_mode_entry *wme,
-    __unused struct cmdq_item *item, __unused struct cmd_find_state *fs,
+    [[maybe_unused]] struct cmdq_item *item, [[maybe_unused]] struct cmd_find_state *fs,
     struct args *args)
 {
 	struct window_pane		*wp = wme->swp;
@@ -651,8 +651,8 @@ window_copy_init(struct window_mode_entry *wme,
 
 static struct screen *
 window_copy_view_init(struct window_mode_entry *wme,
-    __unused struct cmdq_item *item, __unused struct cmd_find_state *fs,
-    __unused struct args *args)
+    [[maybe_unused]] struct cmdq_item *item, [[maybe_unused]] struct cmd_find_state *fs,
+    [[maybe_unused]] struct args *args)
 {
 	struct window_pane		*wp = wme->wp;
 	struct window_copy_mode_data	*data;
@@ -705,8 +705,8 @@ window_copy_add(struct window_pane *wp, int parse, const char *fmt, ...)
 }
 
 static void
-window_copy_init_ctx_cb(__unused struct screen_write_ctx *ctx,
-    __unused struct tty_ctx *ttyctx)
+window_copy_init_ctx_cb([[maybe_unused]] struct screen_write_ctx *ctx,
+    [[maybe_unused]] struct tty_ctx *ttyctx)
 {
 }
 
@@ -1356,7 +1356,7 @@ window_copy_cmd_bottom_line(struct window_copy_cmd_state *cs)
 }
 
 static enum window_copy_cmd_action
-window_copy_cmd_cancel(__unused struct window_copy_cmd_state *cs)
+window_copy_cmd_cancel([[maybe_unused]] struct window_copy_cmd_state *cs)
 {
 	return (WINDOW_COPY_CMD_CANCEL);
 }
@@ -3052,7 +3052,7 @@ window_copy_refresh_allowed(struct window_mode_entry *wme)
 }
 
 static void
-window_copy_refresh_timer(__unused int fd, __unused short events, void *arg)
+window_copy_refresh_timer([[maybe_unused]] int fd, [[maybe_unused]] short events, void *arg)
 {
 	struct window_mode_entry	*wme = arg;
 	struct window_pane		*wp = wme->wp;

@@ -27,7 +27,7 @@
 #include "termo.h"
 
 char *
-osdep_get_name(int fd, __unused char *tty)
+osdep_get_name(int fd, [[maybe_unused]] char *tty)
 {
 	FILE	*f;
 	char	*path, *buf;

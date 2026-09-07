@@ -31,7 +31,7 @@ static int	 log_level;
 
 /* Log callback for libevent. */
 static void
-log_event_cb(__unused int severity, const char *msg)
+log_event_cb([[maybe_unused]] int severity, const char *msg)
 {
 	log_debug("%s", msg);
 }
@@ -97,7 +97,7 @@ log_close(void)
 }
 
 /* Write a log message. */
-static void printflike(1, 0)
+[[gnu::format(printf, 1, 0)]] static void
 log_vwrite(const char *msg, va_list ap, const char *prefix)
 {
 	char		*s, *out;
@@ -136,7 +136,7 @@ log_debug(const char *msg, ...)
 }
 
 /* Log a critical error with error string and die. */
-__dead void
+[[noreturn]] void
 fatal(const char *msg, ...)
 {
 	char	 tmp[256];
@@ -153,7 +153,7 @@ fatal(const char *msg, ...)
 }
 
 /* Log a critical error and die. */
-__dead void
+[[noreturn]] void
 fatalx(const char *msg, ...)
 {
 	va_list	 ap;

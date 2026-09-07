@@ -418,7 +418,7 @@ menu_key(struct client *c, struct menu_data *md, struct key_event *event)
 			break;
 		if (md->choice == n - 1)
 			return (1);
-		/* FALLTHROUGH */
+		[[fallthrough]];
 	case KEYC_DOWN:
 	case 'j':
 		if (old == -1)

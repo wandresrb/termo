@@ -1063,7 +1063,7 @@ options_scope_from_name(struct args *args, int window,
 			}
 			break;
 		}
-		/* FALLTHROUGH */
+		[[fallthrough]];
 	case OPTIONS_TABLE_WINDOW:
 		if (args_has(args, 'g')) {
 			*oo = global_w_options;

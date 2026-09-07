@@ -51,7 +51,7 @@ struct cmd_load_buffer_data {
 };
 
 static void
-cmd_load_buffer_done(__unused struct client *c, const char *path, int error,
+cmd_load_buffer_done([[maybe_unused]] struct client *c, const char *path, int error,
     int closed, struct evbuffer *buffer, void *data)
 {
 	struct cmd_load_buffer_data	*cdata = data;

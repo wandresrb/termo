@@ -19,31 +19,21 @@
 #ifndef XMALLOC_H
 #define XMALLOC_H
 
-#if !defined(__bounded__)
-#define __bounded__(x, y, z)
-#endif
-
-void	*xmalloc(size_t);
-void	*xcalloc(size_t, size_t);
-void	*xrealloc(void *, size_t);
-void	*xreallocarray(void *, size_t, size_t);
-void	*xrecallocarray(void *, size_t, size_t, size_t);
-char	*xstrdup(const char *);
-char	*xstrndup(const char *, size_t);
-char	*xmemdup(const void *, size_t);
-int	 xasprintf(char **, const char *, ...)
-		__attribute__((__format__ (printf, 2, 3)))
-		__attribute__((__nonnull__ (2)));
-int	 xvasprintf(char **, const char *, va_list)
-		__attribute__((__format__ (printf, 2, 0)))
-		__attribute__((__nonnull__ (2)));
-int	 xsnprintf(char *, size_t, const char *, ...)
-		__attribute__((__format__ (printf, 3, 4)))
-		__attribute__((__nonnull__ (3)))
-		__attribute__((__bounded__ (__string__, 1, 2)));
-int	 xvsnprintf(char *, size_t, const char *, va_list)
-		__attribute__((__format__ (printf, 3, 0)))
-		__attribute__((__nonnull__ (3)))
-		__attribute__((__bounded__ (__string__, 1, 2)));
+[[nodiscard]] void	*xmalloc(size_t);
+[[nodiscard]] void	*xcalloc(size_t, size_t);
+[[nodiscard]] void	*xrealloc(void *, size_t);
+[[nodiscard]] void	*xreallocarray(void *, size_t, size_t);
+[[nodiscard]] void	*xrecallocarray(void *, size_t, size_t, size_t);
+[[nodiscard]] char	*xstrdup(const char *);
+[[nodiscard]] char	*xstrndup(const char *, size_t);
+[[nodiscard]] char	*xmemdup(const void *, size_t);
+[[gnu::format(printf, 2, 3)]] [[gnu::nonnull(2)]]
+int	 xasprintf(char **, const char *, ...);
+[[gnu::format(printf, 2, 0)]] [[gnu::nonnull(2)]]
+int	 xvasprintf(char **, const char *, va_list);
+[[gnu::format(printf, 3, 4)]] [[gnu::nonnull(3)]]
+int	 xsnprintf(char *, size_t, const char *, ...);
+[[gnu::format(printf, 3, 0)]] [[gnu::nonnull(3)]]
+int	 xvsnprintf(char *, size_t, const char *, va_list);
 
 #endif	/* XMALLOC_H */

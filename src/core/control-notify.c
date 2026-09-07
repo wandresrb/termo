@@ -32,8 +32,8 @@
 
 /* Notify control clients that pane mode changed. */
 static void
-control_pane_mode_changed_cb(__unused const char *name,
-    struct event_payload *ep, __unused void *sink_data)
+control_pane_mode_changed_cb([[maybe_unused]] const char *name,
+    struct event_payload *ep, [[maybe_unused]] void *sink_data)
 {
 	struct window_pane	*wp;
 	struct client		*c;
@@ -63,8 +63,8 @@ control_pane_mode_changed_cb(__unused const char *name,
 
 /* Notify control clients that window layout changed. */
 static void
-control_window_layout_changed_cb(__unused const char *name,
-    struct event_payload *ep, __unused void *sink_data)
+control_window_layout_changed_cb([[maybe_unused]] const char *name,
+    struct event_payload *ep, [[maybe_unused]] void *sink_data)
 {
 	struct client		*c;
 	struct session		*s;
@@ -101,8 +101,8 @@ control_window_layout_changed_cb(__unused const char *name,
 
 /* Notify control clients that window pane changed. */
 static void
-control_window_pane_changed_cb(__unused const char *name,
-    struct event_payload *ep, __unused void *sink_data)
+control_window_pane_changed_cb([[maybe_unused]] const char *name,
+    struct event_payload *ep, [[maybe_unused]] void *sink_data)
 {
 	struct client	*c;
 	struct window	*w = event_payload_get_window(ep, "window");
@@ -120,8 +120,8 @@ control_window_pane_changed_cb(__unused const char *name,
 
 /* Notify control clients that a window was unlinked. */
 static void
-control_window_unlinked_cb(__unused const char *name, struct event_payload *ep,
-    __unused void *sink_data)
+control_window_unlinked_cb([[maybe_unused]] const char *name, struct event_payload *ep,
+    [[maybe_unused]] void *sink_data)
 {
 	struct client		*c;
 	struct session		*cs;
@@ -145,8 +145,8 @@ control_window_unlinked_cb(__unused const char *name, struct event_payload *ep,
 
 /* Notify control clients that a window was linked. */
 static void
-control_window_linked_cb(__unused const char *name, struct event_payload *ep,
-    __unused void *sink_data)
+control_window_linked_cb([[maybe_unused]] const char *name, struct event_payload *ep,
+    [[maybe_unused]] void *sink_data)
 {
 	struct client		*c;
 	struct session		*cs;
@@ -170,8 +170,8 @@ control_window_linked_cb(__unused const char *name, struct event_payload *ep,
 
 /* Notify control clients that a window was renamed. */
 static void
-control_window_renamed_cb(__unused const char *name, struct event_payload *ep,
-    __unused void *sink_data)
+control_window_renamed_cb([[maybe_unused]] const char *name, struct event_payload *ep,
+    [[maybe_unused]] void *sink_data)
 {
 	struct client		*c;
 	struct session		*cs;
@@ -196,8 +196,8 @@ control_window_renamed_cb(__unused const char *name, struct event_payload *ep,
 
 /* Notify control clients that a client changed session. */
 static void
-control_client_session_changed_cb(__unused const char *name,
-    struct event_payload *ep, __unused void *sink_data)
+control_client_session_changed_cb([[maybe_unused]] const char *name,
+    struct event_payload *ep, [[maybe_unused]] void *sink_data)
 {
 	struct client		*cc = event_payload_get_client(ep, "client");
 	struct client		*c;
@@ -224,8 +224,8 @@ control_client_session_changed_cb(__unused const char *name,
 
 /* Notify control clients that a client detached. */
 static void
-control_client_detached_cb(__unused const char *name, struct event_payload *ep,
-    __unused void *sink_data)
+control_client_detached_cb([[maybe_unused]] const char *name, struct event_payload *ep,
+    [[maybe_unused]] void *sink_data)
 {
 	struct client		*cc = event_payload_get_client(ep, "client");
 	struct client		*c;
@@ -241,8 +241,8 @@ control_client_detached_cb(__unused const char *name, struct event_payload *ep,
 
 /* Notify control clients that a session was renamed. */
 static void
-control_session_renamed_cb(__unused const char *name, struct event_payload *ep,
-    __unused void *sink_data)
+control_session_renamed_cb([[maybe_unused]] const char *name, struct event_payload *ep,
+    [[maybe_unused]] void *sink_data)
 {
 	struct session		*s = event_payload_get_session(ep, "session");
 	struct client		*c;
@@ -259,8 +259,8 @@ control_session_renamed_cb(__unused const char *name, struct event_payload *ep,
 
 /* Notify control clients that sessions changed. */
 static void
-control_session_created_cb(__unused const char *name,
-    __unused struct event_payload *ep, __unused void *sink_data)
+control_session_created_cb([[maybe_unused]] const char *name,
+    [[maybe_unused]] struct event_payload *ep, [[maybe_unused]] void *sink_data)
 {
 	struct client	*c;
 
@@ -273,8 +273,8 @@ control_session_created_cb(__unused const char *name,
 
 /* Notify control clients that sessions changed. */
 static void
-control_session_closed_cb(__unused const char *name,
-    __unused struct event_payload *ep, __unused void *sink_data)
+control_session_closed_cb([[maybe_unused]] const char *name,
+    [[maybe_unused]] struct event_payload *ep, [[maybe_unused]] void *sink_data)
 {
 	struct client	*c;
 
@@ -287,8 +287,8 @@ control_session_closed_cb(__unused const char *name,
 
 /* Notify control clients that the current window changed. */
 static void
-control_session_window_changed_cb(__unused const char *name,
-    struct event_payload *ep, __unused void *sink_data)
+control_session_window_changed_cb([[maybe_unused]] const char *name,
+    struct event_payload *ep, [[maybe_unused]] void *sink_data)
 {
 	struct session	*s = event_payload_get_session(ep, "session");
 	struct client	*c;
@@ -311,8 +311,8 @@ control_session_window_changed_cb(__unused const char *name,
 
 /* Notify control clients that a paste buffer changed. */
 static void
-control_paste_buffer_changed_cb(__unused const char *name,
-    struct event_payload *ep, __unused void *sink_data)
+control_paste_buffer_changed_cb([[maybe_unused]] const char *name,
+    struct event_payload *ep, [[maybe_unused]] void *sink_data)
 {
 	const char	*pbname = event_payload_get_string(ep, "paste_buffer");
 	struct client	*c;
@@ -328,8 +328,8 @@ control_paste_buffer_changed_cb(__unused const char *name,
 
 /* Notify control clients that a paste buffer was deleted. */
 static void
-control_paste_buffer_deleted_cb(__unused const char *name,
-    struct event_payload *ep, __unused void *sink_data)
+control_paste_buffer_deleted_cb([[maybe_unused]] const char *name,
+    struct event_payload *ep, [[maybe_unused]] void *sink_data)
 {
 	const char	*pbname = event_payload_get_string(ep, "paste_buffer");
 	struct client	*c;

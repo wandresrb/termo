@@ -65,7 +65,7 @@ cmp_procs(struct kinfo_proc2 *p1, struct kinfo_proc2 *p2)
 }
 
 char *
-osdep_get_name(int fd, __unused char *tty)
+osdep_get_name(int fd, [[maybe_unused]] char *tty)
 {
 	int		 mib[6];
 	struct stat	 sb;

@@ -27,7 +27,7 @@ getptmfd(void)
 }
 
 pid_t
-fdforkpty(__unused int ptmfd, int *master, char *name, struct termios *tio,
+fdforkpty([[maybe_unused]] int ptmfd, int *master, char *name, struct termios *tio,
     struct winsize *ws)
 {
 	return (forkpty(master, name, tio, ws));

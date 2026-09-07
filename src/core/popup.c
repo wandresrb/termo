@@ -184,7 +184,7 @@ popup_init_ctx_cb(struct screen_write_ctx *ctx, struct tty_ctx *ttyctx)
 }
 
 static struct screen *
-popup_mode_cb(__unused struct client *c, void *data, u_int *cx, u_int *cy)
+popup_mode_cb([[maybe_unused]] struct client *c, void *data, u_int *cx, u_int *cy)
 {
 	struct popup_data	*pd = data;
 
@@ -200,7 +200,7 @@ popup_mode_cb(__unused struct client *c, void *data, u_int *cx, u_int *cy)
 
 /* Return parts of the input range which are not obstructed by the popup. */
 static struct visible_ranges *
-popup_check_cb(__unused struct client* c, void *data, u_int px, u_int py,
+popup_check_cb([[maybe_unused]] struct client* c, void *data, u_int px, u_int py,
     u_int nx)
 {
 	struct popup_data	*pd = data;
@@ -264,7 +264,7 @@ popup_draw_cb(struct client *c, void *data)
 }
 
 static void
-popup_free_cb(__unused struct client *c, void *data)
+popup_free_cb([[maybe_unused]] struct client *c, void *data)
 {
 	struct popup_data	*pd = data;
 	struct cmdq_item	*item = pd->item;
@@ -283,7 +283,7 @@ popup_free_cb(__unused struct client *c, void *data)
 }
 
 static void
-popup_resize_cb(__unused struct client *c, void *data)
+popup_resize_cb([[maybe_unused]] struct client *c, void *data)
 {
 	struct popup_data	*pd = data;
 	struct tty		*tty = &c->tty;

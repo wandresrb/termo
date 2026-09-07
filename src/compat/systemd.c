@@ -82,7 +82,7 @@ struct systemd_job_watch {
 
 static int
 job_removed_handler(sd_bus_message *m, void *userdata,
-    __unused sd_bus_error *ret_error)
+    [[maybe_unused]] sd_bus_error *ret_error)
 {
 	struct systemd_job_watch *watch = userdata;
 	const char		 *path = NULL;

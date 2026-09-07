@@ -78,7 +78,7 @@ struct monitor_set {
 	u_int				 generation;
 };
 
-static void	monitor_timer(__unused int, __unused short, void *);
+static void	monitor_timer([[maybe_unused]] int, [[maybe_unused]] short, void *);
 
 /* Get the session for this monitor set. */
 static struct session *
@@ -492,7 +492,7 @@ monitor_check_all_windows(struct monitor_set *ms)
 
 /* Check subscriptions. */
 static void
-monitor_timer(__unused int fd, __unused short events, void *data)
+monitor_timer([[maybe_unused]] int fd, [[maybe_unused]] short events, void *data)
 {
 	struct monitor_set	*ms = data;
 	struct monitor_item	*me;

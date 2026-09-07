@@ -92,7 +92,6 @@
 #define required_argument  1
 #define optional_argument  2
 
-#if !defined(HAVE_GETOPT) || !defined(HAVE_GETOPT_OPTRESET)
 
 #if 0
 #include <err.h>
@@ -574,4 +573,3 @@ getopt_long_only(int nargc, char * const *nargv, const char *options,
 }
 #endif
 
-#endif /* !defined(HAVE_GETOPT) || !defined(HAVE_OPTRESET) */

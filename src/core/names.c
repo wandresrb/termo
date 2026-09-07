@@ -31,7 +31,7 @@ static int	 name_time_expired(struct window *, struct timeval *);
 static char	*format_window_name(struct window *);
 
 static void
-name_time_callback(__unused int fd, __unused short events, void *arg)
+name_time_callback([[maybe_unused]] int fd, [[maybe_unused]] short events, void *arg)
 {
 	struct window	*w = arg;
 

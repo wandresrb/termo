@@ -35,7 +35,7 @@ static void	 status_timer_callback(int, short, void *);
 
 /* Status timer callback. */
 static void
-status_timer_callback(__unused int fd, __unused short events, void *arg)
+status_timer_callback([[maybe_unused]] int fd, [[maybe_unused]] short events, void *arg)
 {
 	struct client	*c = arg;
 	struct session	*s = c->session;
@@ -450,7 +450,7 @@ status_message_area(struct client *c, u_int *area_x, u_int *area_w)
 
 /* Clear status line message after timer expires. */
 static void
-status_message_callback(__unused int fd, __unused short event, void *data)
+status_message_callback([[maybe_unused]] int fd, [[maybe_unused]] short event, void *data)
 {
 	struct client	*c = data;
 
@@ -559,7 +559,7 @@ status_prompt_free_callback(void *data)
 
 /* Accept prompt immediately. */
 static enum cmd_retval
-status_prompt_accept(__unused struct cmdq_item *item, void *data)
+status_prompt_accept([[maybe_unused]] struct cmdq_item *item, void *data)
 {
 	struct client	*c = data;
 

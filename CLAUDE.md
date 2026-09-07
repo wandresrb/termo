@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-`termo` is a fork of tmux (the Neovim-to-Vim relationship): the tmux C client/server core, libevent loop and VT emulation are kept intact; on top go sane defaults, embedded LuaJIT scripting, a manifest-driven plugin system (`termo.json` + `termopack`), and Zellij-style UX. `ROADMAP.md` is the source of truth for phases and the hard rules (no WASM, regress always green, sanitizer clean). Phase 1 (Meson build, rebranding, defaults, CI) is done; Phase 2 (unit test suite, `docs/sdlc/plan/003-test-suite.md`) has its 14 modules landed and waits on the nightly coverage report to close; Phase 3 (LuaJIT, spec `docs/sdlc/specs/002-luajit-runtime.md`) waits for it. Nothing under `src/lua/` exists yet, `meson.build` only detects LuaJIT and defines `HAVE_LUAJIT`.
+`termo` is a fork of tmux (the Neovim-to-Vim relationship): the tmux C client/server core, libevent loop and VT emulation are kept intact; on top go sane defaults, embedded LuaJIT scripting, a manifest-driven plugin system (`termo.json` + `termopack`), and Zellij-style UX. `ROADMAP.md` is the source of truth for phases and the hard rules (no WASM, regress always green, sanitizer clean). Phase 1 (Meson build, rebranding, defaults, CI) is done; Phase 2 (unit test suite, `docs/sdlc/plan/003-test-suite.md`) has its 14 modules landed; Phase 3 (C23 and POSIX.1-2024, `docs/sdlc/plan/004-c23-posix.md`) is in progress; Phase 4 (LuaJIT, spec `docs/sdlc/specs/002-luajit-runtime.md`) follows it. Nothing under `src/lua/` exists yet, `meson.build` only detects LuaJIT and defines `HAVE_LUAJIT`.
 
 Two remotes: `origin` is this fork, `upstream` is `tmux/tmux` for pulling fixes into the C parts that are still tmux.
 
@@ -20,7 +20,7 @@ ninja -C build
 ./build/termo -V
 ```
 
-Meson options (`meson_options.txt`): `utf8proc`, `luajit`, `systemd` (features, default `auto`), `sixel` (bool, default off, like upstream: it changes the DA reply that regress checks), `fuzz` (feature, needs clang with libFuzzer). The build defines `-DDEBUG` unconditionally, defines `ASAN` when `b_sanitize` includes address (that is what enables the sanitizer option strings in `main.c`, logs go to `/tmp/termo-asan.*` and `/tmp/termo-ubsan.*`), and passes `warning_level=2`; CI adds `-Dwerror=true`, keep it warning-free.
+Compiler floor: GCC 14, Clang 20, Apple clang 21 (Xcode 26); `meson setup` probes `nullptr`, `constexpr`, fixed-type enums and `<stdckdint.h>` and stops with a message otherwise. Meson options (`meson_options.txt`): `utf8proc`, `luajit`, `systemd` (features, default `auto`), `sixel` (bool, default off, like upstream: it changes the DA reply that regress checks), `fuzz` (feature, needs clang with libFuzzer). The build defines `-DDEBUG` unconditionally, defines `ASAN` when `b_sanitize` includes address (that is what enables the sanitizer option strings in `main.c`, logs go to `/tmp/termo-asan.*` and `/tmp/termo-ubsan.*`), and passes `warning_level=2`; CI adds `-Dwerror=true`, keep it warning-free.
 
 Compiled-in defaults are tmux's. termo's defaults (vi keys, 50k history, renumber, focus events, RGB) are `etc/termo.conf`, installed to `<sysconfdir>/termo/termo.conf` and first in the `TMUX_CONF` search path. Tests run with `-f/dev/null` so they see upstream semantics; change a default there, not in `options-table.c`. `src/cmd/cmd-parse.y` is compiled with bison into `build/cmd-parse.c`. Adding a `.c` file means adding it to the right `*_sources` list in `meson.build`; only the `osdep-<platform>.c` matching the host is compiled.
 
@@ -58,6 +58,19 @@ crash report under `~/Library/Logs/DiagnosticReports/termo-*.ips`; read those be
 `tests/fuzz/corpus/`; `meson test --suite fuzz` is a short smoke run, nightly CI runs them for 10
 minutes each.
 
+## C23 conventions for new code
+
+The tree is C23 and CI compiles with `-Werror` plus `-Wshadow -Wmissing-prototypes
+-Wstrict-prototypes -Wvla -Wformat=2 -Wsign-compare -Wimplicit-fallthrough`. New code uses
+`nullptr` (not `NULL`), `bool`, `constexpr` for typed constants (not `#define`), fixed-type
+enums for flag sets, `[[nodiscard]]` on functions returning resources or error codes,
+`[[maybe_unused]]`, `[[noreturn]]`, `[[fallthrough]];`, `[[gnu::format(printf, a, b)]]`, and
+`ckd_add`/`ckd_mul` from `<stdckdint.h>` for size arithmetic. No direct `__attribute__`, no
+VLAs, no new `HAVE_*` without a Meson probe, nothing new in `src/compat/` unless a target
+platform (Linux glibc/musl, macOS, FreeBSD, OpenBSD, NetBSD) lacks it. Existing code is not
+rewritten for style: no `NULL` to `nullptr` sweeps. `.clang-tidy` lists the checks nightly
+enforces against `tools/clang-tidy-baseline`.
+
 ## Source layout
 
 `src/` is split by domain, not one flat directory like upstream. When pulling from `upstream`, the old path is `<name>.c` at the root and the new one is usually `src/<domain>/<name-without-prefix>.c` (e.g. `cmd-new-window.c` → `src/cmd/window/new.c`, `window-copy.c` → `src/window/copy.c`, `tty-keys.c` → `src/tty/keys.c`, `grid-view.c` → `src/grid/view.c`). The master header is `src/core/termo.h` (all structs, all prototypes); `tmux.h` and `tmux-protocol.h` are forwarding shims kept for upstream diffs.
@@ -78,11 +91,11 @@ One binary is both **client and server**: `src/core/main.c` decides which at sta
 
 **Hooks and events**: `src/core/hooks.c` (`set-hook`) sits on `src/core/events.c` + `events-payload.c`, the pub/sub that also feeds control-mode notifications (`src/core/control.c`, `control-notify.c`).
 
-**Modes**: interactive overlays (copy mode, choose-tree, buffer/client/window pickers, customize) are `window_mode`s in `src/window/`, sharing the generic list UI in `src/core/mode-tree.c`. Popups and menus are `src/core/popup.c` / `menu.c`. Floating panes already exist in the core (`layout_floating_*`, `window_pane_is_floating`); Phase 3 exposes them from Lua rather than adding a new pane kind.
+**Modes**: interactive overlays (copy mode, choose-tree, buffer/client/window pickers, customize) are `window_mode`s in `src/window/`, sharing the generic list UI in `src/core/mode-tree.c`. Popups and menus are `src/core/popup.c` / `menu.c`. Floating panes already exist in the core (`layout_floating_*`, `window_pane_is_floating`); Phase 4 exposes them from Lua rather than adding a new pane kind.
 
 **Environment**: panes get `TERMO`, `TERMO_PANE`, `TERM_PROGRAM=termo`, and for compatibility `TMUX`/`TMUX_PANE`. The socket dir is `/tmp/termo-<uid>/` (override `TERMO_TMPDIR`).
 
-**Portability**: `src/compat/` (OpenBSD libutil imports, forkpty variants, imsg) and `src/osdep/osdep-*.c` stay plain C; see `ROADMAP.md` Phase 5 for the Rust leaf-module plan (`regsub` → `utf8` → `grid` → `input`).
+**Portability**: targets are Linux (glibc or musl), macOS, FreeBSD, OpenBSD, NetBSD; `meson setup` errors on anything else. `src/compat/` holds only what a target lacks (macOS: `reallocarray`, `closefrom`, `explicit_bzero`, `htonll`; glibc: `getprogname`, `strtonum`, `setproctitle`, `b64_*`; plus `vis`, `imsg`, BSD `getopt`, `fdforkpty`), each behind a Meson probe; every `HAVE_*` the code reads is defined by Meson or does not exist. `src/osdep/` has one file per target; see `ROADMAP.md` Phase 5 for the Rust leaf-module plan (`regsub` → `utf8` → `grid` → `input`).
 
 ## Repo conventions
 

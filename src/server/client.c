@@ -69,7 +69,7 @@ server_client_how_many(void)
 
 /* Overlay timer callback. */
 static void
-server_client_overlay_timer(__unused int fd, __unused short events, void *data)
+server_client_overlay_timer([[maybe_unused]] int fd, [[maybe_unused]] short events, void *data)
 {
 	server_client_clear_overlay(data);
 }
@@ -578,7 +578,7 @@ server_client_unref(struct client *c)
 
 /* Free dead client. */
 static void
-server_client_free(__unused int fd, __unused short events, void *arg)
+server_client_free([[maybe_unused]] int fd, [[maybe_unused]] short events, void *arg)
 {
 	struct client	*c = arg;
 
@@ -1945,7 +1945,7 @@ server_client_check_window_resize(struct window *w)
 
 /* Resize timer event. */
 static void
-server_client_resize_timer(__unused int fd, __unused short events, void *data)
+server_client_resize_timer([[maybe_unused]] int fd, [[maybe_unused]] short events, void *data)
 {
 	struct window_pane	*wp = data;
 
@@ -2292,7 +2292,7 @@ server_client_reset_state(struct client *c)
 
 /* Repeat time callback. */
 static void
-server_client_repeat_timer(__unused int fd, __unused short events, void *data)
+server_client_repeat_timer([[maybe_unused]] int fd, [[maybe_unused]] short events, void *data)
 {
 	struct client	*c = data;
 
@@ -2305,7 +2305,7 @@ server_client_repeat_timer(__unused int fd, __unused short events, void *data)
 
 /* Double-click callback. */
 static void
-server_client_click_timer(__unused int fd, __unused short events, void *data)
+server_client_click_timer([[maybe_unused]] int fd, [[maybe_unused]] short events, void *data)
 {
 	struct client		*c = data;
 	struct key_event	*event;
@@ -2340,7 +2340,7 @@ server_client_start_exit_timer(struct client *c)
 
 /* Exit timer has expired: stop waiting for the client. */
 static void
-server_client_exit_timer(__unused int fd, __unused short events, void *data)
+server_client_exit_timer([[maybe_unused]] int fd, [[maybe_unused]] short events, void *data)
 {
 	struct client	*c = data;
 
@@ -2419,8 +2419,8 @@ server_client_check_exit(struct client *c, int force)
 
 /* Redraw timer callback. */
 static void
-server_client_redraw_timer(__unused int fd, __unused short events,
-    __unused void *data)
+server_client_redraw_timer([[maybe_unused]] int fd, [[maybe_unused]] short events,
+    [[maybe_unused]] void *data)
 {
 	log_debug("redraw timer fired");
 }
@@ -2764,7 +2764,7 @@ bad:
 
 /* Callback when command is not allowed. */
 static enum cmd_retval
-server_client_read_only(struct cmdq_item *item, __unused void *data)
+server_client_read_only(struct cmdq_item *item, [[maybe_unused]] void *data)
 {
 	cmdq_error(item, "client is read-only");
 	return (CMD_RETURN_ERROR);
@@ -2772,7 +2772,7 @@ server_client_read_only(struct cmdq_item *item, __unused void *data)
 
 /* Callback for default command. */
 static enum cmd_retval
-server_client_default_command(struct cmdq_item *item, __unused void *data)
+server_client_default_command(struct cmdq_item *item, [[maybe_unused]] void *data)
 {
 	struct client		*c = cmdq_get_client(item);
 	struct cmd_list		*cmdlist;
@@ -2790,7 +2790,7 @@ server_client_default_command(struct cmdq_item *item, __unused void *data)
 
 /* Callback when command is done. */
 static enum cmd_retval
-server_client_command_done(struct cmdq_item *item, __unused void *data)
+server_client_command_done(struct cmdq_item *item, [[maybe_unused]] void *data)
 {
 	struct client	*c = cmdq_get_client(item);
 

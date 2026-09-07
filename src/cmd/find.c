@@ -1033,7 +1033,7 @@ cmd_find_target(struct cmd_find_state *fs, struct cmdq_item *item,
 				fs->w = fs->wl->window;
 				break;
 			}
-			/* FALLTHROUGH */
+			[[fallthrough]];
 		case CMD_FIND_WINDOW:
 		case CMD_FIND_SESSION:
 			fs->wl = cmd_mouse_window(m, &fs->s);

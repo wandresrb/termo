@@ -576,14 +576,6 @@ spawn_pane(struct spawn_context *sc, char **cause)
 	_exit(1);
 
 complete:
-#ifdef HAVE_UTEMPTER
-	if (~new_wp->flags & PANE_EMPTY) {
-		xasprintf(&cp, "termo(%lu).%%%u", (long)getpid(), new_wp->id);
-		utempter_add_record(new_wp->fd, cp);
-		kill(getpid(), SIGCHLD);
-		free(cp);
-	}
-#endif
 
 	new_wp->flags &= ~PANE_EXITED;
 

@@ -61,8 +61,8 @@ struct cmd_if_shell_data {
 };
 
 static enum args_parse_type
-cmd_if_shell_args_parse(__unused struct args *args, u_int idx,
-    __unused char **cause)
+cmd_if_shell_args_parse([[maybe_unused]] struct args *args, u_int idx,
+    [[maybe_unused]] char **cause)
 {
 	if (idx == 1 || idx == 2)
 		return (ARGS_PARSE_COMMANDS_OR_STRING);

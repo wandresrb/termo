@@ -57,8 +57,8 @@ struct cmd_confirm_before_data {
 };
 
 static enum args_parse_type
-cmd_confirm_before_args_parse(__unused struct args *args, __unused u_int idx,
-    __unused char **cause)
+cmd_confirm_before_args_parse([[maybe_unused]] struct args *args, [[maybe_unused]] u_int idx,
+    [[maybe_unused]] char **cause)
 {
 	return (ARGS_PARSE_COMMANDS_OR_STRING);
 }
@@ -120,7 +120,7 @@ cmd_confirm_before_exec(struct cmd *self, struct cmdq_item *item)
 
 static enum prompt_result
 cmd_confirm_before_callback(struct client *c, void *data, const char *s,
-    __unused enum prompt_key_result key)
+    [[maybe_unused]] enum prompt_key_result key)
 {
 	struct cmd_confirm_before_data	*cdata = data;
 	struct cmdq_item		*item = cdata->item, *new_item;

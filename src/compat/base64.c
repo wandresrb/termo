@@ -275,7 +275,7 @@ b64_pton(char const *src, unsigned char *target, size_t targsize)
 				return (-1);
 			ch = (unsigned char)*src++;		/* Skip the = */
 			/* Fall through to "single trailing =" case. */
-			/* FALLTHROUGH */
+			[[fallthrough]];
 
 		case 3:		/* Valid, means two bytes of info */
 			/*

@@ -1060,7 +1060,7 @@ discard_key:
 
 /* Key timer callback. */
 static void
-tty_keys_callback(__unused int fd, __unused short events, void *data)
+tty_keys_callback([[maybe_unused]] int fd, [[maybe_unused]] short events, void *data)
 {
 	struct tty	*tty = data;
 

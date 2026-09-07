@@ -230,7 +230,7 @@ hooks_insert_event(struct cmdq_item *item, const char *name,
 /* Handle an event for hooks. */
 static void
 hooks_event_cb(const char *name, struct event_payload *ep,
-    __unused void *sink_data)
+    [[maybe_unused]] void *sink_data)
 {
 	struct cmdq_item	*item;
 
@@ -418,7 +418,7 @@ hooks_monitor_cb(struct monitor_change *change, void *data)
 
 /* Add a hook monitor. */
 void
-hooks_monitor_add(__unused struct cmdq_item *item, struct options *oo,
+hooks_monitor_add([[maybe_unused]] struct cmdq_item *item, struct options *oo,
     const char *name, enum monitor_type type, int id, const char *format,
     int flags, struct cmd_find_state *fs, struct session *s)
 {

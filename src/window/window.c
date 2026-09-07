@@ -1463,7 +1463,7 @@ window_pane_free_modes(struct window_pane *wp)
 }
 
 static void
-window_pane_scrollbar_timer(__unused int fd, __unused short events, void *arg)
+window_pane_scrollbar_timer([[maybe_unused]] int fd, [[maybe_unused]] short events, void *arg)
 {
 	struct window_pane	*wp = arg;
 
@@ -1519,10 +1519,6 @@ window_pane_destroy(struct window_pane *wp)
 	screen_write_clear_dirty(wp);
 
 	if (wp->fd != -1) {
-#ifdef HAVE_UTEMPTER
-		utempter_remove_record(wp->fd);
-		kill(getpid(), SIGCHLD);
-#endif
 		bufferevent_free(wp->event);
 		wp->event = NULL;
 		close(wp->fd);
@@ -1571,7 +1567,7 @@ window_pane_free(struct window_pane *wp)
 }
 
 static void
-window_pane_read_callback(__unused struct bufferevent *bufev, void *data)
+window_pane_read_callback([[maybe_unused]] struct bufferevent *bufev, void *data)
 {
 	struct window_pane		*wp = data;
 	struct evbuffer			*evb = wp->event->input;
@@ -1599,8 +1595,8 @@ window_pane_read_callback(__unused struct bufferevent *bufev, void *data)
 }
 
 static void
-window_pane_error_callback(__unused struct bufferevent *bufev,
-    __unused short what, void *data)
+window_pane_error_callback([[maybe_unused]] struct bufferevent *bufev,
+    [[maybe_unused]] short what, void *data)
 {
 	struct window_pane *wp = data;
 
@@ -2451,7 +2447,7 @@ winlink_shuffle_up(struct session *s, struct winlink *wl, int before)
 }
 
 static void
-window_pane_input_callback(struct client *c, __unused const char *path,
+window_pane_input_callback(struct client *c, [[maybe_unused]] const char *path,
     int error, int closed, struct evbuffer *buffer, void *data)
 {
 	struct window_pane_input_data	*cdata = data;

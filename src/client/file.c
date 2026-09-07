@@ -153,7 +153,7 @@ file_free(struct client_file *cf)
 
 /* Event to fire the done callback. */
 static void
-file_fire_done_cb(__unused int fd, __unused short events, void *arg)
+file_fire_done_cb([[maybe_unused]] int fd, [[maybe_unused]] short events, void *arg)
 {
 	struct client_file	*cf = arg;
 	struct client		*c = cf->c;
@@ -461,7 +461,7 @@ file_cancel(struct client_file *cf)
 
 /* Push event, fired if there is more writing to be done. */
 static void
-file_push_cb(__unused int fd, __unused short events, void *arg)
+file_push_cb([[maybe_unused]] int fd, [[maybe_unused]] short events, void *arg)
 {
 	struct client_file	*cf = arg;
 
@@ -555,7 +555,7 @@ file_write_finished(struct client_file *cf)
 
 /* Client file write error callback. */
 static void
-file_write_error_callback(__unused struct bufferevent *bev, short what,
+file_write_error_callback([[maybe_unused]] struct bufferevent *bev, short what,
     void *arg)
 {
 	struct client_file	*cf = arg;
@@ -585,7 +585,7 @@ file_write_error_callback(__unused struct bufferevent *bev, short what,
 
 /* Client file write callback. */
 static void
-file_write_callback(__unused struct bufferevent *bev, void *arg)
+file_write_callback([[maybe_unused]] struct bufferevent *bev, void *arg)
 {
 	struct client_file	*cf = arg;
 
@@ -704,7 +704,7 @@ file_write_close(struct client_files *files, struct imsg *imsg)
 
 /* Client file read error callback. */
 static void
-file_read_error_callback(__unused struct bufferevent *bev, short what,
+file_read_error_callback([[maybe_unused]] struct bufferevent *bev, short what,
     void *arg)
 {
 	struct client_file	*cf = arg;
@@ -724,7 +724,7 @@ file_read_error_callback(__unused struct bufferevent *bev, short what,
 
 /* Client file read callback. */
 static void
-file_read_callback(__unused struct bufferevent *bev, void *arg)
+file_read_callback([[maybe_unused]] struct bufferevent *bev, void *arg)
 {
 	struct client_file	*cf = arg;
 	void			*bdata;

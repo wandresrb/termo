@@ -191,7 +191,7 @@ cmd_pipe_pane_exec(struct cmd *self, struct cmdq_item *item)
 }
 
 static void
-cmd_pipe_pane_read_callback(__unused struct bufferevent *bufev, void *data)
+cmd_pipe_pane_read_callback([[maybe_unused]] struct bufferevent *bufev, void *data)
 {
 	struct window_pane	*wp = data;
 	struct evbuffer		*evb;
@@ -212,7 +212,7 @@ cmd_pipe_pane_read_callback(__unused struct bufferevent *bufev, void *data)
 }
 
 static void
-cmd_pipe_pane_write_callback(__unused struct bufferevent *bufev, void *data)
+cmd_pipe_pane_write_callback([[maybe_unused]] struct bufferevent *bufev, void *data)
 {
 	struct window_pane	*wp = data;
 
@@ -223,8 +223,8 @@ cmd_pipe_pane_write_callback(__unused struct bufferevent *bufev, void *data)
 }
 
 static void
-cmd_pipe_pane_error_callback(__unused struct bufferevent *bufev,
-    __unused short what, void *data)
+cmd_pipe_pane_error_callback([[maybe_unused]] struct bufferevent *bufev,
+    [[maybe_unused]] short what, void *data)
 {
 	struct window_pane	*wp = data;
 

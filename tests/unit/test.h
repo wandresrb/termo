@@ -23,7 +23,7 @@ struct test {
 };
 
 void	test_register(struct test *);
-int	test_fail(const char *, int, const char *, ...);
+[[gnu::format(printf, 3, 4)]] int	test_fail(const char *, int, const char *, ...);
 int	test_eq_int(const char *, int, const char *, long long, long long);
 int	test_eq_uint(const char *, int, const char *, unsigned long long,
 	    unsigned long long);

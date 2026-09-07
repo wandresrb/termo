@@ -234,7 +234,7 @@ TAILQ_HEAD(cmds, cmd);
 static u_int cmd_list_next_group = 1;
 
 /* Log an argument vector. */
-void printflike(3, 4)
+[[gnu::format(printf, 3, 4)]] void
 cmd_log_argv(int argc, char **argv, const char *fmt, ...)
 {
 	char	*prefix;

@@ -874,7 +874,7 @@ window_panes_draw_screen(struct window_mode_entry *wme)
 }
 
 static void
-window_panes_timer_callback(__unused int fd, __unused short events, void *arg)
+window_panes_timer_callback([[maybe_unused]] int fd, [[maybe_unused]] short events, void *arg)
 {
 	struct window_mode_entry	*wme = arg;
 
@@ -883,7 +883,7 @@ window_panes_timer_callback(__unused int fd, __unused short events, void *arg)
 
 static struct screen *
 window_panes_init(struct window_mode_entry *wme, struct cmdq_item *item,
-    __unused struct cmd_find_state *fs, struct args *args)
+    [[maybe_unused]] struct cmd_find_state *fs, struct args *args)
 {
 	struct window_pane		*wp = wme->wp;
 	struct window			*w = wp->window;
@@ -1074,7 +1074,7 @@ window_panes_get_target(struct window_mode_entry *wme, key_code key,
 
 static void
 window_panes_key(struct window_mode_entry *wme, struct client *c,
-    __unused struct session *s, __unused struct winlink *wl, key_code key,
+    [[maybe_unused]] struct session *s, [[maybe_unused]] struct winlink *wl, key_code key,
     struct mouse_event *m)
 {
 	struct window_pane		*wp = wme->wp, *target = NULL;

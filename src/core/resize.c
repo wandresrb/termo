@@ -270,8 +270,8 @@ skip:
 }
 
 static int
-default_window_size_skip_client(struct client *loop, __unused int type,
-    __unused int current, struct session *s, struct window *w)
+default_window_size_skip_client(struct client *loop, [[maybe_unused]] int type,
+    [[maybe_unused]] int current, struct session *s, struct window *w)
 {
 	if (w != NULL && !session_has(loop->session, w))
 		return (1);
@@ -340,8 +340,8 @@ done:
 }
 
 static int
-recalculate_size_skip_client(struct client *loop, __unused int type,
-    int current, __unused struct session *s, struct window *w)
+recalculate_size_skip_client(struct client *loop, [[maybe_unused]] int type,
+    int current, [[maybe_unused]] struct session *s, struct window *w)
 {
 	/*
 	 * If the current flag is set, then skip any client where this window

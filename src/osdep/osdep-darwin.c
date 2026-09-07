@@ -35,7 +35,7 @@ char			*osdep_get_cwd(int);
 struct event_base	*osdep_event_init(void);
 
 char *
-osdep_get_name(int fd, __unused char *tty)
+osdep_get_name(int fd, [[maybe_unused]] char *tty)
 {
 #if MAC_OS_X_VERSION_MIN_REQUIRED >= 1070
 	struct proc_bsdshortinfo	bsdinfo;

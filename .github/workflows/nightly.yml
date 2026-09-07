@@ -13,15 +13,16 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 90
     env:
-      CC: clang-18
+      CC: clang-20
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           persist-credentials: false
       - run: |
           sudo apt-get update
-          sudo apt-get install -y clang-18 meson ninja-build bison pkg-config \
+          sudo apt-get install -y meson ninja-build bison pkg-config \
             libevent-dev libncurses-dev libutf8proc-dev
+          wget -qO /tmp/llvm.sh https://apt.llvm.org/llvm.sh && sudo bash /tmp/llvm.sh 20
           sudo sysctl vm.mmap_rnd_bits=28
       - run: meson setup build -Dfuzz=enabled -Db_sanitize=address,undefined -Dluajit=disabled
       - run: ninja -C build
@@ -69,22 +70,32 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     env:
-      CC: clang-18
+      CC: clang-20
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           persist-credentials: false
       - run: |
           sudo apt-get update
-          sudo apt-get install -y clang-18 clang-tidy-18 meson ninja-build bison pkg-config \
+          sudo apt-get install -y meson ninja-build bison pkg-config \
             libevent-dev libncurses-dev libutf8proc-dev libluajit-5.1-dev
+          wget -qO /tmp/llvm.sh https://apt.llvm.org/llvm.sh && sudo bash /tmp/llvm.sh 20
+          sudo apt-get install -y clang-tidy-20
       - run: meson setup build
       - run: ninja -C build cmd-parse.c
-      - name: clang-tidy (informational until the baseline is clean)
+      - name: clang-tidy against the committed baseline
         run: |
-          run-clang-tidy-18 -p build -quiet \
-            -checks='-*,bugprone-*,cert-*,clang-analyzer-*' \
-            'src/(core|grid|input|screen|utf8|format)/' || true
+          run-clang-tidy-20 -p build -quiet 'src/.*' > tidy.log 2>&1 || true
+          count=$(grep -c 'warning:' tidy.log || true)
+          echo "clang-tidy findings: $count" | tee -a "$GITHUB_STEP_SUMMARY"
+          grep 'warning:' tidy.log | sed 's/^/    /' | head -50 >> "$GITHUB_STEP_SUMMARY" || true
+          if [ -f tools/clang-tidy-baseline ]; then
+            base=$(cat tools/clang-tidy-baseline)
+            echo "baseline: $base" | tee -a "$GITHUB_STEP_SUMMARY"
+            [ "$count" -le "$base" ] || { echo "more findings than the baseline"; exit 1; }
+          else
+            echo "no tools/clang-tidy-baseline yet: commit this count to start enforcing" >> "$GITHUB_STEP_SUMMARY"
+          fi
 
   freebsd:
     runs-on: ubuntu-24.04

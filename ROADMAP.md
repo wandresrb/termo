@@ -49,7 +49,30 @@ stack. Files, in order of value: `compat` (the `strnvis` bug class), `options` a
 `tests/unit/`. Coverage is measured nightly with gcovr; the phase closes when the report shows
 80% lines in the leaf modules and 60% in `input.c`, `format.c`, `screen/write.c`.
 
-## Phase 3: LuaJIT runtime and `termo.api` (plan `docs/sdlc/plan/002`)
+## Phase 3: C23 and POSIX.1-2024 (plan `docs/sdlc/plan/004`)
+
+Done before Lua so new code is born in the final style and the warning floor rises on a
+quiet tree. Compiler floor: GCC 14, Clang 20, Apple clang 21, enforced at `meson setup`.
+
+1. Attributes: `__dead`/`__unused`/`printflike`/`FALLTHROUGH` comments become
+   `[[noreturn]]`, `[[maybe_unused]]`, `[[gnu::format]]`, `[[fallthrough]]`;
+   `compat.h` loses its attribute shims; `-Wimplicit-fallthrough` on.
+2. Platforms and compat, measured against POSIX.1-2024: `osdep/` keeps Linux, macOS,
+   FreeBSD, OpenBSD, NetBSD; `compat/` keeps only what a target lacks (macOS: `reallocarray`,
+   `closefrom`, `explicit_bzero`; glibc: `getprogname`, `strtonum`, `b64`); every `HAVE_*`
+   the code reads is defined by a Meson probe or deleted. `systemd` option wired.
+3. Warnings measured then enforced: `-Wshadow`, `-Wmissing-prototypes`, `-Wstrict-prototypes`,
+   `-Wvla`, `-Wformat=2` under `-Werror`; `-Wconversion` recorded, not forced.
+4. `<stdckdint.h>` on the 25 size computations in `grid/`, `screen/`, `utf8/`, `input/`.
+5. `termo.h` typed: `static inline` for function-like macros, fixed-type enums for flag
+   groups with `static_assert` on size, `constexpr` for constants.
+6. `.clang-tidy` with a baseline, and the new-code rules in `CLAUDE.md`.
+
+Not in scope: `NULL` to `nullptr` sweeps, `u_int` to `uint32_t`, replacing `queue.h`,
+`tree.h`, `cmd-parse.y`, `gettimeofday` or `ioctl`; `<stdbit.h>`, `memset_explicit`,
+`#embed`, `char8_t` (missing on a target or on GCC 14).
+
+## Phase 4: LuaJIT runtime and `termo.api` (plan `docs/sdlc/plan/002`)
 
 Why Lua and not Rust, Go, JS or a data format is argued in the plan; the short form: the code
 runs inside the server's single libevent thread on every keystroke and redraw, so it must be
@@ -75,27 +98,6 @@ manifests) once the palette works.
 
 Evals: `tests/lua/*_spec.lua` covering every function in `termo.api.list()`, ASAN clean
 through `lua_close`, and regress unchanged with `-Dluajit=disabled`.
-
-## Phase 4: C23 modernisation
-
-Only changes with a payoff, each as its own PR with regress green:
-
-1. `[[noreturn]]`, `[[maybe_unused]]`, `[[gnu::format]]` replacing the
-   `__dead`/`__unused`/`printflike` macros; `compat.h` loses its attribute
-   shims.
-2. Prune `src/compat/` to what POSIX-2024 and the supported platforms lack, and
-   `src/osdep/` to Linux, macOS, FreeBSD, OpenBSD, NetBSD.
-3. `stdckdint.h` checked arithmetic in `grid/`, `screen/`, `utf8/` size
-   computations.
-4. `constexpr` and typed enums for the constants and flag sets in `termo.h`.
-5. `-Wimplicit-fallthrough` with `[[fallthrough]]` in the state machines,
-   `-Wconversion`, both under `-Werror` in CI.
-
-Not in scope: splitting `termo.h`, replacing `cmd-parse.y` or the BSD
-`queue.h`/`tree.h`, or a tree-wide `NULL` to `nullptr` sweep. They add churn
-that breaks upstream cherry-picks without buying safety or speed.
-
-Compiler floor from this phase on: clang 18, gcc 14.
 
 ## Phase 5: Rust in leaf modules
 

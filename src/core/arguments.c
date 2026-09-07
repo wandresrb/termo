@@ -501,7 +501,7 @@ args_from_vector(int argc, char **argv)
 }
 
 /* Add to string. */
-static void printflike(3, 4)
+[[gnu::format(printf, 3, 4)]] static void
 args_print_add(char **buf, size_t *len, const char *fmt, ...)
 {
 	va_list	 ap;

@@ -6,6 +6,8 @@ fixes need none of that, just a PR.
 
 ## Before opening a PR
 
+You need a C23 compiler: GCC 14+, Clang 20+, or Xcode 26+.
+
 ```sh
 meson setup build -Db_sanitize=address,undefined -Dbuildtype=debugoptimized
 ninja -C build
@@ -23,6 +25,13 @@ with:
 ./build/tests/termo-test format expressions
 python3 tests/regress/runner.py build/termo alerts.sh
 ```
+
+## Code
+
+C23. New code: `nullptr`, `bool`, `constexpr` constants, fixed-type enums for flags,
+`[[nodiscard]]` where a return must not be dropped, `ckd_add`/`ckd_mul` on sizes, no VLAs, no
+direct `__attribute__` (use `[[gnu::...]]`). Do not restyle existing code; a change in a leaf
+module comes with its unit test. `-Werror` is on in CI with the warning set in `meson.build`.
 
 ## Commits
 

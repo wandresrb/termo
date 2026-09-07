@@ -283,7 +283,7 @@ format_logging(struct format_tree *ft)
 }
 
 /* Log a message if verbose. */
-static void printflike(3, 4)
+[[gnu::format(printf, 3, 4)]] static void
 format_log1(struct format_expand_state *es, const char *from, const char *fmt,
     ...)
 {
@@ -517,7 +517,7 @@ format_lost_client(struct client *c)
 }
 
 /* Wrapper for asprintf. */
-static char * printflike(1, 2)
+[[gnu::format(printf, 1, 2)]] static char *
 format_printf(const char *fmt, ...)
 {
 	va_list	 ap;
@@ -531,7 +531,7 @@ format_printf(const char *fmt, ...)
 
 /* Callback for host. */
 static void *
-format_cb_host(__unused struct format_tree *ft)
+format_cb_host([[maybe_unused]] struct format_tree *ft)
 {
 	char host[HOST_NAME_MAX + 1];
 
@@ -542,7 +542,7 @@ format_cb_host(__unused struct format_tree *ft)
 
 /* Callback for host_short. */
 static void *
-format_cb_host_short(__unused struct format_tree *ft)
+format_cb_host_short([[maybe_unused]] struct format_tree *ft)
 {
 	char host[HOST_NAME_MAX + 1], *cp;
 
@@ -555,7 +555,7 @@ format_cb_host_short(__unused struct format_tree *ft)
 
 /* Callback for pid. */
 static void *
-format_cb_pid(__unused struct format_tree *ft)
+format_cb_pid([[maybe_unused]] struct format_tree *ft)
 {
 	char	*value;
 
@@ -1796,7 +1796,7 @@ format_cb_client_theme(struct format_tree *ft)
 
 /* Callback for config_files. */
 static void *
-format_cb_config_files(__unused struct format_tree *ft)
+format_cb_config_files([[maybe_unused]] struct format_tree *ft)
 {
 	char	*s = NULL;
 	size_t	 slen = 0;
@@ -2103,7 +2103,7 @@ format_cb_mouse_y(struct format_tree *ft)
 
 /* Callback for next_session_id. */
 static void *
-format_cb_next_session_id(__unused struct format_tree *ft)
+format_cb_next_session_id([[maybe_unused]] struct format_tree *ft)
 {
 	return (format_printf("$%u", next_session_id));
 }
@@ -2830,7 +2830,7 @@ format_cb_scroll_region_upper(struct format_tree *ft)
 
 /* Callback for server_sessions. */
 static void *
-format_cb_server_sessions(__unused struct format_tree *ft)
+format_cb_server_sessions([[maybe_unused]] struct format_tree *ft)
 {
 	struct session	*s;
 	u_int		 n = 0;
@@ -3039,21 +3039,21 @@ format_cb_session_windows(struct format_tree *ft)
 
 /* Callback for socket_path. */
 static void *
-format_cb_socket_path(__unused struct format_tree *ft)
+format_cb_socket_path([[maybe_unused]] struct format_tree *ft)
 {
 	return (xstrdup(socket_path));
 }
 
 /* Callback for version. */
 static void *
-format_cb_version(__unused struct format_tree *ft)
+format_cb_version([[maybe_unused]] struct format_tree *ft)
 {
 	return (xstrdup(getversion()));
 }
 
 /* Callback for sixel_support. */
 static void *
-format_cb_sixel_support(__unused struct format_tree *ft)
+format_cb_sixel_support([[maybe_unused]] struct format_tree *ft)
 {
 #ifdef ENABLE_SIXEL
 	return (xstrdup("1"));
@@ -3491,7 +3491,7 @@ format_cb_session_last_attached(struct format_tree *ft)
 
 /* Callback for start_time. */
 static void *
-format_cb_start_time(__unused struct format_tree *ft)
+format_cb_start_time([[maybe_unused]] struct format_tree *ft)
 {
 	return (&start_time);
 }
@@ -3507,35 +3507,35 @@ format_cb_window_activity(struct format_tree *ft)
 
 /* Callback for buffer_mode_format, */
 static void *
-format_cb_buffer_mode_format(__unused struct format_tree *ft)
+format_cb_buffer_mode_format([[maybe_unused]] struct format_tree *ft)
 {
 	return (xstrdup(window_buffer_mode.default_format));
 }
 
 /* Callback for client_mode_format, */
 static void *
-format_cb_client_mode_format(__unused struct format_tree *ft)
+format_cb_client_mode_format([[maybe_unused]] struct format_tree *ft)
 {
 	return (xstrdup(window_client_mode.default_format));
 }
 
 /* Callback for tree_mode_format, */
 static void *
-format_cb_tree_mode_format(__unused struct format_tree *ft)
+format_cb_tree_mode_format([[maybe_unused]] struct format_tree *ft)
 {
 	return (xstrdup(window_tree_mode.default_format));
 }
 
 /* Callback for uid. */
 static void *
-format_cb_uid(__unused struct format_tree *ft)
+format_cb_uid([[maybe_unused]] struct format_tree *ft)
 {
 	return (format_printf("%ld", (long)getuid()));
 }
 
 /* Callback for user. */
 static void *
-format_cb_user(__unused struct format_tree *ft)
+format_cb_user([[maybe_unused]] struct format_tree *ft)
 {
 	static char	*cached;
 	struct passwd	*pw;
@@ -5922,7 +5922,7 @@ fail:
 
 /* Callback for the cycle timer; redraw the status line. */
 static void
-format_cycle_callback(__unused int fd, __unused short events, void *arg)
+format_cycle_callback([[maybe_unused]] int fd, [[maybe_unused]] short events, void *arg)
 {
 	struct client	*c = arg;
 
@@ -6806,7 +6806,7 @@ format_expand1(struct format_expand_state *es, const char *fmt)
 				fmt = ptr + 1;
 				continue;
 			}
-			/* FALLTHROUGH */
+			[[fallthrough]];
 		case '}':
 		case ',':
 			format_log(es, "found #%c", ch);

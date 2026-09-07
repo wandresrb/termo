@@ -317,7 +317,7 @@ window_customize_add_item(struct window_customize_modedata *data)
 	return (item);
 }
 
-static int printflike(7, 8)
+[[gnu::format(printf, 7, 8)]] static int
 window_customize_write_value(struct screen_write_ctx *ctx, u_int cx,
     u_int sx, u_int sy, int more, const char *label, const char *fmt, ...)
 {
@@ -1062,7 +1062,7 @@ window_customize_build_environment(struct window_customize_modedata *data,
 
 static void
 window_customize_build(void *modedata,
-    __unused struct sort_criteria *sort_crit, __unused uint64_t *tag,
+    [[maybe_unused]] struct sort_criteria *sort_crit, [[maybe_unused]] uint64_t *tag,
     const char *filter)
 {
 	struct window_customize_modedata	*data = modedata;
@@ -1141,7 +1141,7 @@ window_customize_build(void *modedata,
 }
 
 static void
-window_customize_draw_key(__unused struct window_customize_modedata *data,
+window_customize_draw_key([[maybe_unused]] struct window_customize_modedata *data,
     struct window_customize_itemdata *item, struct screen_write_ctx *ctx,
     u_int sx, u_int sy)
 {
@@ -1549,7 +1549,7 @@ window_customize_menu(void *modedata, struct client *c, key_code key)
 }
 
 static u_int
-window_customize_height(__unused void *modedata, __unused u_int height)
+window_customize_height([[maybe_unused]] void *modedata, [[maybe_unused]] u_int height)
 {
 	return (12);
 }
@@ -1592,7 +1592,7 @@ window_customize_help(u_int *width, const char **item)
 
 static struct screen *
 window_customize_init(struct window_mode_entry *wme,
-    __unused struct cmdq_item *item, struct cmd_find_state *fs,
+    [[maybe_unused]] struct cmdq_item *item, struct cmd_find_state *fs,
     struct args *args)
 {
 	struct window_pane			*wp = wme->wp;
@@ -1692,7 +1692,7 @@ window_customize_free_item_callback(void *itemdata)
 
 static enum prompt_result
 window_customize_set_option_callback(struct client *c, void *itemdata,
-    const char *s, __unused enum prompt_key_result key)
+    const char *s, [[maybe_unused]] enum prompt_key_result key)
 {
 	struct window_customize_itemdata	*item = itemdata;
 	struct window_customize_modedata	*data = item->data;
@@ -1747,8 +1747,8 @@ fail:
 }
 
 static enum prompt_result
-window_customize_set_environment_callback(__unused struct client *c,
-    void *itemdata, const char *s, __unused enum prompt_key_result key)
+window_customize_set_environment_callback([[maybe_unused]] struct client *c,
+    void *itemdata, const char *s, [[maybe_unused]] enum prompt_key_result key)
 {
 	struct window_customize_itemdata	*item = itemdata;
 	struct window_customize_modedata	*data = item->data;
@@ -1827,7 +1827,7 @@ window_customize_set_environment(struct client *c,
 
 static enum prompt_result
 window_customize_add_option_callback(struct client *c, void *itemdata,
-    const char *s, __unused enum prompt_key_result key)
+    const char *s, [[maybe_unused]] enum prompt_key_result key)
 {
 	struct window_customize_itemdata	*item = itemdata;
 	struct window_customize_modedata	*data = item->data;
@@ -1914,7 +1914,7 @@ window_customize_add_option(struct client *c,
 
 static enum prompt_result
 window_customize_add_environment_callback(struct client *c, void *itemdata,
-    const char *s, __unused enum prompt_key_result key)
+    const char *s, [[maybe_unused]] enum prompt_key_result key)
 {
 	struct window_customize_itemdata	*item = itemdata;
 	struct window_customize_modedata	*data = item->data;
@@ -2253,7 +2253,7 @@ window_customize_set_option(struct client *c,
 
 static enum prompt_result
 window_customize_set_array_key_callback(struct client *c, void *itemdata,
-    const char *s, __unused enum prompt_key_result key)
+    const char *s, [[maybe_unused]] enum prompt_key_result key)
 {
 	struct window_customize_itemdata	*item = itemdata;
 	struct window_customize_modedata	*data;
@@ -2385,7 +2385,7 @@ window_customize_reset_option(struct window_customize_modedata *data,
 
 static enum prompt_result
 window_customize_set_command_callback(struct client *c, void *itemdata,
-    const char *s, __unused enum prompt_key_result key)
+    const char *s, [[maybe_unused]] enum prompt_key_result key)
 {
 	struct window_customize_itemdata	*item = itemdata;
 	struct window_customize_modedata	*data = item->data;
@@ -2423,8 +2423,8 @@ fail:
 }
 
 static enum prompt_result
-window_customize_set_note_callback(__unused struct client *c, void *itemdata,
-    const char *s, __unused enum prompt_key_result key)
+window_customize_set_note_callback([[maybe_unused]] struct client *c, void *itemdata,
+    const char *s, [[maybe_unused]] enum prompt_key_result key)
 {
 	struct window_customize_itemdata	*item = itemdata;
 	struct window_customize_modedata	*data = item->data;
@@ -2502,7 +2502,7 @@ window_customize_set_key(struct client *c,
 
 static enum prompt_result
 window_customize_add_key_callback(struct client *c, void *itemdata,
-    const char *s, __unused enum prompt_key_result key0)
+    const char *s, [[maybe_unused]] enum prompt_key_result key0)
 {
 	struct window_customize_itemdata	*item = itemdata;
 	struct window_customize_modedata	*data = item->data;
@@ -2621,7 +2621,7 @@ window_customize_reset_key(struct window_customize_modedata *data,
 
 static void
 window_customize_change_each(void *modedata, void *itemdata,
-    __unused struct client *c, __unused key_code key)
+    [[maybe_unused]] struct client *c, [[maybe_unused]] key_code key)
 {
 	struct window_customize_modedata	*data = modedata;
 	struct window_customize_itemdata	*item = itemdata;
@@ -2652,8 +2652,8 @@ window_customize_change_each(void *modedata, void *itemdata,
 }
 
 static enum prompt_result
-window_customize_change_current_callback(__unused struct client *c,
-    void *modedata, const char *s, __unused enum prompt_key_result key)
+window_customize_change_current_callback([[maybe_unused]] struct client *c,
+    void *modedata, const char *s, [[maybe_unused]] enum prompt_key_result key)
 {
 	struct window_customize_modedata	*data = modedata;
 	struct window_customize_itemdata	*item;
@@ -2699,7 +2699,7 @@ window_customize_change_current_callback(__unused struct client *c,
 
 static enum prompt_result
 window_customize_change_tagged_callback(struct client *c, void *modedata,
-    const char *s, __unused enum prompt_key_result key)
+    const char *s, [[maybe_unused]] enum prompt_key_result key)
 {
 	struct window_customize_modedata	*data = modedata;
 
@@ -2776,7 +2776,7 @@ window_customize_add_current(struct client *c,
 
 static void
 window_customize_key(struct window_mode_entry *wme, struct client *c,
-    __unused struct session *s, __unused struct winlink *wl, key_code key,
+    [[maybe_unused]] struct session *s, [[maybe_unused]] struct winlink *wl, key_code key,
     struct mouse_event *m)
 {
 	struct window_pane			*wp = wme->wp;

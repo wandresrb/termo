@@ -37,7 +37,7 @@ char                    **cfg_files;
 u_int                     cfg_nfiles;
 
 static enum cmd_retval
-cfg_client_done(__unused struct cmdq_item *item, __unused void *data)
+cfg_client_done([[maybe_unused]] struct cmdq_item *item, [[maybe_unused]] void *data)
 {
 	if (!cfg_finished)
 		return (CMD_RETURN_WAIT);
@@ -45,7 +45,7 @@ cfg_client_done(__unused struct cmdq_item *item, __unused void *data)
 }
 
 static enum cmd_retval
-cfg_done(__unused struct cmdq_item *item, __unused void *data)
+cfg_done([[maybe_unused]] struct cmdq_item *item, [[maybe_unused]] void *data)
 {
 	if (cfg_finished)
 		return (CMD_RETURN_NORMAL);

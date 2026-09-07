@@ -113,8 +113,8 @@ const struct cmd_entry cmd_display_panes_entry = {
 };
 
 static enum args_parse_type
-cmd_choose_tree_args_parse(__unused struct args *args, __unused u_int idx,
-    __unused char **cause)
+cmd_choose_tree_args_parse([[maybe_unused]] struct args *args, [[maybe_unused]] u_int idx,
+    [[maybe_unused]] char **cause)
 {
 	return (ARGS_PARSE_COMMANDS_OR_STRING);
 }

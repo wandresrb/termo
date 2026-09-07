@@ -68,7 +68,7 @@ const struct cmd_entry cmd_display_popup_entry = {
 };
 
 static enum args_parse_type
-cmd_display_menu_args_parse(struct args *args, u_int idx, __unused char **cause)
+cmd_display_menu_args_parse(struct args *args, u_int idx, [[maybe_unused]] char **cause)
 {
 	u_int			 i = 0;
 	enum args_parse_type	 type = ARGS_PARSE_STRING;

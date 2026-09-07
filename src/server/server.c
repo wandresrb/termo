@@ -156,7 +156,7 @@ fail:
 
 /* Tidy up every hour. */
 static void
-server_tidy_event(__unused int fd, __unused short events, __unused void *data)
+server_tidy_event([[maybe_unused]] int fd, [[maybe_unused]] short events, [[maybe_unused]] void *data)
 {
     struct timeval	tv = { .tv_sec = 3600 };
     uint64_t		t = get_timer();
@@ -370,7 +370,7 @@ server_update_socket(void)
 
 /* Callback for server socket. */
 static void
-server_accept(int fd, short events, __unused void *data)
+server_accept(int fd, short events, [[maybe_unused]] void *data)
 {
 	struct sockaddr_storage	 sa;
 	socklen_t		 slen = sizeof sa;

@@ -1,6 +1,6 @@
 # Plan 002: LuaJIT runtime and `termo.api`
 
-- Status: Approved 2026-09-07 (starts after plan 003, the unit test suite, closes)
+- Status: Approved 2026-09-07 (starts after plan 004, C23 and POSIX, closes)
 - Intent: [`intent/002-luajit-runtime.md`](../intent/002-luajit-runtime.md)
 - Spec: [`specs/002-luajit-runtime.md`](../specs/002-luajit-runtime.md)
 

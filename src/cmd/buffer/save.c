@@ -56,8 +56,8 @@ const struct cmd_entry cmd_show_buffer_entry = {
 };
 
 static void
-cmd_save_buffer_done(__unused struct client *c, const char *path, int error,
-    __unused int closed, __unused struct evbuffer *buffer, void *data)
+cmd_save_buffer_done([[maybe_unused]] struct client *c, const char *path, int error,
+    [[maybe_unused]] int closed, [[maybe_unused]] struct evbuffer *buffer, void *data)
 {
 	struct cmdq_item	*item = data;
 

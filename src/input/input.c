@@ -813,7 +813,7 @@ input_fire_pane_title_changed(struct window_pane *wp, const char *title)
  * long, so reset to ground.
  */
 static void
-input_ground_timer_callback(__unused int fd, __unused short events, void *arg)
+input_ground_timer_callback([[maybe_unused]] int fd, [[maybe_unused]] short events, void *arg)
 {
 	struct input_ctx	*ictx = arg;
 
@@ -1172,7 +1172,7 @@ input_send_reply(struct input_ctx *ictx, const char *reply)
 }
 
 /* Reply to terminal query. */
-static void printflike(3, 4)
+[[gnu::format(printf, 3, 4)]] static void
 input_reply(struct input_ctx *ictx, int add, const char *fmt, ...)
 {
 	struct input_request	*ir;
@@ -2100,7 +2100,7 @@ input_csi_dispatch_sm_private(struct input_ctx *ictx)
 
 /* Handle CSI graphics SM. */
 static void
-input_csi_dispatch_sm_graphics(__unused struct input_ctx *ictx)
+input_csi_dispatch_sm_graphics([[maybe_unused]] struct input_ctx *ictx)
 {
 #ifdef ENABLE_SIXEL
 	int	n, m, o;
@@ -2153,7 +2153,7 @@ input_csi_dispatch_winops(struct input_ctx *ictx)
 			m++;
 			if (input_get(ictx, m, 0, -1) == -1)
 				return;
-			/* FALLTHROUGH */
+			[[fallthrough]];
 		case 9:
 		case 10:
 			m++;
@@ -3518,7 +3518,7 @@ input_set_buffer_size(size_t buffer_size)
 
 /* Request timer. Remove any requests that are too old. */
 static void
-input_request_timer_callback(__unused int fd, __unused short events, void *arg)
+input_request_timer_callback([[maybe_unused]] int fd, [[maybe_unused]] short events, void *arg)
 {
 	struct input_ctx	*ictx = arg;
 	struct input_request	*ir, *ir1;

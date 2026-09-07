@@ -177,7 +177,7 @@ session_remove_ref(struct session *s, const char *from)
 
 /* Free session. */
 static void
-session_free(__unused int fd, __unused short events, void *arg)
+session_free([[maybe_unused]] int fd, [[maybe_unused]] short events, void *arg)
 {
 	struct session	*s = arg;
 
@@ -230,7 +230,7 @@ session_destroy(struct session *s, int notify, const char *from)
 
 /* Lock session if it has timed out. */
 static void
-session_lock_timer(__unused int fd, __unused short events, void *arg)
+session_lock_timer([[maybe_unused]] int fd, [[maybe_unused]] short events, void *arg)
 {
 	struct session	*s = arg;
 

@@ -21,6 +21,7 @@
 #ifdef __APPLE__
 #include <assert.h>
 #endif
+#include <stdckdint.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -90,7 +91,7 @@ grid_check_is_clear(struct grid *gd)
 }
 #else
 void
-grid_check_is_clear(__unused struct grid *gd)
+grid_check_is_clear([[maybe_unused]] struct grid *gd)
 {
 }
 #endif
@@ -188,7 +189,7 @@ grid_extended_cell(struct grid_line *gl, struct grid_cell_entry *gce,
 static void
 grid_compact_line(struct grid_line *gl)
 {
-	int			 new_extdsize = 0;
+	u_int			 new_extdsize = 0;
 	struct grid_extd_entry	*new_extddata;
 	struct grid_cell_entry	*gce;
 	struct grid_extd_entry	*gee;
@@ -496,11 +497,11 @@ grid_remove_history(struct grid *gd, u_int ny)
 void
 grid_scroll_history(struct grid *gd, u_int bg)
 {
-	u_int	yy;
+	u_int	yy, n;
 
-	yy = gd->hsize + gd->sy;
-	gd->linedata = xreallocarray(gd->linedata, yy + 1,
-	    sizeof *gd->linedata);
+	if (ckd_add(&yy, gd->hsize, gd->sy) || ckd_add(&n, yy, 1))
+		fatalx("too many lines");
+	gd->linedata = xreallocarray(gd->linedata, n, sizeof *gd->linedata);
 	grid_empty_line(gd, yy, bg);
 
 	gd->hscrolled++;
@@ -529,12 +530,12 @@ void
 grid_scroll_history_region(struct grid *gd, u_int upper, u_int lower, u_int bg)
 {
 	struct grid_line	*gl_history, *gl_upper;
-	u_int			 yy;
+	u_int			 yy, n;
 
 	/* Create a space for a new line. */
-	yy = gd->hsize + gd->sy;
-	gd->linedata = xreallocarray(gd->linedata, yy + 1,
-	    sizeof *gd->linedata);
+	if (ckd_add(&yy, gd->hsize, gd->sy) || ckd_add(&n, yy, 1))
+		fatalx("too many lines");
+	gd->linedata = xreallocarray(gd->linedata, n, sizeof *gd->linedata);
 
 	/* Move the entire screen down to free a space for this line. */
 	gl_history = &gd->linedata[gd->hsize];
@@ -1176,6 +1177,21 @@ grid_string_cells_code(const struct grid_cell *lastgc,
 }
 
 /* Convert cells into a string. */
+/* Grow buf until it holds off + need bytes plus a terminator. */
+static void
+grid_string_grow(char **buf, size_t *len, size_t off, size_t need)
+{
+	size_t	want;
+
+	if (ckd_add(&want, off, need) || ckd_add(&want, want, 1))
+		fatalx("size overflow");
+	while (*len < want) {
+		if (ckd_mul(len, *len, 2))
+			fatalx("size overflow");
+		*buf = xrealloc(*buf, *len);
+	}
+}
+
 char *
 grid_string_cells(struct grid *gd, u_int px, u_int py, u_int nx,
     struct grid_cell **lastgc, int flags, struct screen *s)
@@ -1236,10 +1252,7 @@ grid_string_cells(struct grid *gd, u_int px, u_int py, u_int nx,
 			}
 		}
 
-		while (len < off + size + codelen + 1) {
-			buf = xreallocarray(buf, 2, len);
-			len *= 2;
-		}
+		grid_string_grow(&buf, &len, off, size + codelen);
 
 		if (codelen != 0) {
 			memcpy(buf + off, code, codelen);
@@ -1253,10 +1266,7 @@ grid_string_cells(struct grid *gd, u_int px, u_int py, u_int nx,
 		grid_string_cells_add_hyperlink(code, sizeof code, "", "",
 		    flags);
 		codelen = strlen(code);
-		while (len < off + size + codelen + 1) {
-			buf = xreallocarray(buf, 2, len);
-			len *= 2;
-		}
+		grid_string_grow(&buf, &len, off, size + codelen);
 		memcpy(buf + off, code, codelen);
 		off += codelen;
 	}
@@ -1326,8 +1336,10 @@ static struct grid_line *
 grid_reflow_add(struct grid *gd, u_int n)
 {
 	struct grid_line	*gl;
-	u_int			 sy = gd->sy + n;
+	u_int			 sy;
 
+	if (ckd_add(&sy, gd->sy, n))
+		fatalx("too many lines");
 	gd->linedata = xreallocarray(gd->linedata, sy, sizeof *gd->linedata);
 	gl = &gd->linedata[gd->sy];
 	memset(gl, 0, n * (sizeof *gl));

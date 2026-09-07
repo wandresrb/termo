@@ -135,7 +135,7 @@ window_buffer_free_item(struct window_buffer_itemdata *item)
 
 static void
 window_buffer_build(void *modedata, struct sort_criteria *sort_crit,
-    __unused uint64_t *tag, const char *filter)
+    [[maybe_unused]] uint64_t *tag, const char *filter)
 {
 	struct window_buffer_modedata	*data = modedata;
 	struct window_buffer_itemdata	*item;
@@ -197,7 +197,7 @@ window_buffer_build(void *modedata, struct sort_criteria *sort_crit,
 }
 
 static void
-window_buffer_draw(__unused void *modedata, void *itemdata,
+window_buffer_draw([[maybe_unused]] void *modedata, void *itemdata,
     struct screen_write_ctx *ctx, u_int sx, u_int sy)
 {
 	struct window_buffer_itemdata	*item = itemdata;
@@ -255,7 +255,7 @@ window_buffer_find(const void *data, size_t datalen, const void *find,
 }
 
 static int
-window_buffer_search(__unused void *modedata, void *itemdata, const char *ss,
+window_buffer_search([[maybe_unused]] void *modedata, void *itemdata, const char *ss,
     int icase)
 {
 	struct window_buffer_itemdata	*item = itemdata;
@@ -364,7 +364,7 @@ window_buffer_help(u_int *width, const char **item)
 
 static struct screen *
 window_buffer_init(struct window_mode_entry *wme,
-    __unused struct cmdq_item *item, struct cmd_find_state *fs,
+    [[maybe_unused]] struct cmdq_item *item, struct cmd_find_state *fs,
     struct args *args)
 {
 	struct window_pane		*wp = wme->wp;
@@ -448,7 +448,7 @@ window_buffer_update(struct window_mode_entry *wme)
 
 static void
 window_buffer_do_delete(void *modedata, void *itemdata,
-    __unused struct client *c, __unused key_code key)
+    [[maybe_unused]] struct client *c, [[maybe_unused]] key_code key)
 {
 	struct window_buffer_modedata	*data = modedata;
 	struct window_buffer_itemdata	*item = itemdata;
@@ -471,7 +471,7 @@ window_buffer_do_delete(void *modedata, void *itemdata,
 
 static void
 window_buffer_do_paste(void *modedata, void *itemdata, struct client *c,
-    __unused key_code key)
+    [[maybe_unused]] key_code key)
 {
 	struct window_buffer_modedata	*data = modedata;
 	struct window_buffer_itemdata	*item = itemdata;
@@ -617,7 +617,7 @@ window_buffer_start_edit(struct window_buffer_modedata *data,
 
 static void
 window_buffer_key(struct window_mode_entry *wme, struct client *c,
-    __unused struct session *s, __unused struct winlink *wl, key_code key,
+    [[maybe_unused]] struct session *s, [[maybe_unused]] struct winlink *wl, key_code key,
     struct mouse_event *m)
 {
 	struct window_pane		*wp = wme->wp;

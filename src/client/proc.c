@@ -31,10 +31,6 @@
 #include <ncurses.h>
 #endif
 
-#ifdef HAVE_JEMALLOC
-#include <jemalloc/jemalloc.h>
-#endif
-
 #include "termo.h"
 
 struct tmuxproc {
@@ -76,7 +72,7 @@ static int	peer_check_version(struct tmuxpeer *, struct imsg *);
 static void	proc_update_event(struct tmuxpeer *);
 
 static void
-proc_event_cb(__unused int fd, short events, void *arg)
+proc_event_cb([[maybe_unused]] int fd, short events, void *arg)
 {
 	struct tmuxpeer	*peer = arg;
 	int		 n;
@@ -122,7 +118,7 @@ proc_event_cb(__unused int fd, short events, void *arg)
 }
 
 static void
-proc_signal_cb(int signo, __unused short events, void *arg)
+proc_signal_cb(int signo, [[maybe_unused]] short events, void *arg)
 {
 	struct tmuxproc	*tp = arg;
 
@@ -185,10 +181,6 @@ proc_start(const char *name)
 {
 	struct tmuxproc	*tp;
 	struct utsname	 u;
-#ifdef HAVE_JEMALLOC
-	const char	*version;
-	size_t		 size = sizeof version;
-#endif
 
 	log_open(name);
 	setproctitle("%s (%s)", name, socket_path);
@@ -202,11 +194,6 @@ proc_start(const char *name)
 	log_debug("using libevent %s %s", event_get_version(), event_get_method());
 #ifdef HAVE_UTF8PROC
 	log_debug("using utf8proc %s", utf8proc_version());
-#endif
-#ifdef HAVE_JEMALLOC
-	if (mallctl("version", &version, &size, NULL, 0) != 0)
-		version = "(unknown version)";
-	log_debug("using jemalloc %s", version);
 #endif
 #ifdef NCURSES_VERSION
 	log_debug("using ncurses %s %06u", NCURSES_VERSION, NCURSES_VERSION_PATCH);

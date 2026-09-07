@@ -215,7 +215,7 @@ key_bindings_first(struct key_table *table)
 }
 
 struct key_binding *
-key_bindings_next(__unused struct key_table *table, struct key_binding *bd)
+key_bindings_next([[maybe_unused]] struct key_table *table, struct key_binding *bd)
 {
 	return (RB_NEXT(key_bindings, &table->key_bindings, bd));
 }
@@ -358,7 +358,7 @@ key_bindings_reset_table(const char *name)
 }
 
 static enum cmd_retval
-key_bindings_init_done(__unused struct cmdq_item *item, __unused void *data)
+key_bindings_init_done([[maybe_unused]] struct cmdq_item *item, [[maybe_unused]] void *data)
 {
 	struct key_table	*table;
 	struct key_binding	*bd, *new_bd;
@@ -749,7 +749,7 @@ key_bindings_init(void)
 }
 
 static enum cmd_retval
-key_bindings_read_only(struct cmdq_item *item, __unused void *data)
+key_bindings_read_only(struct cmdq_item *item, [[maybe_unused]] void *data)
 {
 	cmdq_error(item, "client is read-only");
 	return (CMD_RETURN_ERROR);

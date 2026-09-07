@@ -625,8 +625,8 @@ control_error(struct cmdq_item *item, void *data)
 
 /* Control client error callback. */
 static void
-control_error_callback(__unused struct bufferevent *bufev,
-    __unused short what, void *data)
+control_error_callback([[maybe_unused]] struct bufferevent *bufev,
+    [[maybe_unused]] short what, void *data)
 {
 	struct client	*c = data;
 
@@ -635,7 +635,7 @@ control_error_callback(__unused struct bufferevent *bufev,
 
 /* Control client input callback. Read lines and fire commands. */
 static void
-control_read_callback(__unused struct bufferevent *bufev, void *data)
+control_read_callback([[maybe_unused]] struct bufferevent *bufev, void *data)
 {
 	struct client		*c = data;
 	struct control_state	*cs = c->control_state;
@@ -863,7 +863,7 @@ control_write_pending(struct client *c, struct control_pane *cp, size_t limit)
 
 /* Control client write callback. */
 static void
-control_write_callback(__unused struct bufferevent *bufev, void *data)
+control_write_callback([[maybe_unused]] struct bufferevent *bufev, void *data)
 {
 	struct client		*c = data;
 	struct control_state	*cs = c->control_state;
@@ -900,7 +900,7 @@ control_write_callback(__unused struct bufferevent *bufev, void *data)
 
 /* Write a subscription change. */
 static void
-control_sub_change(struct monitor_change *change, __unused void *data)
+control_sub_change(struct monitor_change *change, [[maybe_unused]] void *data)
 {
 	struct client		*c = change->c;
 	struct session		*s = change->s;

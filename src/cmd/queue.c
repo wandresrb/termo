@@ -357,7 +357,7 @@ cmdq_insert_after(struct cmdq_item *after, struct cmdq_item *item)
 
 /* Insert a hook. */
 void
-cmdq_insert_hook(__unused struct session *s, struct cmdq_item *item,
+cmdq_insert_hook([[maybe_unused]] struct session *s, struct cmdq_item *item,
     struct cmd_find_state *current, const char *fmt, ...)
 {
 	struct cmd			*cmd = item->cmd;
@@ -457,7 +457,7 @@ cmdq_remove_group(struct cmdq_item *item)
 
 /* Empty command callback. */
 static enum cmd_retval
-cmdq_empty_command(__unused struct cmdq_item *item, __unused void *data)
+cmdq_empty_command([[maybe_unused]] struct cmdq_item *item, [[maybe_unused]] void *data)
 {
 	return (CMD_RETURN_NORMAL);
 }

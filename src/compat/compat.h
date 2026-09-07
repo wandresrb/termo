@@ -56,27 +56,6 @@
 #include <utf8proc.h>
 #endif
 
-#ifndef __GNUC__
-#define __attribute__(a)
-#endif
-
-#ifdef BROKEN___DEAD
-#undef __dead
-#endif
-
-#ifndef __unused
-#define __unused __attribute__ ((__unused__))
-#endif
-#ifndef __dead
-#define __dead __attribute__ ((__noreturn__))
-#endif
-#ifndef __packed
-#define __packed __attribute__ ((__packed__))
-#endif
-#ifndef __weak
-#define __weak __attribute__ ((__weak__))
-#endif
-
 #ifndef ECHOPRT
 #define ECHOPRT 0
 #endif
@@ -85,18 +64,7 @@
 #define ACCESSPERMS (S_IRWXU|S_IRWXG|S_IRWXO)
 #endif
 
-#if !defined(FIONREAD) && defined(__sun)
-#include <sys/filio.h>
-#endif
-
-#ifdef HAVE_ERR_H
 #include <err.h>
-#else
-void	err(int, const char *, ...);
-void	errx(int, const char *, ...);
-void	warn(const char *, ...);
-void	warnx(const char *, ...);
-#endif
 
 #ifdef HAVE_PATHS_H
 #include <paths.h>
@@ -280,26 +248,9 @@ void	warnx(const char *, ...);
 #define CLOCK_MONOTONIC CLOCK_REALTIME
 #endif
 
-#ifndef HAVE_FLOCK
-#define LOCK_SH 0
-#define LOCK_EX 0
-#define LOCK_NB 0
-#define flock(fd, op) (0)
-#endif
-
 #ifndef HAVE_EXPLICIT_BZERO
 /* explicit_bzero.c */
 void		 explicit_bzero(void *, size_t);
-#endif
-
-#ifndef HAVE_GETDTABLECOUNT
-/* getdtablecount.c */
-int		 getdtablecount(void);
-#endif
-
-#ifndef HAVE_GETDTABLESIZE
-/* getdtablesize.c */
-int		 getdtablesize(void);
 #endif
 
 #ifndef HAVE_CLOSEFROM
@@ -307,44 +258,9 @@ int		 getdtablesize(void);
 void		 closefrom(int);
 #endif
 
-#ifndef HAVE_STRCASESTR
-/* strcasestr.c */
-char		*strcasestr(const char *, const char *);
-#endif
-
-#ifndef HAVE_STRSEP
-/* strsep.c */
-char		*strsep(char **, const char *);
-#endif
-
 #ifndef HAVE_STRTONUM
 /* strtonum.c */
 long long	 strtonum(const char *, long long, long long, const char **);
-#endif
-
-#ifndef HAVE_STRLCPY
-/* strlcpy.c */
-size_t	 	 strlcpy(char *, const char *, size_t);
-#endif
-
-#ifndef HAVE_STRLCAT
-/* strlcat.c */
-size_t	 	 strlcat(char *, const char *, size_t);
-#endif
-
-#ifndef HAVE_STRNLEN
-/* strnlen.c */
-size_t		 strnlen(const char *, size_t);
-#endif
-
-#ifndef HAVE_STRNDUP
-/* strndup.c */
-char		*strndup(const char *, size_t);
-#endif
-
-#ifndef HAVE_MEMMEM
-/* memmem.c */
-void		*memmem(const void *, size_t, const void *, size_t);
 #endif
 
 #ifndef HAVE_HTONLL
@@ -364,9 +280,10 @@ uint64_t	 ntohll(uint64_t);
 int		getpeereid(int, uid_t *, gid_t *);
 #endif
 
-#ifndef HAVE_DAEMON
-/* daemon.c */
-int	 	 daemon(int, int);
+#ifdef __APPLE__
+/* daemon.c: the libc one is deprecated and breaks under launchd */
+int	 	 termo_daemon(int, int);
+#define daemon(nochdir, noclose) termo_daemon(nochdir, noclose)
 #endif
 
 #ifndef HAVE_GETPROGNAME
@@ -379,11 +296,6 @@ const char	*getprogname(void);
 void		 setproctitle(const char *, ...);
 #endif
 
-#ifndef HAVE_CLOCK_GETTIME
-/* clock_gettime.c */
-int		 clock_gettime(int, struct timespec *);
-#endif
-
 #ifndef HAVE_B64_NTOP
 /* base64.c */
 #undef b64_ntop
@@ -392,39 +304,10 @@ int		 b64_ntop(const u_char *, size_t, char *, size_t);
 int		 b64_pton(const char *, u_char *, size_t);
 #endif
 
-#ifndef HAVE_FDFORKPTY
 /* fdforkpty.c */
 int		 getptmfd(void);
 pid_t		 fdforkpty(int, int *, char *, struct termios *,
 		     struct winsize *);
-#endif
-
-#ifndef HAVE_FORKPTY
-/* forkpty.c */
-pid_t		 forkpty(int *, char *, struct termios *, struct winsize *);
-#endif
-
-#ifndef HAVE_ASPRINTF
-/* asprintf.c */
-int		 asprintf(char **, const char *, ...);
-int		 vasprintf(char **, const char *, va_list);
-#endif
-
-#ifndef HAVE_GETLINE
-/* getline.c */
-ssize_t		 getline(char **, size_t *, FILE *);
-#endif
-
-#ifndef HAVE_SETENV
-/* setenv.c */
-int		 setenv(const char *, const char *, int);
-int		 unsetenv(const char *);
-#endif
-
-#ifndef HAVE_CFMAKERAW
-/* cfmakeraw.c */
-void		 cfmakeraw(struct termios *);
-#endif
 
 #ifndef HAVE_FREEZERO
 /* freezero.c */
@@ -453,14 +336,6 @@ int		 systemd_move_to_new_cgroup(char **);
 int		 utf8proc_wcwidth(wchar_t);
 int		 utf8proc_mbtowc(wchar_t *, const char *, size_t);
 int		 utf8proc_wctomb(char *, wchar_t);
-#endif
-
-#ifdef NEED_FUZZING
-/* tmux.c */
-#define main __weak main
-#define regcomp(preg, pattern, cflags) (0)
-#define regexec(preg, string, nmatch, pmatch, eflags) (REG_NOMATCH)
-#define regfree(preg) ((void)0)
 #endif
 
 /* getopt.c */

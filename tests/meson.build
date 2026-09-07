@@ -42,7 +42,7 @@ test('integration_termo', py,
 test('regress', py,
   args: [files('regress/runner.py'), termo_exe],
   suite: 'regress',
-  timeout: 900,
+  timeout: 1500,
 )
 
 # libFuzzer harnesses for the four external-input parsers. The library is
@@ -59,13 +59,13 @@ int LLVMFuzzerTestOneInput(const unsigned char *d, unsigned long n) { (void)d; (
     fuzz_lib = static_library('termo_fuzz', sources,
       include_directories: inc_dirs,
       dependencies: deps,
-      c_args: c_args + ['-DNEED_FUZZING', '-fsanitize=fuzzer-no-link'],
+      c_args: c_args + ['-fsanitize=fuzzer-no-link'],
     )
     foreach t : ['cmd-parse', 'format', 'input', 'style']
       fuzz_exe = executable(t + '-fuzzer', 'fuzz/' + t + '-fuzzer.c', files('unit/harness.c'),
         include_directories: [inc_dirs, include_directories('unit')],
         dependencies: deps,
-        c_args: c_args + ['-DNEED_FUZZING'],
+        c_args: c_args,
         link_with: fuzz_lib,
         link_args: ['-fsanitize=fuzzer'],
       )

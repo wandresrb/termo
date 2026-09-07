@@ -10,6 +10,7 @@
 #include <resolv.h>
 
 #include <errno.h>
+#include <fcntl.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
@@ -190,4 +191,17 @@ TEST(compat, freezero_accepts_null)
 	freezero(nullptr, 0);
 	freezero(p, 8);
 	CHECK(1);
+}
+
+TEST(compat, closefrom_closes_everything_above)
+{
+	int	a = open("/dev/null", O_RDONLY), b = open("/dev/null", O_RDONLY);
+	int	c = open("/dev/null", O_RDONLY);
+
+	REQUIRE(a >= 0 && b > a && c > b);
+	closefrom(b);
+	CHECK(fcntl(a, F_GETFD) != -1);
+	CHECK_EQ(fcntl(b, F_GETFD), -1);
+	CHECK_EQ(fcntl(c, F_GETFD), -1);
+	close(a);
 }

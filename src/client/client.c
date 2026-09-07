@@ -57,7 +57,7 @@ static const char	*client_execcmd;
 static int		 client_attached;
 static struct client_files client_files = RB_INITIALIZER(&client_files);
 
-static __dead void	 client_exec(const char *,const char *);
+[[noreturn]] static void	 client_exec(const char *,const char *);
 static int		 client_get_lock(char *);
 static int		 client_connect(struct event_base *, const char *,
 			     uint64_t);
@@ -488,7 +488,7 @@ client_send_identify(const char *ttynam, const char *termname, char **caps,
 }
 
 /* Run command in shell; used for -c. */
-static __dead void
+[[noreturn]] static void
 client_exec(const char *shell, const char *shellcmd)
 {
 	char	*argv0;
@@ -564,9 +564,9 @@ client_signal(int sig)
 
 /* Callback for file write error or close. */
 static void
-client_file_check_cb(__unused struct client *c, __unused const char *path,
-    __unused int error, __unused int closed, __unused struct evbuffer *buffer,
-    __unused void *data)
+client_file_check_cb([[maybe_unused]] struct client *c, [[maybe_unused]] const char *path,
+    [[maybe_unused]] int error, [[maybe_unused]] int closed, [[maybe_unused]] struct evbuffer *buffer,
+    [[maybe_unused]] void *data)
 {
 	if (client_exitflag)
 		client_exit();
@@ -574,7 +574,7 @@ client_file_check_cb(__unused struct client *c, __unused const char *path,
 
 /* Callback for client read events. */
 static void
-client_dispatch(struct imsg *imsg, __unused void *arg)
+client_dispatch(struct imsg *imsg, [[maybe_unused]] void *arg)
 {
 	if (imsg == NULL) {
 		if (!client_exitflag) {

@@ -114,7 +114,7 @@ layout_append(struct layout_cell *lc, char *buf, size_t len)
 	switch (lc->type) {
 	case LAYOUT_LEFTRIGHT:
 		brackets = "}{";
-		/* FALLTHROUGH */
+		[[fallthrough]];
 	case LAYOUT_TOPBOTTOM:
 		if (strlcat(buf, &brackets[1], len) >= len)
 			return (-1);

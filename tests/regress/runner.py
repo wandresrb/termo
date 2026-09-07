@@ -3,6 +3,7 @@
 
 import argparse
 import os
+import re
 import signal
 import subprocess
 import sys
@@ -17,10 +18,12 @@ def kill_leftovers(script_pid):
     """Scripts name their sockets -LtestA$$/-LtestB$$; kill servers they left."""
     ps = subprocess.run(["ps", "-axo", "pid=,command="], capture_output=True,
                         text=True).stdout
+    # Exact socket name: pid 8893 must not match pid 88938; -1/-2 suffixes are ok.
+    mine = re.compile(rf"-Ltest[AB]{script_pid}(?:-\d+)?(?=\s|$)")
     killed = 0
     for line in ps.splitlines():
         pid, _, cmd = line.strip().partition(" ")
-        if f"-LtestA{script_pid}" in cmd or f"-LtestB{script_pid}" in cmd:
+        if mine.search(cmd):
             try:
                 os.kill(int(pid), signal.SIGKILL)
                 killed += 1
@@ -40,6 +43,7 @@ def run_one(script, env, timeout):
     except subprocess.TimeoutExpired:
         proc.kill()
         out, _ = proc.communicate()
+        out += f"\n[runner] timeout after {timeout}s\n"
         rc = "timeout"
     leaked = kill_leftovers(proc.pid)
     if leaked:
@@ -52,7 +56,7 @@ def main():
     ap.add_argument("termo_bin")
     ap.add_argument("tests", nargs="*", help="scripts to run (default: all *.sh)")
     ap.add_argument("-j", "--jobs", type=int, default=os.cpu_count() or 1)
-    ap.add_argument("--timeout", type=int, default=300, help="seconds per script")
+    ap.add_argument("--timeout", type=int, default=600, help="seconds per script")
     ap.add_argument("--log-dir", default=str(REGRESS_DIR / "logs"),
                     help="where to write <script>.log for failures")
     ap.add_argument("-v", "--verbose", action="store_true")

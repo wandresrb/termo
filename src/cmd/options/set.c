@@ -78,7 +78,7 @@ const struct cmd_entry cmd_set_hook_entry = {
 
 static enum args_parse_type
 cmd_set_option_args_parse(struct args *args, u_int idx,
-    __unused char **cause)
+    [[maybe_unused]] char **cause)
 {
 	if (args_has(args, 'B'))
 		return (ARGS_PARSE_COMMANDS_OR_STRING);

@@ -41,7 +41,7 @@ extern void daemon_darwin(void);
 #endif
 
 int
-daemon(int nochdir, int noclose)
+termo_daemon(int nochdir, int noclose)
 {
 	int fd;
 

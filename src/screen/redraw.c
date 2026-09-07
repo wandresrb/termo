@@ -592,7 +592,7 @@ redraw_mark_border_cell(struct redraw_build_ctx *bctx, int wx, int wy,
  */
 static void
 redraw_mark_border_status(struct redraw_build_ctx *bctx, struct window_pane *wp,
-    __unused int left, int right, int top, int bottom)
+    [[maybe_unused]] int left, int right, int top, int bottom)
 {
 	struct redraw_build_cell	*bc;
 	u_int				 x, y, off = 0;

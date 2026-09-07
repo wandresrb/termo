@@ -215,7 +215,7 @@ window_client_free_item(struct window_client_itemdata *item)
 
 static void
 window_client_build(void *modedata, struct sort_criteria *sort_crit,
-    __unused uint64_t *tag, const char *filter)
+    [[maybe_unused]] uint64_t *tag, const char *filter)
 {
 	struct window_client_modedata	*data = modedata;
 	struct window_client_itemdata	*item;
@@ -263,7 +263,7 @@ window_client_build(void *modedata, struct sort_criteria *sort_crit,
 }
 
 static void
-window_client_draw_info(__unused void *modedata, void *itemdata,
+window_client_draw_info([[maybe_unused]] void *modedata, void *itemdata,
     struct screen_write_ctx *ctx, u_int sx, u_int sy)
 {
 	struct window_client_itemdata	*item = itemdata;
@@ -429,7 +429,7 @@ window_client_help(u_int *width, const char **item)
 
 static struct screen *
 window_client_init(struct window_mode_entry *wme,
-    __unused struct cmdq_item *item, __unused struct cmd_find_state *fs,
+    [[maybe_unused]] struct cmdq_item *item, [[maybe_unused]] struct cmd_find_state *fs,
     struct args *args)
 {
 	struct window_pane		*wp = wme->wp;
@@ -513,7 +513,7 @@ window_client_update(struct window_mode_entry *wme)
 
 static void
 window_client_do_detach(void *modedata, void *itemdata,
-    __unused struct client *c, key_code key)
+    [[maybe_unused]] struct client *c, key_code key)
 {
 	struct window_client_modedata	*data = modedata;
 	struct window_client_itemdata	*item = itemdata;
@@ -530,7 +530,7 @@ window_client_do_detach(void *modedata, void *itemdata,
 
 static void
 window_client_key(struct window_mode_entry *wme, struct client *c,
-    __unused struct session *s, __unused struct winlink *wl, key_code key,
+    [[maybe_unused]] struct session *s, [[maybe_unused]] struct winlink *wl, key_code key,
     struct mouse_event *m)
 {
 	struct window_pane		*wp = wme->wp;

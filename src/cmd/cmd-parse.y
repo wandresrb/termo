@@ -32,7 +32,7 @@
 
 static int			 yylex(void);
 static int			 yyparse(void);
-static void printflike(1,2)	 yyerror(const char *, ...);
+[[gnu::format(printf, 1, 2)]] static void yyerror(const char *, ...);
 
 static char			*yylex_token(int);
 static char			*yylex_format(void);
@@ -1136,7 +1136,7 @@ cmd_parse_from_arguments(struct args_value *values, u_int count,
 	return (&pr);
 }
 
-static void printflike(1, 2)
+[[gnu::format(printf, 1, 2)]] static void
 yyerror(const char *fmt, ...)
 {
 	struct cmd_parse_state	*ps = &parse_state;

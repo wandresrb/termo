@@ -223,7 +223,7 @@ cmd_wait_for_event_print(struct wait_event_item *wei, struct event_payload *ep)
 }
 
 static void
-cmd_wait_for_event_cb(__unused const char *name, struct event_payload *ep,
+cmd_wait_for_event_cb([[maybe_unused]] const char *name, struct event_payload *ep,
     void *item_data)
 {
 	struct wait_event_item	*wei = item_data;
@@ -345,7 +345,7 @@ cmd_wait_for_list(struct cmdq_item *item, struct wait_channel *wc)
 }
 
 static enum cmd_retval
-cmd_wait_for_wake(__unused struct cmdq_item *item, const char *name,
+cmd_wait_for_wake([[maybe_unused]] struct cmdq_item *item, const char *name,
     struct args *args, struct wait_channel *wc)
 {
 	struct wait_item	*wi, *wi1;
@@ -377,7 +377,7 @@ cmd_wait_for_wake(__unused struct cmdq_item *item, const char *name,
 }
 
 static enum cmd_retval
-cmd_wait_for_signal(__unused struct cmdq_item *item, const char *name,
+cmd_wait_for_signal([[maybe_unused]] struct cmdq_item *item, const char *name,
     struct wait_channel *wc)
 {
 	struct wait_item	*wi, *wi1;

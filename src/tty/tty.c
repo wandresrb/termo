@@ -170,7 +170,7 @@ tty_set_size(struct tty *tty, u_int sx, u_int sy, u_int xpixel, u_int ypixel)
 }
 
 static void
-tty_read_callback(__unused int fd, __unused short events, void *data)
+tty_read_callback([[maybe_unused]] int fd, [[maybe_unused]] short events, void *data)
 {
 	struct tty	*tty = data;
 	struct client	*c = tty->client;
@@ -195,7 +195,7 @@ tty_read_callback(__unused int fd, __unused short events, void *data)
 }
 
 static void
-tty_timer_callback(__unused int fd, __unused short events, void *data)
+tty_timer_callback([[maybe_unused]] int fd, [[maybe_unused]] short events, void *data)
 {
 	struct tty	*tty = data;
 	struct client	*c = tty->client;
@@ -245,7 +245,7 @@ tty_block_maybe(struct tty *tty)
 }
 
 static void
-tty_write_callback(__unused int fd, __unused short events, void *data)
+tty_write_callback([[maybe_unused]] int fd, [[maybe_unused]] short events, void *data)
 {
 	struct tty	*tty = data;
 	struct client	*c = tty->client;
@@ -308,7 +308,7 @@ tty_open(struct tty *tty, char **cause)
 }
 
 static void
-tty_start_timer_callback(__unused int fd, __unused short events, void *data)
+tty_start_timer_callback([[maybe_unused]] int fd, [[maybe_unused]] short events, void *data)
 {
 	struct tty	*tty = data;
 	struct client	*c = tty->client;
@@ -1084,7 +1084,7 @@ tty_update_client_offset(struct client *c)
  * pane.
  */
 static int
-tty_large_region(__unused struct tty *tty, const struct tty_ctx *ctx)
+tty_large_region([[maybe_unused]] struct tty *tty, const struct tty_ctx *ctx)
 {
 	return (ctx->orlower - ctx->orupper >= ctx->sy / 2);
 }
@@ -1132,7 +1132,7 @@ tty_redraw_region(struct tty *tty, const struct tty_ctx *ctx)
 
 /* Is this position visible in the pane? */
 static int
-tty_is_visible(__unused struct tty *tty, const struct tty_ctx *ctx, u_int px,
+tty_is_visible([[maybe_unused]] struct tty *tty, const struct tty_ctx *ctx, u_int px,
     u_int py, u_int nx, u_int ny)
 {
 	u_int	xoff = ctx->rxoff + px, yoff = ctx->ryoff + py;
@@ -2960,7 +2960,7 @@ tty_check_bg(struct tty *tty, struct colour_palette *palette,
 }
 
 static void
-tty_check_us(__unused struct tty *tty, struct colour_palette *palette,
+tty_check_us([[maybe_unused]] struct tty *tty, struct colour_palette *palette,
     struct grid_cell *gc)
 {
 	int	c;
@@ -3194,7 +3194,7 @@ tty_default_attributes(struct tty *tty, u_int bg,
 }
 
 static void
-tty_clipboard_query_callback(__unused int fd, __unused short events, void *data)
+tty_clipboard_query_callback([[maybe_unused]] int fd, [[maybe_unused]] short events, void *data)
 {
 	struct tty	*tty = data;
 

@@ -44,7 +44,7 @@ The binary's compiled-in defaults are tmux's; what makes termo feel different sh
 ## Building & Installation
 
 ### Prerequisites
-- C Compiler supporting C23/C11 (Clang 16+, GCC 13+)
+- A C23 compiler: GCC 14+, Clang 20+, or Xcode 26+ (Apple clang 21). `meson setup` checks and says so.
 - [Meson](https://mesonbuild.com/) (0.60+) and [Ninja](https://ninja-build.org/)
 - `libevent` (2.0+)
 - `ncurses` (with wide-character support: `ncursesw`)
