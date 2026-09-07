@@ -1,0 +1,130 @@
+name: nightly
+
+on:
+  schedule:
+    - cron: '17 4 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  fuzz:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    env:
+      CC: clang-18
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - run: |
+          sudo apt-get update
+          sudo apt-get install -y clang-18 meson ninja-build bison pkg-config \
+            libevent-dev libncurses-dev libutf8proc-dev
+          sudo sysctl vm.mmap_rnd_bits=28
+      - run: meson setup build -Dfuzz=enabled -Db_sanitize=address,undefined -Dluajit=disabled
+      - run: ninja -C build
+      - name: fuzz 10 minutes per target
+        run: |
+          for t in cmd-parse format input style; do
+            ./build/tests/$t-fuzzer -max_total_time=600 -max_len=512 \
+              -dict=tests/fuzz/$t-fuzzer.dict tests/fuzz/corpus/$t
+          done
+      - if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: fuzz-crashes
+          path: |
+            crash-*
+            leak-*
+            timeout-*
+          if-no-files-found: ignore
+
+  variants:
+    name: ${{ matrix.name }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: no-luajit-no-utf8proc
+            opts: -Dluajit=disabled -Dutf8proc=disabled
+          - name: sixel-release
+            opts: -Dsixel=true -Dbuildtype=release
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - run: |
+          sudo apt-get update
+          sudo apt-get install -y meson ninja-build bison pkg-config \
+            libevent-dev libncurses-dev libutf8proc-dev libluajit-5.1-dev
+      - run: meson setup build -Dwerror=true ${{ matrix.opts }}
+      - run: ninja -C build
+      - run: meson test -C build --print-errorlogs
+
+  clang-tidy:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      CC: clang-18
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - run: |
+          sudo apt-get update
+          sudo apt-get install -y clang-18 clang-tidy-18 meson ninja-build bison pkg-config \
+            libevent-dev libncurses-dev libutf8proc-dev libluajit-5.1-dev
+      - run: meson setup build
+      - run: ninja -C build cmd-parse.c
+      - name: clang-tidy (informational until the baseline is clean)
+        run: |
+          run-clang-tidy-18 -p build -quiet \
+            -checks='-*,bugprone-*,cert-*,clang-analyzer-*' \
+            'src/(core|grid|input|screen|utf8|format)/' || true
+
+  freebsd:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: vmactions/freebsd-vm@v1
+        with:
+          usesh: true
+          prepare: pkg install -y meson ninja bison pkgconf libevent utf8proc python3
+          run: |
+            meson setup build -Dwerror=true -Dluajit=disabled
+            ninja -C build
+            meson test -C build --print-errorlogs
+
+  coverage:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - run: |
+          sudo apt-get update
+          sudo apt-get install -y meson ninja-build bison pkg-config gcovr \
+            libevent-dev libncurses-dev libutf8proc-dev
+      - run: meson setup build -Db_coverage=true -Dluajit=disabled
+      - run: ninja -C build
+      - run: meson test -C build --print-errorlogs --suite unit --suite integration
+      - name: coverage per directory
+        run: |
+          gcovr -r . --object-directory build -f 'src/' -e 'src/compat/' -e 'src/osdep/' \
+            --txt --txt-metric line -s | tee coverage.txt
+          gcovr -r . --object-directory build -f 'src/' --xml -o coverage.xml
+          { echo '### Line coverage'; echo '```'; cat coverage.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: coverage
+          path: |
+            coverage.xml
+            coverage.txt

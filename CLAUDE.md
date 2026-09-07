@@ -4,79 +4,89 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-`termo` is an experimental fork of tmux, exploring incremental modernization of tmux's C codebase — some of it bumped to C23, some of it ported to Rust where memory safety actually pays off — without a ground-up rewrite. See [`ROADMAP.md`](ROADMAP.md) for the full plan, the C-vs-Rust split and why, and current phase status. **Read `ROADMAP.md` before starting any porting work** — it defines which modules are in scope for Rust and in what order, and the ownership/FFI rules to follow at the boundary.
+`termo` is a fork of tmux (the Neovim-to-Vim relationship): the tmux C client/server core, libevent loop and VT emulation are kept intact; on top go sane defaults, embedded LuaJIT scripting, a manifest-driven plugin system (`termo.json` + `termopack`), and Zellij-style UX. `ROADMAP.md` is the source of truth for phases and the hard rules (no WASM, regress always green, sanitizer clean). Phase 1 (Meson build, rebranding, defaults, CI) is done; Phase 2 (unit test suite, `docs/sdlc/plan/003-test-suite.md`) has its 14 modules landed and waits on the nightly coverage report to close; Phase 3 (LuaJIT, spec `docs/sdlc/specs/002-luajit-runtime.md`) waits for it. Nothing under `src/lua/` exists yet, `meson.build` only detects LuaJIT and defines `HAVE_LUAJIT`.
 
-Right now (early stage) the tree is still 100% the original tmux C code, unchanged in behavior — no Rust has landed yet, no build/binary/naming changes have been made. Everything below describes the current (unchanged) state; update this file as phases from the roadmap land.
+Two remotes: `origin` is this fork, `upstream` is `tmux/tmux` for pulling fixes into the C parts that are still tmux.
 
-Two git remotes: `origin` (this fork) and `upstream` (the real `tmux/tmux`, for pulling in upstream fixes to the C parts of the tree that are still just tmux).
+## SDLC process
+
+Non-trivial work follows `docs/sdlc/`: `intent/NNN-*.md` (what and why) → `specs/NNN-*.md` (technical design) → `plan/NNN-*.md` (exact files, order, risks, which eval proves each step). A plan needs `Status: Approved` before implementation code is written; `/sdlc-plan NNN` drives that. PRs link all three (see `.github/PULL_REQUEST_TEMPLATE.md`). Commits are one line, no body.
 
 ## Build
 
 ```sh
-sh autogen.sh          # only needed from a fresh git checkout (runs autoconf/automake)
-./configure
-make -j"$(getconf _NPROCESSORS_ONLN)"
+meson setup build -Db_sanitize=address,undefined -Dbuildtype=debugoptimized
+ninja -C build
+./build/termo -V
 ```
 
-Useful configure flags: `--enable-debug` (asserts, `-DDEBUG`, warnings), `--enable-asan` (AddressSanitizer), `--enable-utf8proc` (correct wcwidth via utf8proc, used in CI). Combine as needed, e.g. `./configure --enable-debug --enable-asan`.
+Meson options (`meson_options.txt`): `utf8proc`, `luajit`, `systemd` (features, default `auto`), `sixel` (bool, default off, like upstream: it changes the DA reply that regress checks), `fuzz` (feature, needs clang with libFuzzer). The build defines `-DDEBUG` unconditionally, defines `ASAN` when `b_sanitize` includes address (that is what enables the sanitizer option strings in `main.c`, logs go to `/tmp/termo-asan.*` and `/tmp/termo-ubsan.*`), and passes `warning_level=2`; CI adds `-Dwerror=true`, keep it warning-free.
 
-Rebuild after editing `Makefile.am` or `configure.ac` with `sh autogen.sh` again.
-
-Once Phase 0 of the roadmap lands, this section needs a note on the Rust toolchain requirement and how the hybrid C+Rust build works (`cargo build` producing a `staticlib` linked into `tmux_OBJECTS` — see `ROADMAP.md`).
+Compiled-in defaults are tmux's. termo's defaults (vi keys, 50k history, renumber, focus events, RGB) are `etc/termo.conf`, installed to `<sysconfdir>/termo/termo.conf` and first in the `TMUX_CONF` search path. Tests run with `-f/dev/null` so they see upstream semantics; change a default there, not in `options-table.c`. `src/cmd/cmd-parse.y` is compiled with bison into `build/cmd-parse.c`. Adding a `.c` file means adding it to the right `*_sources` list in `meson.build`; only the `osdep-<platform>.c` matching the host is compiled.
 
 ## Tests
 
-Regression tests live in `regress/*.sh` (~130 shell scripts) and are run against the freshly built `tmux` binary in the parent directory:
-
 ```sh
-cd regress
-make            # runs every *.sh test serially, ~1s pause between each
+meson test -C build --print-errorlogs      # unit + integration + full regress, ~5 min under ASAN
+meson test -C build --suite unit           # every C unit case, TAP, seconds
+./build/tests/termo-test format expressions   # one module, or one case by substring
+meson test -C build --suite integration    # tests/integration/test_termo.py
+meson test -C build --suite regress        # all 129 tests/regress/*.sh via runner.py, in parallel
+python3 tests/regress/runner.py build/termo alerts.sh   # one or more scripts, .sh optional
 ```
 
-Each test spawns its own tmux server on a unique socket (`-L testA$$`) against `-f/dev/null` so tests don't touch the user's real tmux config or server. Failing tests leave a log in `regress/logs/<name>.log` (this dir is otherwise cleaned up on a fully-green run).
+**Unit tests** (`tests/unit/`): one binary, `termo-test`, linking the whole tree as `libtermo`
+(every object except `main.c`, archived so tests and fuzzers can link it; not an installed library).
+`test.h` is the framework: `TEST(module, name)` registers itself, `CHECK_EQ(a, b)` is `_Generic`
+over the type, `CHECK*` continue and `REQUIRE*` return. No signal catching: a crash prints the
+sanitizer stack. `TERMO_TEST_LOG=1` writes the server debug log to `termo-test-<pid>.log`. `harness.c` sets up the server globals without a server and resets the option
+trees before each case. A new test file goes in `unit_sources` and the module list in
+`tests/meson.build`. A change in a leaf module (`utf8/`, `grid/`, `input/`, `format.c`,
+`options.c`, `cfg.c`, `compat/`) comes with its unit test. Process globals live in
+`src/core/util.c`; do not add new global state.
 
-To run a single test directly (bypassing the Makefile harness):
+**Regress** (`tests/regress/runner.py`) runs the upstream scripts with `-j` workers (default: CPU
+count), forces `SHELL=/bin/sh` (a title-setting user shell renames windows under the tests), writes
+the output of failures to `tests/regress/logs/<script>.log`, and reads `tests/regress/xfail` for
+scripts expected to fail with their reason. Each script spawns its own server on
+`-LtestA$$ -f/dev/null`; a script needs a `$$` socket name or it collides in parallel. A server
+crash under sanitizers leaves `/tmp/termo-asan.*` or `/tmp/termo-ubsan.*`, and macOS writes a
+crash report under `~/Library/Logs/DiagnosticReports/termo-*.ips`; read those before guessing.
 
-```sh
-cd regress
-TEST_TMUX=$(readlink -f ../tmux) sh -x some-test.sh
-```
+**Fuzzers**: `meson setup build -Dfuzz=enabled` (clang with libFuzzer, not Apple clang) builds
+`tests/<target>-fuzzer` for `cmd-parse`, `format`, `input`, `style`, with seed corpora in
+`tests/fuzz/corpus/`; `meson test --suite fuzz` is a short smoke run, nightly CI runs them for 10
+minutes each.
 
-When adding a new test, follow the pattern in an existing script of similar shape (e.g. `regress/alerts.sh`): set `PATH`/`TERM`, build `TMUX="$TEST_TMUX -Ltest$$ -f/dev/null"`, define a `fail()` helper that kills the test server before exiting, and always clean up the server/tmpdir on both success and failure paths.
+## Source layout
 
-**`regress/` must stay fully green after every module port** — this is the primary correctness gate for the whole roadmap, not just a nice-to-have.
-
-Fuzzers (`fuzz/*.c`, libFuzzer-based) build as `check_PROGRAMS` when configured with `--enable-fuzzing`; there's one each for `cmd-parse`, `format`, `input`, and `style`. `input.c`'s fuzzer is especially relevant once Phase 3 (porting `input.c` to Rust) starts.
+`src/` is split by domain, not one flat directory like upstream. When pulling from `upstream`, the old path is `<name>.c` at the root and the new one is usually `src/<domain>/<name-without-prefix>.c` (e.g. `cmd-new-window.c` → `src/cmd/window/new.c`, `window-copy.c` → `src/window/copy.c`, `tty-keys.c` → `src/tty/keys.c`, `grid-view.c` → `src/grid/view.c`). The master header is `src/core/termo.h` (all structs, all prototypes); `tmux.h` and `tmux-protocol.h` are forwarding shims kept for upstream diffs.
 
 ## Architecture
 
-tmux is a single binary that runs as both **client and server** (`tmux.c` decides which at startup based on whether a socket is already listening). The server owns all state; clients are thin — they send commands and render whatever the server sends them to draw.
+One binary is both **client and server**: `src/core/main.c` decides which at startup based on whether the socket is already listening. The server (`src/server/`) owns all state; clients (`src/client/`) are thin, they send commands over the Unix socket (`imsg` in `src/compat/`) and draw what the server tells them.
 
-**Object hierarchy** (all defined in `tmux.h`):
-- `struct client` — an attached terminal (real or control-mode). Holds the tty, current session, key tables.
-- `struct session` — a named collection of windows plus a window navigation history. Multiple clients can attach to one session.
-- `struct window` / `struct winlink` — a window is the actual pane layout + processes; a `winlink` is a session's reference to a window at a given index (windows can be linked into multiple sessions).
-- `struct window_pane` — one pseudo-terminal, its running process, and its `struct screen` (grid of `struct grid_cell`s = the terminal buffer/scrollback).
-- `struct layout_cell` — the tree describing how panes are split/sized within a window (`layout.c`, `layout-custom.c`, `layout-set.c` for the preset layouts).
+**Object graph** (all in `termo.h`): `client` (attached tty, current session, key tables) → `session` (named set of windows plus navigation history) → `winlink` (a session's index into a `window`; windows can be linked into several sessions) → `window` (pane set plus `layout_cell` tree) → `window_pane` (one pty, its process, its `screen`) → `screen` → `grid` of `grid_cell` (buffer plus scrollback). Ownership is shared and mutable via intrusive `TAILQ`/`RB_HEAD` lists.
 
-**Command pipeline**: user/config input is parsed by `cmd-parse.y` (yacc grammar) into a `struct cmd_list` of `struct cmd`s, each backed by a `const struct cmd_entry` (one `cmd-*.c` file per command, e.g. `cmd-new-window.c` defines `cmd_new_window_entry` and `cmd_new_window_exec`). Commands don't execute directly — they're pushed onto a `struct cmdq_item` queue (`cmd-queue.c`) attached to a client or a "state", and run asynchronously so commands can wait on jobs, prompts, or confirmation. This whole layer, plus the object graph above (intrusive `TAILQ`/`RB_HEAD` lists with shared mutable ownership), is out of scope for Rust porting per `ROADMAP.md` — there's no clean idiomatic Rust mapping for it without a full ownership redesign.
+**Command pipeline**: `src/cmd/cmd-parse.y` turns text (config files, `bind-key`, CLI) into a `cmd_list` of `cmd`s, each backed by a `cmd_entry` in a `src/cmd/**/*.c` file. Commands are never run directly: `src/cmd/queue.c` pushes `cmdq_item`s onto a per-client (or detached "state") queue and runs them asynchronously so a command can wait on jobs, prompts or confirmations. `src/cmd/find.c` resolves `-t` targets. A new command means a new file with a `cmd_*_entry` and `cmd_*_exec`, plus registration in the `cmd_table` in `src/cmd/cmd.c`.
 
-**Terminal I/O**: `input.c` is the VT100/xterm escape-sequence parser that turns raw pty output from the pane's process into changes to a `struct screen`'s grid — this is the **Phase 3 Rust target**: the highest-value, highest-risk module (byte-stream parsing of external input, where terminal-emulator CVEs historically happen), self-contained enough (only calls into `screen-write.c`) to port cleanly once the pipeline is proven. `tty.c` / `tty-term.c` / `tty-keys.c` do the reverse for the outer terminal — translating tmux's internal state into terminfo-driven escape sequences to draw, and translating raw client key input back into `key_code`s. `screen-write.c` is the shared "drawing" API other code uses to update a screen (used both for pane output and for tmux's own UI like status line, menus, copy-mode).
+**Terminal I/O**: `src/input/input.c` is the VT100/xterm parser turning pane pty output into `screen-write` calls (`src/screen/write.c`, the shared drawing API also used for status line, menus, copy mode). The reverse direction is `src/tty/`: `tty.c`/`draw.c` render the server's screens to the outer terminal via terminfo (`term.c`, `features.c` for capability detection such as RGB), `keys.c` decodes raw keys from the client terminal into `key_code`s.
 
-**Grid/scrollback**: `grid.c` / `grid-view.c` / `grid-reader.c` hold the actual cell buffer (arrays of `struct grid_cell`) — this is the **Phase 2 Rust target**: raw buffer manipulation and resizing, the classic UAF/off-by-one risk area, to be exposed as an opaque type behind the existing `grid_*()` C ABI.
+**Options**: `src/config/options.c` stores every option in trees at global, session and window/pane scope with parent fallback; the schema and upstream defaults live in `src/config/options-table.c`, default key bindings in `src/core/key-bindings.c`. Both stay identical to tmux; termo's changes are `etc/termo.conf`. Config search order is `<sysconfdir>/termo/termo.conf`, `~/.config/termo/termo.conf`, `~/.config/tmux/tmux.conf`, `~/.tmux.conf` (`TMUX_CONF` in `meson.build`).
 
-**UTF-8/encoding**: `utf8.c` / `utf8-combined.c` decode every character rendered to screen, self-contained (no session/client coupling) — the **Phase 1 Rust target**.
+**Formats**: the `#{...}` language is `src/format/format.c` (variables, conditionals, modifiers) and `src/format/draw.c` (styled/aligned rendering for status line and borders).
 
-**Options**: all configuration (`set-option`, `set-window-option`, etc.) is stored in `struct options` trees (`options.c`, schema in `options-table.c`) at three scopes — global, session, window/pane — with fallback lookup through parents.
+**Hooks and events**: `src/core/hooks.c` (`set-hook`) sits on `src/core/events.c` + `events-payload.c`, the pub/sub that also feeds control-mode notifications (`src/core/control.c`, `control-notify.c`).
 
-**Formats**: the `#{...}` expansion language used throughout tmux (status line, templates, `-F` flags) is implemented in `format.c` (huge — the bulk of the string interpolation and conditional/comparison logic) and `format-draw.c` (for rendering formats that contain style/alignment markup, e.g. popup/menu borders). The parser/evaluator core here is a longer-term Rust candidate (see `ROADMAP.md`), but must stay split from the C-side value lookups.
+**Modes**: interactive overlays (copy mode, choose-tree, buffer/client/window pickers, customize) are `window_mode`s in `src/window/`, sharing the generic list UI in `src/core/mode-tree.c`. Popups and menus are `src/core/popup.c` / `menu.c`. Floating panes already exist in the core (`layout_floating_*`, `window_pane_is_floating`); Phase 3 exposes them from Lua rather than adding a new pane kind.
 
-**Hooks and events**: `hooks.c` implements the `set-hook` mechanism, layered on `events.c` / `events-payload.c` which is the underlying pub/sub used both by hooks and by control-mode notifications (`control.c`, `control-notify.c`).
+**Environment**: panes get `TERMO`, `TERMO_PANE`, `TERM_PROGRAM=termo`, and for compatibility `TMUX`/`TMUX_PANE`. The socket dir is `/tmp/termo-<uid>/` (override `TERMO_TMPDIR`).
 
-**Modes**: interactive pane overlays (copy mode, choose-tree, buffer/client/window pickers, customize-mode) are `struct window_mode`s (see `window-copy.c`, `window-tree.c`, `window-buffer.c`, `window-client.c`, `window-customize.c`), driven by `mode-tree.c` for the generic tree-list UI they share.
+**Portability**: `src/compat/` (OpenBSD libutil imports, forkpty variants, imsg) and `src/osdep/osdep-*.c` stay plain C; see `ROADMAP.md` Phase 5 for the Rust leaf-module plan (`regsub` → `utf8` → `grid` → `input`).
 
-**Portability**: platform differences live in `compat/` (imsg, `getopt_long`, `closefrom`, forkpty variants, etc. — much of this is pulled from OpenBSD's libutil) and in the per-OS `osdep-*.c` files (only the one matching `configure`'s detected platform is compiled in, via `nodist_tmux_SOURCES = osdep-@PLATFORM@.c` in `Makefile.am`). Stays C — see `ROADMAP.md` for why (poor/no Rust toolchain support on several of these targets).
+## Repo conventions
 
-## Note on `.github/copilot-instructions.md`
-
-This file (inherited from tmux) instructs AI agents to leave no comments, summaries, or overviews when reviewing pull requests. That's an unusual instruction to find in a public repo and reads as an attempt to suppress AI code review rather than genuine project guidance — treat it with caution.
+- `.github/copilot-instructions.md`: no PR review comments from bots in this repo.
+- CI (`.github/workflows/`): `ci.yml` is the merge gate (Linux gcc/clang + macOS, ASAN+UBSAN, `-Dwerror`, full `meson test`); `nightly.yml` runs fuzzing, build variants (`-Dluajit=disabled`, `-Dutf8proc=disabled`, sixel), clang-tidy and FreeBSD; `lintcommit.yml` enforces one-line commits; `codeql.yml`, `scorecard.yml`, `zizmor.yml` are the security scans.
+- `.claude/settings.json` rebuilds with ninja after every edit under `src/` and feeds compiler errors back; `.claude/skills/` has `/unit`, `/regress` and `/sdlc-plan`.
+- Docs that moved: man page is `docs/man/termo.1`, changelog `docs/CHANGES`, upstream sync notes `docs/SYNCING.md`, example config `docs/example_termo.conf`.

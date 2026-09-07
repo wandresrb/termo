@@ -1,84 +1,36 @@
-## What should I do before opening an issue?
+# Contributing
 
-Before opening an issue, please ensure that:
+termo follows the process in `docs/sdlc/`: an intent (what and why), a spec
+(how), and a plan (files, order, verification) before implementation. Small
+fixes need none of that, just a PR.
 
-- Your problem is a specific problem or question or suggestion, not a general
-  complaint.
+## Before opening a PR
 
-- `$TERM` inside tmux is screen, screen-256color, tmux or tmux-256color. Check
-  by running `echo $TERM` inside tmux.
+```sh
+meson setup build -Db_sanitize=address,undefined -Dbuildtype=debugoptimized
+ninja -C build
+meson test -C build
+```
 
-- You can reproduce the problem with the latest tmux release, or a build from
-  Git master.
+`meson test` runs the C unit tests, the Python integration suite and all
+regression scripts under `tests/regress/`. Everything must be green and
+sanitizer clean. A change in a leaf module (`utf8/`, `grid/`, `input/`,
+`format.c`, `options.c`, `cfg.c`, `compat/`) comes with a unit test in
+`tests/unit/test_<module>.c`; see `tests/unit/test.h`. Run one thing at a time
+with:
 
-- Your question or issue is not covered [in the
-  manual](https://man.openbsd.org/tmux.1) (run `man tmux`).
+```sh
+./build/tests/termo-test format expressions
+python3 tests/regress/runner.py build/termo alerts.sh
+```
 
-- Your problem is not mentioned in [the CHANGES
-  file](https://raw.githubusercontent.com/tmux/tmux/master/CHANGES).
+## Commits
 
-- Nobody else has opened the same issue recently.
+One line, imperative, no body, no trailers. The PR description carries the
+reasoning and links the intent/spec/plan it implements.
 
-## What should I include in an issue?
+## Bugs
 
-Please include the output of:
-
-~~~bash
-uname -sp && tmux -V && echo $TERM
-~~~
-
-Also include:
-
-- Your platform (Linux, macOS, or whatever).
-
-- A brief description of the problem with steps to reproduce.
-
-- A minimal tmux config, if you can't reproduce without a config.
-
-- Your terminal, and `$TERM` inside and outside of tmux.
-
-- Logs from tmux (see below). Please attach logs to the issue directly rather
-  than using a download site or pastebin. Put in a zip file if necessary.
-
-- At most one or two screenshots, if helpful.
-
-## How do I test without a .tmux.conf?
-
-Run a separate tmux server with `-f/dev/null` to skip loading `.tmux.conf`:
-
-~~~bash
-tmux -Ltest kill-server
-tmux -Ltest -f/dev/null new
-~~~
-
-## How do I get logs from tmux?
-
-Add `-vv` to tmux to create three log files in the current directory. If you can
-reproduce without a configuration file:
-
-~~~bash
-tmux -Ltest kill-server
-tmux -vv -Ltest -f/dev/null new
-~~~
-
-Or if you need your configuration:
-
-~~~bash
-tmux kill-server
-tmux -vv new
-~~~
-
-The log files are:
-
-- `tmux-server*.log`: server log file.
-
-- `tmux-client*.log`: client log file.
-
-- `tmux-out*.log`: output log file.
-
-Please attach the log files to your issue.
-
-## What does it mean if an issue is closed?
-
-All it means is that work on the issue is not planned for the near future. See
-the issue's comments to find out if contributions would be welcome.
+Include `termo -V`, your platform, `$TERM` inside and outside termo, and a
+reproduction with `termo -Ltest -f/dev/null` so your own config is not involved.
+Attach logs from `termo -vv` if the problem is not obvious.

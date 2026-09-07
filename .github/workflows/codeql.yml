@@ -1,0 +1,36 @@
+name: codeql
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: '41 5 * * 1'
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  analyze:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - run: |
+          sudo apt-get update
+          sudo apt-get install -y meson ninja-build bison pkg-config \
+            libevent-dev libncurses-dev libutf8proc-dev libluajit-5.1-dev
+      - uses: github/codeql-action/init@v3
+        with:
+          languages: c-cpp
+          build-mode: manual
+          queries: security-extended
+      - run: |
+          meson setup build
+          ninja -C build
+      - uses: github/codeql-action/analyze@v3
+        with:
+          category: c-cpp

@@ -1,0 +1,1 @@
+#{e|*|f|2:#{pane_width},1.5} #{s/a/b/:foo} #{l:#{x}} #{p10:#{host}}
