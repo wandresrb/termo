@@ -19,17 +19,28 @@ unit_sources = files(
   'unit/test_screen_write.c',
   'unit/test_input.c',
 )
+unit_modules = ['compat', 'options', 'cfg', 'format', 'regsub', 'utf8', 'grid',
+                'colour', 'style', 'key_string', 'arguments', 'layout',
+                'screen_write', 'input']
+if luajit_dep.found()
+  unit_sources += files('unit/test_lua.c')
+  unit_modules += 'lua'
+endif
 termo_test = executable('termo-test', unit_sources,
   include_directories: [inc_dirs, include_directories('unit')],
   dependencies: deps,
   c_args: c_args + ['-DTERMO_SOURCE_ROOT="' + meson.project_source_root() + '"'],
   link_with: termo_lib,
 )
-foreach m : ['compat', 'options', 'cfg', 'format', 'regsub', 'utf8', 'grid',
-             'colour', 'style', 'key_string', 'arguments', 'layout',
-             'screen_write', 'input']
+foreach m : unit_modules
   test('unit-' + m, termo_test, args: [m], suite: 'unit', protocol: 'tap', timeout: 60)
 endforeach
+
+# Lua specs inside a real server (TAP relayed by run-lua)
+if luajit_dep.found()
+  test('lua', find_program('sh'), args: [files('lua/run.sh'), termo_exe],
+    suite: 'lua', protocol: 'tap', timeout: 60)
+endif
 
 # Integration test suite in Python
 test('integration_termo', py,

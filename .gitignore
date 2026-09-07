@@ -12,3 +12,4 @@ tags
 termo-*.log
 tmux-*.log
 tests/regress/logs/
+sit

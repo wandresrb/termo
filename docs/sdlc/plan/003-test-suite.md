@@ -1,13 +1,13 @@
 # Plan 003: unit test suite
 
-- Status: Approved 2026-09-06; PRs 1 to 4 landed 2026-09-07, coverage report pending on nightly
+- Status: Approved 2026-09-06; Steps 1 to 4 landed 2026-09-07, coverage report pending on nightly
 - Intent: [`intent/003-test-suite.md`](../intent/003-test-suite.md)
 - Spec: [`specs/003-test-suite.md`](../specs/003-test-suite.md)
 
-Four PRs, each green on CI before the next. Proof for every step: `meson test -C build` passes
+Four steps on the single working branch, each green on CI before the next. Proof for every step: `meson test -C build` passes
 with sanitizers on the three CI cells, regress unchanged.
 
-## PR 1: infrastructure and the modules that already bit us
+## Step 1: infrastructure and the modules that already bit us
 
 - `meson.build`: `termo_lib`, `termo_exe` from `main.c` + `termo_lib`; `src/core/util.c` with
   the globals and helpers that were in `main.c`.
@@ -24,16 +24,16 @@ with sanitizers on the three CI cells, regress unchanged.
 Proof: `meson test --suite unit` shows every case (TAP); `test_cfg.c` loads `etc/termo.conf` and
 checks each value; `test_compat.c` passes on macOS and Linux.
 
-## PR 2: leaf modules that phases 4 and 5 rewrite
+## Step 2: leaf modules that phases 4 and 5 rewrite
 
 `test_regsub.c`, `test_utf8.c`, `test_grid.c`. Proof: nightly `no-utf8proc` variant runs
 `test_utf8.c` and passes.
 
-## PR 3: text parsers
+## Step 3: text parsers
 
 `test_colour.c`, `test_style.c`, `test_key_string.c`, `test_arguments.c`, `test_layout.c`.
 
-## PR 4: emulation
+## Step 4: emulation
 
 `test_screen_write.c`, `test_input.c`. Proof: DA reply case fails when built with `-Dsixel=true`
 unless the expectation is sixel-aware (the test reads `ENABLE_SIXEL`).

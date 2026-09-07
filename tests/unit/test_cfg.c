@@ -90,6 +90,7 @@ TEST(cfg, termo_conf_sets_every_promised_default)
 	CHECK_EQ(options_get_number(global_options, "set-clipboard"), 2);
 	CHECK_EQ(options_get_number(global_w_options, "mode-keys"), MODEKEY_VI);
 	CHECK_EQ(options_get_number(global_s_options, "status-keys"), MODEKEY_VI);
+	CHECK_EQ(options_get_string(global_options, "default-terminal"), "tmux-256color");
 
 	e = options_get(global_options, "terminal-features");
 	for (item = options_array_first(e); item != nullptr;

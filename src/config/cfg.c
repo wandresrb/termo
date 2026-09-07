@@ -23,8 +23,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 #include "termo.h"
+#ifdef HAVE_LUAJIT
+#include "lua/runtime.h"
+#endif
 
 struct client		 *cfg_client;
 int			  cfg_finished;
@@ -92,6 +96,49 @@ start_cfg(void)
 	cmdq_append(NULL, cmdq_get_callback(cfg_done, NULL));
 }
 
+#ifdef HAVE_LUAJIT
+static int
+cfg_is_lua(const char *path)
+{
+	size_t	n = strlen(path);
+
+	return (n > 4 && strcmp(path + n - 4, ".lua") == 0);
+}
+
+static enum cmd_retval
+cfg_lua_file(struct cmdq_item *item, void *data)
+{
+	char	*path = data;
+
+	termo_lua_load_file(path, item);
+	free(path);
+	return (CMD_RETURN_NORMAL);
+}
+
+/* Queue a Lua file so it runs after the commands loaded before it. */
+static int
+load_cfg_lua(const char *path, struct cmdq_item *item, int flags,
+    struct cmdq_item **new_item)
+{
+	struct cmdq_item	*new_item0;
+
+	if (access(path, R_OK) != 0) {
+		if (errno == ENOENT && (flags & CMD_PARSE_QUIET))
+			return (0);
+		cfg_add_cause("%s: %s", path, strerror(errno));
+		return (-1);
+	}
+	new_item0 = cmdq_get_callback(cfg_lua_file, xstrdup(path));
+	if (item != NULL)
+		new_item0 = cmdq_insert_after(item, new_item0);
+	else
+		new_item0 = cmdq_append(NULL, new_item0);
+	if (new_item != NULL)
+		*new_item = new_item0;
+	return (0);
+}
+#endif
+
 int
 load_cfg(const char *path, struct client *c, struct cmdq_item *item,
     struct cmd_find_state *current, int flags, struct cmdq_item **new_item)
@@ -106,6 +153,10 @@ load_cfg(const char *path, struct client *c, struct cmdq_item *item,
 		*new_item = NULL;
 
 	log_debug("loading %s", path);
+#ifdef HAVE_LUAJIT
+	if (cfg_is_lua(path))
+		return (load_cfg_lua(path, item, flags, new_item));
+#endif
 	if ((f = fopen(path, "rb")) == NULL) {
 		if (errno == ENOENT && (flags & CMD_PARSE_QUIET))
 			return (0);

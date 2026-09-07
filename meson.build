@@ -286,6 +286,8 @@ luajit_opt = get_option('luajit')
 luajit_dep = dependency('luajit', version: '>=2.1', required: luajit_opt)
 if luajit_dep.found()
   deps += luajit_dep
+  sources += files('src/lua/runtime.c', 'src/lua/api.c', 'src/cmd/run-lua.c')
+  install_subdir('runtime', install_dir: get_option('datadir') / 'termo')
 endif
 
 # Optional Sixel support
@@ -301,9 +303,11 @@ c_args = [
   '-DTERMO_VERSION="' + meson.project_version() + '"',
   '-DTMUX_VERSION="' + meson.project_version() + '"',
   '-DTMUX_CONF="' + sysconf_dir / 'termo/termo.conf' +
-    ':~/.config/termo/termo.conf:~/.config/tmux/tmux.conf:~/.tmux.conf"',
+    ':~/.config/termo/termo.conf:~/.config/tmux/tmux.conf:~/.tmux.conf' +
+    ':~/.config/termo/init.lua"',
+  '-DTERMO_RUNTIME="' + get_option('prefix') / get_option('datadir') / 'termo/runtime"',
   '-DTMUX_LOCK_CMD="lock -np"',
-  '-DTMUX_TERM="tmux-256color"',
+  '-DTMUX_TERM="screen"',
   '-DTMUX_MOUSE=1',
   '-DDEBUG',
 ]

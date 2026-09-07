@@ -67,11 +67,13 @@ Design decisions, each bound to an existing core surface (see the spec for signa
   iterate the RB trees and return ids plus a few fields.
 - **Mutation is commands.** `termo.api.cmd(str)` parses, queues and drains. The one core change
   is a capture sink in `cmdq_print_data` and `cmdq_error` hung off `cmdq_state`, because output
-  of a client-less command is discarded today. Context rule: called from inside a running
-  command (binding, hook), `cmd()` inserts after the current item and returns no output; called
-  from a timer, event or `init.lua`, it drains `cmdq_next(NULL)` and returns `output, err`. A
+  of a client-less command is discarded today. Context rule, the same one `hooks_insert_one`
+  follows: inside a running item (binding, hook, `run-lua`, `init.lua`), `cmd()` inserts after
+  it and returns no output; inside an event sink, which runs on the stack of the core operation
+  that fired the event, it appends to the global queue and returns no output, never draining;
+  from a timer or a job callback it drains `cmdq_next(NULL)` and returns `output, err`. A
   command that ends in `CMD_RETURN_WAIT` returns an "asynchronous" error; `cmd_async(str, fn)`
-  chains a `cmdq_get_callback`.
+  chains a `cmdq_get_callback` and works in all three contexts.
 - **Events are one sink per name** on the existing bus: `termo.on` registers
   `events_add_sink(name, lua_sink_cb, NULL)` next to `hooks_event_cb`; payloads become tables
   via `event_payload_first/next`; `termo.emit("@x", tbl)` uses the already-valid `@` names. Core
@@ -87,34 +89,46 @@ Design decisions, each bound to an existing core surface (see the spec for signa
   registers a variable that `format_create` adds with `format_add_cb`; evaluation is lazy. No
   `#{lua:}` modifier, `format.c`'s parser stays upstream.
 - **Budget and isolation**: every C to Lua entry goes through `termo_lua_call(L, nargs, nres,
-  budget)`: `LUA_MASKCOUNT` hook with a deadline (50 ms for format and event callbacks, 2 s for
-  `init.lua` and `run-lua`), `pcall`, errors to `cfg_add_cause` before `cfg_finished` and to
-  `server_add_message` plus `status_message_set` after.
+  budget, item)`: `LUA_MASKCOUNT` hook with a deadline (50 ms for format and event callbacks,
+  2 s for `init.lua` and `run-lua`), `pcall`, errors to `cfg_add_cause` before `cfg_finished`,
+  to `cmdq_error` when there is an item, else `server_add_message`. The budget is tmux's
+  invariant that nothing blocks the loop, applied to the first user code that runs inside it;
+  a stuck server cannot even be stopped with SIGTERM because signals arrive through libevent.
+  The LuaJIT trace compiler is off by design: a compiled trace never calls a count hook and
+  trace stitching compiles across C calls, so with it on nothing is interruptible; LuaJIT is
+  here for the 5.1 dialect and its interpreter, and API calls dominate termo's Lua anyway
+  (measured in the spec). The state also removes `os.exit`, `os.execute`, `io.popen`,
+  `jit.on` and `debug.sethook`: a C call is not interruptible by the hook and the budget must
+  have no off switch from Lua.
 - **`run-lua [-j] [-f file | code]`** from the CLI, `bind-key`, or `termo -C`; `-j` prints JSON.
   That is the out-of-process path for Rust, Go, Python or an agent. JSON framing of control mode
   itself waits for a concrete case.
-- **`init.lua`** loads at the tail of `start_cfg()` as its own `cmdq_get_callback`, after the
-  `cfg_files` loop and before `cfg_done`; the state is created in `server_start` right after
-  `hooks_build_events()`. `.lua` is detected by extension in `-f` and `source-file`. Paths:
+- **`init.lua`** is the last entry of the `TMUX_CONF` search list, so `-f` replaces it and
+  tests with `-f /dev/null` never load it; `load_cfg()` queues a `.lua` file as a callback item
+  (after the calling item, or appended), which covers `-f x.lua` and `source-file x.lua`. The
+  state is created in `server_start` right after `hooks_build_events()`. Paths:
   `~/.config/termo/init.lua`, `~/.config/termo/lua/?.lua`, `~/.local/share/termo/pack/*/lua/?.lua`,
   `<datadir>/termo/runtime/lua/?.lua`, overridden by `TERMO_RUNTIME` (exported by `meson devenv`).
 - **Metadata**: `api.c` defines `{name, fn, signature, doc}`; `termo.api.list()` returns it;
   `tools/gen-api-doc.lua` writes `docs/api.md`.
 - Everything under `HAVE_LUAJIT`; `-Dluajit=disabled` builds and passes (nightly variant).
 
-## Deliverables, one PR each, green before the next
+## Deliverables, one step each, green before the next
 
-1. **Runtime.** `src/lua/runtime.{c,h}`, `src/cmd/run-lua.c` in `cmd_table`, `init.lua` in
-   `start_cfg`, `termo.api.version/eval/get_option/set_option/list`, `meson.build`
-   (`lua_sources` under `luajit_dep.found()`, `TERMO_RUNTIME`, `install_subdir('runtime')`),
-   `tests/unit/test_lua.c` (init/close under ASAN, `while true` cut by budget, an error does not
-   kill the process, `eval` of a format), `tests/lua/run.lua` plus first spec, suite `lua`.
+1. **Runtime.** `src/lua/runtime.{c,h}`, `src/cmd/run-lua.c` in `cmd_table`, `init.lua` as
+   the last `TMUX_CONF` entry, `termo.api.version/eval/get_option/set_option/list`,
+   `meson.build` (`lua_sources` under `luajit_dep.found()`, `TERMO_RUNTIME`,
+   `install_subdir('runtime')`), `tests/unit/test_lua.c` (init/close under ASAN, `while true`
+   and a loop calling the API cut by the budget, an error does not kill the process, `eval` of
+   a format, the five removed functions are `nil` and `jit.status()` is false),
+   `tests/lua/run.lua` plus first spec, suite `lua`.
 2. **Commands.** Capture sink in `queue.c`, `termo.api.cmd` and `cmd_async` with the context
    rule. Spec: `cmd("display -p x")` returns `x`; `cmd("display-popup")` errors as asynchronous;
    from a binding `cmd` queues without output.
 3. **Events.** Lua sink, `on/off/emit`, payload to table, the ten `hooks_run` events on the
    bus. Spec: each of the 39 events fires once with the expected payload; a throwing callback
-   does not stop the others; `@custom` round-trips.
+   does not stop the others; `@custom` round-trips; `cmd("kill-window")` from a
+   `window-layout-changed` sink runs after the `join-pane` that fired it, under ASAN.
 4. **Keymaps, timers, processes.** `run-lua -r`, `termo.keymap.set/del`, `defer/timer`,
    `system`. Spec: a key runs the function with `{client, key, table}`; a timer cancels;
    `system{"printf","x"}` delivers `x` to `on_stdout`.
@@ -148,21 +162,23 @@ append/insert_after/next/get_callback`, `options_search/from_string/get_*/push_c
 
 ## Risks
 
-- **Re-entering `cmdq_next`** from Lua inside a running item: the context rule avoids it by
-  construction; PR 2's spec exercises it from a binding and from a hook.
+- **Re-entering the core** from Lua: inside a running item or an event sink, `cmd()` only
+  queues, by construction; Step 2's spec exercises it from a binding and from a hook, Step 3's
+  from a `window-layout-changed` sink calling `kill-window` during `join-pane`.
 - **Lua refs tied to C objects** (timers, menus, popups, jobs): registry refs released in the
   close or free callback; ASAN through `lua_close` on `kill-server` is the test.
-- **LuaJIT and ASAN**: LuaJIT has its own allocator; PR 1 decides between
+- **LuaJIT and ASAN**: LuaJIT has its own allocator; Step 1 decides between
   `LUAJIT_USE_SYSMALLOC` for the test build or accepting C-side coverage only.
-- **Budget hook versus JIT**: the count hook forces the interpreter; if the status-line
-  benchmark shows it, the hook applies to `init.lua`, `run-lua` and user callbacks only.
+- **Interpreter speed in format callbacks**: Step 5 measures a status line with Lua variables
+  at `status-interval 1` and on every key. The compiler does not come back on for it; a slow
+  callback is capped by its 50 ms budget and the fix is less work per redraw.
 - **One `lua_State`**: files under `pack/` load in their own `setfenv` environment over a
-  read-only `_G`; the user's `init.lua` is unrestricted.
+  read-only `_G`; the user's `init.lua` is unrestricted beyond the five removed functions.
 
 ## Verification
 
 - `meson test` green on the three CI cells with LuaJIT, and the nightly `-Dluajit=disabled`
-  variant green, on every PR.
+  variant green, on every step.
 - The `lua` suite covers every function in `termo.api.list()`; the runner fails if a listed
   function has no spec.
 - A reference `init.lua` in `docs/` (function keymap, hook, Lua status variable, menu, popup)

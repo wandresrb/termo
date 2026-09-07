@@ -8805,6 +8805,37 @@ specified by
 or the current pane if omitted) after the command finishes.
 If the command fails, the exit status is also displayed.
 .Tg wait
+.It Xo Ic run\-lua
+.Op Fl j
+.Op Fl f Ar path
+.Op Ar code
+.Xc
+Run Lua inside the server.
+With
+.Fl f ,
+run the file at
+.Ar path ;
+otherwise run
+.Ar code
+as a chunk.
+The value the chunk returns is printed; with
+.Fl j
+it is printed as JSON.
+Errors are reported to the client with a traceback and the command fails.
+The
+.Ic termo.api
+table holds the functions available to Lua;
+.Ql run-lua \(aqreturn termo.api.list()\(aq
+lists them.
+A file named
+.Pa ~/.config/termo/init.lua
+is loaded after the configuration files, and a
+.Pa .lua
+file given to
+.Fl f
+or
+.Ic source-file
+is run as Lua.
 .It Xo Ic wait\-for
 .Op Fl ELSUlv
 .Op Fl F Ar format

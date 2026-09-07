@@ -4,10 +4,10 @@
 - Intent: [`intent/004-c23-posix.md`](../intent/004-c23-posix.md)
 - Spec: [`specs/004-c23-posix.md`](../specs/004-c23-posix.md)
 
-Seven PRs, each green on the three CI cells with `-Dwerror=true`, regress unchanged, the unit
-suite unchanged except where the PR adds cases.
+Seven steps on the single working branch, each green on the three CI cells with `-Dwerror=true`, regress unchanged, the unit
+suite unchanged except where the step adds cases.
 
-## PR 0: floor and CI
+## Step 0: floor and CI
 
 `meson.build`: `c_std=c23` only; a `cc.compiles` probe with `nullptr`, `constexpr`, a
 fixed-type enum and `<stdckdint.h>`; `error()` naming the floor when it fails. `ci.yml`:
@@ -15,7 +15,7 @@ gcc-14, clang-20, `macos-26`. `nightly.yml`: clang-20 and clang-tidy-20. `CLAUDE
 `CONTRIBUTING.md`, `README.md`: the floor. Proof: three cells green; an old compiler stops at
 `meson setup` with the message.
 
-## PR 1: attributes
+## Step 1: attributes
 
 Mechanical, no semantic change. `compat.h` loses `__unused`, `__dead`, `__packed`, `__weak`,
 `NEED_FUZZING`; `termo.h` loses `printflike`; `xmalloc.h` moves to `[[gnu::format]]`,
@@ -25,7 +25,7 @@ Mechanical, no semantic change. `compat.h` loses `__unused`, `__dead`, `__packed
 `-Wimplicit-fallthrough` joins `c_args`. Proof: build on the three compilers, full suite,
 `grep` for the old macros empty outside `compat/`.
 
-## PR 2: platforms and compat (the POSIX part)
+## Step 2: platforms and compat (the POSIX part)
 
 - Delete `osdep-{aix,hpux,sunos,cygwin,haiku,dragonfly,unknown}.c` and their Meson branches;
   `error()` on other hosts. Delete `IS_DARWIN`, `IS_LINUX`, `-D_XPG6` and friends.
@@ -36,13 +36,13 @@ Mechanical, no semantic change. `compat.h` loses `__unused`, `__dead`, `__packed
   `asprintf`, `getline`, `strsep`, `strcasestr`, `cfmakeraw`, `getdtablesize`, `setenv`,
   `clock_gettime`, `err.c`) and their `check_functions` entries.
 - Define with a probe every `HAVE_*` a surviving shim reads; delete the rest with their
-  branches. First thing in the PR: check what `getpeereid.c` returns on Linux today without
+  branches. First thing in the step: check what `getpeereid.c` returns on Linux today without
   `HAVE_SO_PEERCRED` (socket access control).
 - `test_compat.c`: one case per shim that stays, run on macOS and Linux.
 Proof: FreeBSD nightly green; the two `HAVE_*` greps (defined-but-unread, read-but-undefined)
 both empty.
 
-## PR 3: warnings
+## Step 3: warnings
 
 Measured 2026-09-07 with clang 21 over 158 translation units: `-Wshadow` 0,
 `-Wmissing-prototypes` 0, `-Wstrict-prototypes` 0, `-Wformat=2` 0, `-Wsign-compare` 0,
@@ -55,7 +55,7 @@ under `-Werror`; the last two stay off and are recorded here. Of the inherited s
 `-Wno-pointer-sign` (66 `u_char`/`char` sites) and `-Wno-unused-result` (glibc fortify) stay
 with their reason in `meson.build`.
 
-## PR 4: checked arithmetic
+## Step 4: checked arithmetic
 
 Read all 25 sites from the inventory. Most are `memcpy`/`memmove` over sizes already
 allocated, or `xreallocarray`, which already checks the product; `utf8.c`'s `n + 1` and
@@ -67,7 +67,7 @@ two duplicated buffer-doubling loops in `grid_string_cells`; `ckd_add` on `hsize
 `u_int`, not `int`. No `xmallocarray`: `xreallocarray(NULL, n, size)` already is one. Proof:
 suite intact, ASAN clean.
 
-## PR 5: typed `termo.h`
+## Step 5: typed `termo.h`
 
 Done in `termo.h`, fields left with their original types so no call site changes: the four
 `screen_size_x/y`, `screen_hsize/hlimit` macros are `static inline`; the upper-case predicate
@@ -84,7 +84,7 @@ C23 instead of a compiler extension. The other 99 `0x` defines (`SPAWN_*`, `PROM
 `TERM_*`, `CMD_*`, ...) are parameters and small sets without a dedicated field; left alone.
 Proof: three compilers, suite intact.
 
-## PR 6: convention and guard
+## Step 6: convention and guard
 
 `.clang-tidy` (`bugprone-*`, `cert-*`, `misc-*`, `readability-implicit-bool-conversion`),
 nightly clang-tidy fails on new findings over a baseline; `CLAUDE.md` and `CONTRIBUTING.md`
@@ -104,10 +104,10 @@ Create: `.clang-tidy`.
 
 ## Risks
 
-- Upstream cherry-picks conflict on attributes after PR 1; the same `sed` applies to incoming
-  patches. PR 5 confines itself to `termo.h`.
+- Upstream cherry-picks conflict on attributes after Step 1; the same `sed` applies to incoming
+  patches. Step 5 confines itself to `termo.h`.
 - `macos-26` runner availability; fallback Homebrew `llvm@20`.
-- `getpeereid` on Linux may be broken today; PR 2 fixes it first if so.
+- `getpeereid` on Linux may be broken today; Step 2 fixes it first if so.
 - `-Wconversion` volume; recorded, not forced.
 
 ## Close

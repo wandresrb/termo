@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-`termo` is a fork of tmux (the Neovim-to-Vim relationship): the tmux C client/server core, libevent loop and VT emulation are kept intact; on top go sane defaults, embedded LuaJIT scripting, a manifest-driven plugin system (`termo.json` + `termopack`), and Zellij-style UX. `ROADMAP.md` is the source of truth for phases and the hard rules (no WASM, regress always green, sanitizer clean). Phase 1 (Meson build, rebranding, defaults, CI) is done; Phase 2 (unit test suite, `docs/sdlc/plan/003-test-suite.md`) has its 14 modules landed; Phase 3 (C23 and POSIX.1-2024, `docs/sdlc/plan/004-c23-posix.md`) is in progress; Phase 4 (LuaJIT, spec `docs/sdlc/specs/002-luajit-runtime.md`) follows it. Nothing under `src/lua/` exists yet, `meson.build` only detects LuaJIT and defines `HAVE_LUAJIT`.
+`termo` is a fork of tmux (the Neovim-to-Vim relationship): the tmux C client/server core, libevent loop and VT emulation are kept intact; on top go sane defaults, embedded LuaJIT scripting, a manifest-driven plugin system (`termo.json` + `termopack`), and Zellij-style UX. `ROADMAP.md` is the source of truth for phases and the hard rules (no WASM, regress always green, sanitizer clean). Phase 1 (Meson build, rebranding, defaults, CI) is done; Phase 2 (unit test suite, `docs/sdlc/plan/003-test-suite.md`) has its 14 modules landed; Phase 3 (C23 and POSIX.1-2024, `docs/sdlc/plan/004-c23-posix.md`) is in progress; Phase 4 (LuaJIT, spec `docs/sdlc/specs/002-luajit-runtime.md`) follows it. Phase 4 step 1 is in: `src/lua/runtime.c` (one `lua_State`, `termo_lua_call` with a wall-time budget and error routing, JIT engine off because LuaJIT count hooks never fire inside a compiled trace, and `jit.on`, `debug.sethook`, `os.execute`, `io.popen`, `os.exit` removed so the budget has no off switch), `src/lua/api.c` (`termo.api.version/list/eval/get_option/set_option`), `src/cmd/run-lua.c`, and `~/.config/termo/init.lua` as the last entry of the `TMUX_CONF` search list (`load_cfg` queues `.lua` files so they run after the commands before them; `-f` replaces the list, so tests with `-f /dev/null` never see it). Everything is behind `HAVE_LUAJIT`; `-Dluajit=disabled` must keep building and passing. `runtime/lua/termo/` is the Lua side, installed to `<datadir>/termo/runtime` and found through `TERMO_RUNTIME` in development (`tests/lua/run.sh` exports it).
 
 Two remotes: `origin` is this fork, `upstream` is `tmux/tmux` for pulling fixes into the C parts that are still tmux.
 
@@ -52,6 +52,8 @@ scripts expected to fail with their reason. Each script spawns its own server on
 `-LtestA$$ -f/dev/null`; a script needs a `$$` socket name or it collides in parallel. A server
 crash under sanitizers leaves `/tmp/termo-asan.*` or `/tmp/termo-ubsan.*`, and macOS writes a
 crash report under `~/Library/Logs/DiagnosticReports/termo-*.ips`; read those before guessing.
+
+**Lua specs** (`tests/lua/`): `meson test -C build --suite lua` runs `tests/lua/run.sh`, which starts a server on its own socket and executes `run.lua` through `run-lua -f`; specs use `describe/it/eq/fails` and print TAP back to the client. A new spec file goes in the list at the bottom of `run.lua`. `tests/unit/test_lua.c` covers the runtime without a server.
 
 **Fuzzers**: `meson setup build -Dfuzz=enabled` (clang with libFuzzer, not Apple clang) builds
 `tests/<target>-fuzzer` for `cmd-parse`, `format`, `input`, `style`, with seed corpora in
