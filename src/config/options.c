@@ -614,7 +614,8 @@ options_array_set(struct options_entry *o, const char *key, const char *value,
 
 	if (o->tableentry->type == OPTIONS_TABLE_COLOUR) {
 		if ((number = colour_fromstring(value)) == -1) {
-			xasprintf(cause, "bad colour: %s", value);
+			if (cause != NULL)
+				xasprintf(cause, "bad colour: %s", value);
 			free(new_key);
 			return (-1);
 		}
@@ -760,9 +761,9 @@ options_parse(const char *name, char **key)
 {
 	char	*copy, *cp, *end, *raw, *new_key;
 
+	*key = NULL;
 	if (*name == '\0')
 		return (NULL);
-	*key = NULL;
 	copy = xstrdup(name);
 	if ((cp = strchr(copy, '[')) == NULL) {
 		return (copy);

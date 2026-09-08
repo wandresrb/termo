@@ -1073,6 +1073,10 @@ args_string_percentage_and_expand(const char *value, long long minval,
 	size_t		 valuelen = strlen(value);
 	char		*copy, *f;
 
+	if (valuelen == 0) {
+		*cause = xstrdup("empty");
+		return (0);
+	}
 	if (value[valuelen - 1] == '%') {
 		copy = xstrdup(value);
 		copy[valuelen - 1] = '\0';

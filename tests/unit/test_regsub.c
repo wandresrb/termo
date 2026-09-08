@@ -88,3 +88,23 @@ TEST(regsub, whole_text_and_classes)
 	EXPECT("[[:digit:]]+", "N", "a1b22c333", "aNbNcN");
 	EXPECT("[^a-z]", "", "a-b_c d", "abcd");
 }
+
+TEST(regsub, output_grows_with_many_replacements)
+{
+	char	text[201], with[201], want[2001];
+	u_int	i;
+
+	memset(text, 'a', 200);
+	text[200] = '\0';
+	for (i = 0; i < 200; i++)
+		memcpy(want + i * 10, "0123456789", 10);
+	want[2000] = '\0';
+	EXPECT("a", "0123456789", text, want);
+
+	memset(with, 'b', 200);
+	with[200] = '\0';
+	memcpy(want, with, 200);
+	want[200] = 'x';
+	want[201] = '\0';
+	EXPECT("^", with, "x", want);
+}

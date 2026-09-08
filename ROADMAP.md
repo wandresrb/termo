@@ -45,9 +45,10 @@ the type, TAP output so Meson lists every case, no signal catching so a crash sh
 stack. Files, in order of value: `compat` (the `strnvis` bug class), `options` and `cfg`
 (the changed-defaults bug class, `etc/termo.conf` verified value by value), `format`
 (division by zero), then `regsub`, `utf8`, `grid`, then `colour`, `style`, `key-string`,
-`arguments`, `layout`, then `screen-write` and `input`: 14 modules, 155 cases, all in
-`tests/unit/`. Coverage is measured nightly with gcovr; the phase closes when the report shows
-80% lines in the leaf modules and 60% in `input.c`, `format.c`, `screen/write.c`.
+`arguments`, `layout`, then `screen-write` and `input`: 14 modules, 281 cases (291 with the
+`lua` module), all in `tests/unit/`. The phase closes on the spec's "Must cover" table: every row
+has named cases that prove it (plan 003, Step 5). Coverage is measured locally as information to
+find untested paths; it is not a gate and does not run in CI.
 
 ## Phase 3: C23 and POSIX.1-2024 (plan `docs/sdlc/plan/004`)
 

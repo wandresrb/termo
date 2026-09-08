@@ -1183,7 +1183,8 @@ colour_parseX11(const char *p)
 
 	if ((len == 12 && sscanf(p, "rgb:%02x/%02x/%02x", &r, &g, &b) == 3) ||
 	    (len == 7 && sscanf(p, "#%02x%02x%02x", &r, &g, &b) == 3) ||
-	    sscanf(p, "%d,%d,%d", &r, &g, &b) == 3)
+	    (sscanf(p, "%d,%d,%d", &r, &g, &b) == 3 && r <= 255 && g <= 255 &&
+	    b <= 255))
 		colour = colour_join_rgb(r, g, b);
 	else if ((len == 18 &&
 	    sscanf(p, "rgb:%04x/%04x/%04x", &r, &g, &b) == 3) ||

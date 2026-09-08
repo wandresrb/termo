@@ -18,10 +18,12 @@ migration without a net.
 
 ## Outcome
 
-A unit test suite in C, cmocka-based, linked against the whole tree as a static library so tests
-use the real dependencies, one file per module, run by `meson test --suite unit` in seconds and in
-every CI cell. Coverage is measured nightly with per-module minimums. Regression and integration
-suites stay as the upper layers.
+A unit test suite in C on a 60-line header of its own, linked against the whole tree as a static
+library so tests use the real dependencies, one file per module, run by `meson test --suite unit`
+in seconds and in every CI cell. The phase closes on the "Must cover" table in the spec: every
+row has named cases that prove it. Coverage is measured once, locally, as information to find
+untested paths; it is not a gate and does not run in CI. Regression and integration suites stay
+as the upper layers.
 
 ## Scope
 
@@ -33,7 +35,7 @@ wrong.
 
 - Tests never start the real server; the harness sets up globals the way the fuzzers do.
 - No sleeps, no sockets, no `/tmp` in unit tests.
-- Every platform in CI builds and runs the suite: cmocka is a build dependency of the tests only.
+- Every platform in CI builds and runs the suite; the tests depend on nothing beyond libc.
 
 ## Open questions
 

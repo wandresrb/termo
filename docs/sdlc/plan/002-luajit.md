@@ -165,6 +165,10 @@ append/insert_after/next/get_callback`, `options_search/from_string/get_*/push_c
 - **Re-entering the core** from Lua: inside a running item or an event sink, `cmd()` only
   queues, by construction; Step 2's spec exercises it from a binding and from a hook, Step 3's
   from a `window-layout-changed` sink calling `kill-window` during `join-pane`.
+- **`cmdq_error` on a client-less callback item** dereferences `item->cmd`, which is NULL for
+  callback items (`queue.c:852` → `cmd_get_source`). Timers, `defer` and `system` callbacks run
+  Lua under exactly such items, so Step 2 routes their errors through `server_add_message` or
+  fixes `cmdq_error` first; a unit test in `test_lua.c` covers it.
 - **Lua refs tied to C objects** (timers, menus, popups, jobs): registry refs released in the
   close or free callback; ASAN through `lua_close` on `kill-server` is the test.
 - **LuaJIT and ASAN**: LuaJIT has its own allocator; Step 1 decides between

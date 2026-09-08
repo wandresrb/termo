@@ -60,6 +60,11 @@ crash report under `~/Library/Logs/DiagnosticReports/termo-*.ips`; read those be
 `tests/fuzz/corpus/`; `meson test --suite fuzz` is a short smoke run, nightly CI runs them for 10
 minutes each.
 
+**Coverage** is measured locally, never as a CI gate: `brew install gcovr`, `meson setup build-cov
+-Db_coverage=true -Db_sanitize=none -Dbuildtype=debug`, `meson test -C build-cov --suite unit`,
+`ninja -C build-cov coverage-text`, report in `build-cov/meson-logs/coverage.txt`. The Phase 2
+close criterion is the "Must cover" table in `docs/sdlc/specs/003-test-suite.md`, not a percentage.
+
 ## C23 conventions for new code
 
 The tree is C23 and CI compiles with `-Werror` plus `-Wshadow -Wmissing-prototypes

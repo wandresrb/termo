@@ -69,10 +69,12 @@ Screen-level assertions use `grid_string_cells` line by line as the oracle.
 
 - `tests/meson.build`: `termo-test` executable, one `test()` per module, always built.
 - `ci.yml`: `meson test` already runs suite `unit`; no extra packages.
-- `nightly.yml` gains a `coverage` job: `-Db_coverage=true`, `ninja coverage-xml`, gcovr summary
-  per directory, artifact. Minimums to close the phase: 80% lines in `utf8/`, `grid/`,
-  `regsub.c`, `colour.c`, `style.c`, `key-string.c`, `options.c`, `cfg.c`; 60% in `input.c`,
-  `format.c`, `screen/write.c`.
+- Close criterion: every row of the table above has named cases that prove its "Must cover"
+  column; the list per row is Step 5 of the plan. No coverage gate and no coverage job in CI.
+- Coverage as information, measured locally when the list is revised:
+  `brew install gcovr` (macOS), `meson setup build-cov -Db_coverage=true -Db_sanitize=none
+  -Dbuildtype=debug`, `meson test -C build-cov --suite unit`, `ninja -C build-cov coverage-text`,
+  report in `build-cov/meson-logs/coverage.txt`. Meson drives `llvm-cov gcov` for clang.
 
 ## Trade-offs
 

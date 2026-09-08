@@ -18,6 +18,9 @@
 #include "termo.h"
 #include "test.h"
 
+/* The flags log.c, term.c, capture.c and util.c pass. */
+constexpr int	tree_vis_flags = VIS_OCTAL|VIS_CSTYLE|VIS_TAB|VIS_NL;
+
 TEST(compat, strnvis_escapes_into_dst)
 {
 	char	out[64];
@@ -46,6 +49,108 @@ TEST(compat, stravis_allocates)
 	REQUIRE_NONNULL(out);
 	CHECK_EQ(out, "\\001x");
 	free(out);
+}
+
+TEST(compat, vis_encodes_single_bytes_with_tree_flags)
+{
+	char	b[8];
+
+	vis(b, '\033', tree_vis_flags, 0);
+	CHECK_EQ(b, "\\033");
+	vis(b, '\n', tree_vis_flags, 0);
+	CHECK_EQ(b, "\\n");
+	vis(b, '\t', tree_vis_flags, 0);
+	CHECK_EQ(b, "\\t");
+	vis(b, ' ', tree_vis_flags, 0);
+	CHECK_EQ(b, " ");
+	vis(b, '\\', tree_vis_flags, 0);
+	CHECK_EQ(b, "\\\\");
+	vis(b, '\\', VIS_NOSLASH, 0);
+	CHECK_EQ(b, "\\");
+	vis(b, '"', VIS_DQ, 0);
+	CHECK_EQ(b, "\\\"");
+	vis(b, 0x81, 0, 0);
+	CHECK_EQ(b, "\\M^A");
+	vis(b, 0xe9, 0, 0);
+	CHECK_EQ(b, "\\M-i");
+	vis(b, '\0', VIS_CSTYLE, '1');
+	CHECK_EQ(b, "\\000");
+	vis(b, '\0', VIS_CSTYLE, 'x');
+	CHECK_EQ(b, "\\0");
+	vis(b, '\a', VIS_SAFE, 0);
+	CHECK_EQ(b, "\a");
+	vis(b, 1, VIS_SAFE, 0);
+	CHECK_EQ(b, "\\^A");
+	vis(b, '*', VIS_GLOB, 0);
+	CHECK_EQ(b, "\\052");
+}
+
+TEST(compat, strvis_strvisx_strnvis_agree)
+{
+	char	out[32], out4[4];
+
+	CHECK_EQ(strvis(out, "a\tb\n", tree_vis_flags), 6);
+	CHECK_EQ(out, "a\\tb\\n");
+	CHECK_EQ(strvisx(out, "a\0b", 3, VIS_OCTAL), 6);
+	CHECK_EQ(out, "a\\000b");
+	CHECK_EQ(strvisx(out, "\0" "1", 2, VIS_CSTYLE), 5);
+	CHECK_EQ(out, "\\0001");
+	CHECK_EQ(strnvis(out4, "\033\033", sizeof out4, VIS_OCTAL), 8);
+	CHECK_EQ(out4, "");
+}
+
+TEST(compat, strunvis_decodes_term_override_syntax)
+{
+	char	dst[16], c = 0;
+	int	state = 0;
+
+	CHECK_EQ(strunvis(dst, "\\033[1m"), 4);
+	CHECK_EQ(dst, "\033[1m");
+	CHECK_EQ(strunvis(dst, "\\E[1m"), 4);
+	CHECK_EQ(dst, "\033[1m");
+	CHECK_EQ(strunvis(dst, "\\n\\t\\s\\\\"), 4);
+	CHECK_EQ(dst, "\n\t \\");
+	CHECK_EQ(strunvis(dst, "\\^A\\^?"), 2);
+	CHECK_EQ(dst, "\001\177");
+	CHECK_EQ(strunvis(dst, "\\M-a"), 1);
+	CHECK_EQ(dst, "\341");
+	CHECK_EQ(strunvis(dst, "\\M^A"), 1);
+	CHECK_EQ(dst, "\201");
+	CHECK_EQ(strunvis(dst, "\\101\\1a"), 3);
+	CHECK_EQ(dst, "A\001a");
+	CHECK_EQ(strunvis(dst, "\\7"), 1);
+	CHECK_EQ(dst[0], 7);
+	CHECK_EQ(strunvis(dst, "\\$x"), 1);
+	CHECK_EQ(dst, "x");
+	CHECK_EQ(strunvis(dst, "\\q"), -1);
+	CHECK_EQ(strunvis(dst, "ab\\q"), -1);
+	CHECK_EQ(dst, "ab");
+	CHECK_EQ(strunvis(dst, "abc\\"), 3);
+	CHECK_EQ(dst, "abc");
+
+	CHECK_EQ(unvis(&c, '\\', &state, 0), 0);
+	CHECK_EQ(unvis(&c, '1', &state, 0), 0);
+	CHECK_EQ(unvis(&c, 'x', &state, 0), UNVIS_VALIDPUSH);
+	CHECK_EQ(c, 1);
+	CHECK_EQ(unvis(&c, 'x', &state, 0), UNVIS_VALID);
+	CHECK_EQ(c, 'x');
+}
+
+TEST(compat, vis_unvis_round_trip_all_bytes)
+{
+	static const int	flags[] = {
+		tree_vis_flags, VIS_CSTYLE, VIS_OCTAL
+	};
+	char			buf[256], enc[4 * 256 + 1], dec[257];
+	u_int			i;
+
+	for (i = 0; i < sizeof buf; i++)
+		buf[i] = i;
+	for (i = 0; i < nitems(flags); i++) {
+		strvisx(enc, buf, sizeof buf, flags[i]);
+		CHECK_EQ(strunvis(dec, enc), 256);
+		CHECK(memcmp(dec, buf, sizeof buf) == 0);
+	}
 }
 
 TEST(compat, strlcpy_truncates_and_reports_source_length)
@@ -184,13 +289,146 @@ TEST(compat, getpeereid_returns_own_ids)
 	close(fds[1]);
 }
 
-TEST(compat, freezero_accepts_null)
+static void
+getopt_reset(void)
 {
-	char	*p = xmalloc(8);
+	optreset = 1;
+	optind = 1;
+	opterr = 0;
+}
 
+TEST(compat, getopt_parses_main_c_option_string_bsd_style)
+{
+	const char	opts[] = "2c:CDdf:hlL:NqS:T:uUvV";
+	char		*argv1[] = {
+		"termo", "-2", "-Lsock", "-vv", "-f", "a.conf", "-c",
+		"ls -l", "--", "new", "-v", nullptr
+	};
+	char		*argv2[] = { "termo", "new", "-v", nullptr };
+	char		*argv3[] = { "termo", "-L", nullptr };
+	char		*argv4[] = { "termo", "-Z", nullptr };
+	char		*argv5[] = {
+		"termo", "-S", "/tmp/s", "-T", "256", nullptr
+	};
+
+	getopt_reset();
+	CHECK_EQ(getopt(11, argv1, opts), '2');
+	CHECK_EQ(getopt(11, argv1, opts), 'L');
+	CHECK_EQ(optarg, "sock");
+	CHECK_EQ(getopt(11, argv1, opts), 'v');
+	CHECK_EQ(getopt(11, argv1, opts), 'v');
+	CHECK_EQ(getopt(11, argv1, opts), 'f');
+	CHECK_EQ(optarg, "a.conf");
+	CHECK_EQ(getopt(11, argv1, opts), 'c');
+	CHECK_EQ(optarg, "ls -l");
+	CHECK_EQ(getopt(11, argv1, opts), -1);
+	CHECK_EQ(optind, 9);
+	CHECK_EQ(argv1[optind], "new");
+
+	getopt_reset();
+	CHECK_EQ(getopt(3, argv2, opts), -1);
+	CHECK_EQ(optind, 1);
+	CHECK_EQ(argv2[1], "new");
+	CHECK_EQ(argv2[2], "-v");
+
+	getopt_reset();
+	CHECK_EQ(getopt(2, argv3, opts), '?');
+	CHECK_EQ(optopt, 'L');
+
+	getopt_reset();
+	CHECK_EQ(getopt(2, argv4, opts), '?');
+	CHECK_EQ(optopt, 'Z');
+
+	getopt_reset();
+	CHECK_EQ(getopt(5, argv5, opts), 'S');
+	CHECK_EQ(optarg, "/tmp/s");
+	CHECK_EQ(getopt(5, argv5, opts), 'T');
+	CHECK_EQ(optarg, "256");
+	CHECK_EQ(getopt(5, argv5, opts), -1);
+	CHECK_EQ(optind, 5);
+}
+
+TEST(compat, imsg_round_trips_over_socketpair)
+{
+	struct imsgbuf	a, b;
+	struct imsg	m;
+	char		buf[4];
+	int		fds[2], fd;
+
+	REQUIRE_EQ(socketpair(AF_UNIX, SOCK_STREAM, 0, fds), 0);
+	REQUIRE_EQ(imsgbuf_init(&a, fds[0]), 0);
+	REQUIRE_EQ(imsgbuf_init(&b, fds[1]), 0);
+	imsgbuf_allow_fdpass(&a);
+	imsgbuf_allow_fdpass(&b);
+
+	CHECK_EQ(imsg_compose(&a, 7, 0, -1, -1, "hi", 3), 1);
+	CHECK_EQ(imsgbuf_queuelen(&a), 1u);
+	CHECK_EQ(imsgbuf_flush(&a), 0);
+	CHECK_EQ(imsgbuf_queuelen(&a), 0u);
+	CHECK_EQ(imsgbuf_read(&b), 1);
+	REQUIRE_EQ(imsgbuf_get(&b, &m), 1);
+	CHECK_EQ(m.hdr.type, 7u);
+	CHECK_EQ(imsg_get_type(&m), 7u);
+	CHECK_EQ(imsg_get_len(&m), 3u);
+	CHECK_EQ(imsg_get_data(&m, buf, 3), 0);
+	CHECK_EQ(buf, "hi");
+	CHECK_EQ(imsg_get_fd(&m), -1);
+	imsg_free(&m);
+	CHECK_EQ(imsgbuf_get(&b, &m), 0);
+
+	fd = open("/dev/null", O_RDONLY);
+	REQUIRE(fd >= 0);
+	CHECK_EQ(imsg_compose(&a, 8, 0, -1, fd, "x", 1), 1);
+	CHECK_EQ(imsgbuf_flush(&a), 0);
+	CHECK_EQ(imsgbuf_read(&b), 1);
+	REQUIRE_EQ(imsgbuf_get(&b, &m), 1);
+	CHECK_EQ(m.hdr.type, 8u);
+	CHECK_EQ(imsg_get_len(&m), 1u);
+	fd = imsg_get_fd(&m);
+	CHECK(fd >= 0);
+	CHECK(fcntl(fd, F_GETFD) != -1);
+	CHECK_EQ(imsg_get_fd(&m), -1);
+	close(fd);
+	imsg_free(&m);
+
+	imsgbuf_clear(&a);
+	imsgbuf_clear(&b);
+	close(fds[0]);
+	close(fds[1]);
+}
+
+#ifdef HAVE_UTF8PROC
+TEST(compat, utf8proc_shim_widths_and_conversions)
+{
+	wchar_t	wc = 0;
+	char	buf[8];
+
+	CHECK_EQ(utf8proc_wcwidth('A'), 1);
+	CHECK_EQ(utf8proc_wcwidth(0x4e2d), 2);
+	CHECK_EQ(utf8proc_wcwidth(0x0301), 0);
+	CHECK_EQ(utf8proc_wcwidth(0xe0a0), 1);
+	CHECK_EQ(utf8proc_mbtowc(&wc, "\xe4\xb8\xad", 3), 3);
+	CHECK_EQ(wc, 0x4e2d);
+	CHECK_EQ(utf8proc_mbtowc(&wc, "\xff", 1), -1);
+	CHECK_EQ(utf8proc_wctomb(buf, 0x4e2d), 3);
+	CHECK(memcmp(buf, "\xe4\xb8\xad", 3) == 0);
+	CHECK_EQ(utf8proc_wctomb(buf, 0x110000), -1);
+}
+#endif
+
+/* Zeroing is unobservable after free; ASAN is the assertion for the sizes. */
+TEST(compat, freezero_frees_exact_sizes)
+{
+	char	*p = xmalloc(64), *q = xmalloc(1 << 20);
+
+	memset(p, 'A', 64);
+	CHECK_EQ(p[63], 'A');
+	freezero(p, 64);
+	freezero(nullptr, 64);
 	freezero(nullptr, 0);
-	freezero(p, 8);
-	CHECK(1);
+	memset(q, 'B', 1 << 20);
+	CHECK_EQ(q[(1 << 20) - 1], 'B');
+	freezero(q, 1 << 20);
 }
 
 TEST(compat, closefrom_closes_everything_above)

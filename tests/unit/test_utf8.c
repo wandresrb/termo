@@ -277,3 +277,19 @@ TEST(utf8, regional_indicators_combine_in_pairs)
 	CHECK_EQ(utf8_should_combine(&a, &ri2), 0);
 	CHECK_EQ(utf8_should_combine(&ri1, &a), 0);
 }
+
+TEST(utf8, stravisx_bounds_length_and_vis_dq_escapes_dollar)
+{
+	char	 buf[4 * 8 + 1], *out = nullptr;
+	size_t	 n;
+
+	n = utf8_stravisx(&out, "ab\033cd", 3, VIS_OCTAL);
+	REQUIRE_NONNULL(out);
+	CHECK_EQ(out, "ab\\033");
+	CHECK_EQ(n, strlen(out));
+	free(out);
+
+	n = utf8_strvis(buf, "$x $1 ${", 8, VIS_DQ);
+	CHECK_EQ(buf, "\\$x $1 \\${");
+	CHECK_EQ(n, strlen(buf));
+}
