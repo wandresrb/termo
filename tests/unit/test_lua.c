@@ -286,3 +286,26 @@ TEST(lua, timers_fire_from_the_loop)
 	EXPECT("return tonumber(termo.api.get_option('@ticks')) >= 3", "true");
 	termo_lua_free();
 }
+
+/*
+ * A Lua error inside a callback item with no client, after the config has
+ * finished, goes through cmdq_error with a null command: it must land in
+ * the message log, not dereference the command.
+ */
+TEST(lua, errors_in_callback_items_reach_the_message_log)
+{
+	struct message_entry	*msg;
+
+	start();
+	TAILQ_INIT(&message_log);
+	cfg_finished = 1;
+	EXPECT("termo.api.cmd_async('display -p x', function() error('boom') end) "
+	    "return 'queued'", "queued");
+	while (cmdq_next(nullptr) != 0)
+		;
+	cfg_finished = 0;
+	msg = TAILQ_LAST(&message_log, message_list);
+	REQUIRE_NONNULL(msg);
+	CHECK(strstr(msg->msg, "boom") != nullptr);
+	termo_lua_free();
+}
