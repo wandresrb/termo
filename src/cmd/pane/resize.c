@@ -104,7 +104,7 @@ cmd_resize_pane_exec(struct cmd *self, struct cmdq_item *item)
 		if (window_pane_is_floating(wp)) {
 			if (layout_resize_floating_pane_to(wp, LAYOUT_LEFTRIGHT,
 			    x, &cause) != 0) {
-				cmdq_error(item, "size %s", cause);
+				cmdq_error(item, "%s", cause);
 				free(cause);
 				return (CMD_RETURN_ERROR);
 			}
@@ -132,7 +132,7 @@ cmd_resize_pane_exec(struct cmd *self, struct cmdq_item *item)
 		if (window_pane_is_floating(wp)) {
 			if (layout_resize_floating_pane_to(wp, LAYOUT_TOPBOTTOM,
 			    y, &cause) != 0) {
-				cmdq_error(item, "size %s", cause);
+				cmdq_error(item, "%s", cause);
 				free(cause);
 				return (CMD_RETURN_ERROR);
 			}

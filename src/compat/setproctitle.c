@@ -27,7 +27,9 @@ setproctitle([[maybe_unused]] const char *fmt, ...)
 		return;
 	if ((cp = strchr(title, ' ')) != nullptr)
 		*cp = '\0';
-	snprintf(name, sizeof name, "%s: %s", getprogname(), title);
+	strlcpy(name, getprogname(), sizeof name);
+	strlcat(name, ": ", sizeof name);
+	strlcat(name, title, sizeof name);
 	prctl(PR_SET_NAME, name);
 #endif
 }

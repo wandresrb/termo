@@ -13,66 +13,178 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  test:
-    name: ${{ matrix.os }} ${{ matrix.cc }}
-    runs-on: ${{ matrix.os }}
-    timeout-minutes: 45
+  lint:
+    name: commit messages
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: one line, imperative, under 72 chars, no body
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          rc=0
+          for c in $(git rev-list "$BASE".."$HEAD"); do
+            subject=$(git log -1 --format=%s "$c")
+            body=$(git log -1 --format=%b "$c")
+            if [ ${#subject} -gt 72 ]; then echo "$c: subject over 72 chars"; rc=1; fi
+            if [ -n "$body" ]; then echo "$c: has a body; termo commits are one line"; rc=1; fi
+            case "$subject" in
+              *.) echo "$c: subject ends with a period"; rc=1 ;;
+            esac
+          done
+          exit $rc
+
+  image:
+    uses: ./.github/workflows/image.yml
+    permissions:
+      contents: read
+      packages: write
+
+  # Every stage runs in the same image at the same path, so the build tree
+  # (minus objects) travels as an artifact and the test stages only run it.
+  build:
+    name: build ${{ matrix.cc }}
+    needs: image
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: read
+    container:
+      image: ghcr.io/${{ github.repository }}-ci-ubuntu:${{ needs.image.outputs.ubuntu }}
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - os: ubuntu-24.04
-            cc: gcc-14
-          - os: ubuntu-24.04
-            cc: clang-20
-          - os: macos-26
-            cc: clang
+        cc: [gcc-14, clang-20]
     env:
       CC: ${{ matrix.cc }}
+      CCACHE_DIR: ${{ github.workspace }}/.ccache
+      CCACHE_MAXSIZE: 400M
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           persist-credentials: false
-
-      - name: dependencies (linux)
-        if: runner.os == 'Linux'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y meson ninja-build bison pkg-config ccache \
-            libevent-dev libncurses-dev libutf8proc-dev libluajit-5.1-dev
-          case "${{ matrix.cc }}" in
-            gcc-*)   sudo apt-get install -y ${{ matrix.cc }} ;;
-            clang-*) wget -qO /tmp/llvm.sh https://apt.llvm.org/llvm.sh && \
-                     sudo bash /tmp/llvm.sh "${CC#clang-}" ;;
-          esac
-          # ASAN needs fewer ASLR bits than the runner kernel default
-          sudo sysctl vm.mmap_rnd_bits=28
-
-      - name: dependencies (macos)
-        if: runner.os == 'macOS'
-        run: brew install meson ninja bison pkg-config ccache libevent ncurses utf8proc luajit
-
-      - uses: hendrikmuhs/ccache-action@v1.2
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
-          key: ${{ matrix.os }}-${{ matrix.cc }}
-
+          path: .ccache
+          key: ccache-${{ matrix.cc }}-${{ github.sha }}
+          restore-keys: ccache-${{ matrix.cc }}-
       - name: configure
-        run: |
-          meson setup build -Db_sanitize=address,undefined -Dbuildtype=debugoptimized \
-            -Dwerror=true
-
+        run: >
+          meson setup build -Db_sanitize=address,undefined -Dbuildtype=debugoptimized
+          -Dwerror=true -De2e=enabled
       - name: build
         run: ninja -C build
+      - name: ccache stats
+        run: ccache -s
+      - name: pack the build tree without objects
+        run: tar -czf build-${{ matrix.cc }}.tgz --exclude='*.p' --exclude='*.a' build
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: build-${{ matrix.cc }}
+          path: build-${{ matrix.cc }}.tgz
+          retention-days: 1
 
-      - name: test
-        run: meson test -C build --print-errorlogs
+  unit:
+    name: unit ${{ matrix.cc }}
+    needs: [image, build]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      packages: read
+    container:
+      image: ghcr.io/${{ github.repository }}-ci-ubuntu:${{ needs.image.outputs.ubuntu }}
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    strategy:
+      fail-fast: false
+      matrix:
+        cc: [gcc-14, clang-20]
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: build-${{ matrix.cc }}
+      - run: tar -xzf build-${{ matrix.cc }}.tgz
+      - name: unit
+        run: meson test -C build --suite unit --no-rebuild --print-errorlogs
 
+  smoke:
+    name: smoke ${{ matrix.cc }}
+    needs: [image, unit]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      packages: read
+    container:
+      image: ghcr.io/${{ github.repository }}-ci-ubuntu:${{ needs.image.outputs.ubuntu }}
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    strategy:
+      fail-fast: false
+      matrix:
+        cc: [gcc-14, clang-20]
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: build-${{ matrix.cc }}
+      - run: tar -xzf build-${{ matrix.cc }}.tgz
+      - name: lua specs and the smoke e2e module
+        run: meson test -C build --suite lua --suite smoke --no-rebuild --print-errorlogs
+
+  e2e:
+    name: e2e ${{ matrix.cc }}
+    needs: [image, smoke]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      packages: read
+    container:
+      image: ghcr.io/${{ github.repository }}-ci-ubuntu:${{ needs.image.outputs.ubuntu }}
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    strategy:
+      fail-fast: false
+      matrix:
+        cc: [gcc-14, clang-20]
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: build-${{ matrix.cc }}
+      - run: tar -xzf build-${{ matrix.cc }}.tgz
+      - name: e2e
+        run: meson test -C build --suite e2e --no-suite smoke --no-rebuild --print-errorlogs
       - name: logs
         if: failure()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: logs-${{ matrix.os }}-${{ matrix.cc }}
+          name: logs-e2e-${{ matrix.cc }}
           path: |
             build/meson-logs/testlog.txt
-            tests/regress/logs/
+            build/meson-logs/e2e-*.xml
+            /tmp/termo-asan.*
+            /tmp/termo-ubsan.*
           if-no-files-found: ignore

@@ -14,16 +14,17 @@ ninja -C build
 meson test -C build
 ```
 
-`meson test` runs the C unit tests, the Python integration suite and all
-regression scripts under `tests/regress/`. Everything must be green and
-sanitizer clean. A change in a leaf module (`utf8/`, `grid/`, `input/`,
-`format.c`, `options.c`, `cfg.c`, `compat/`) comes with a unit test in
-`tests/unit/test_<module>.c`; see `tests/unit/test.h`. Run one thing at a time
-with:
+`meson test` runs the C unit tests, the Lua specs and the pytest e2e suite
+(`tests/e2e/`, needs pytest; `just build && just test` does the same). Everything
+must be green and sanitizer clean. A change in a leaf module (`utf8/`, `grid/`,
+`input/`, `format.c`, `options.c`, `cfg.c`, `compat/`) comes with a unit test in
+`tests/unit/test_<module>.c`; see `tests/unit/test.h`. A change in behaviour a
+user sees comes with an e2e test. Run one thing at a time with:
 
 ```sh
 ./build/tests/termo-test format expressions
-python3 tests/regress/runner.py build/termo alerts.sh
+pytest tests/e2e -k menu --termo build/termo
+just upstream-regress alerts      # upstream tmux's regress/, before a release
 ```
 
 ## Code

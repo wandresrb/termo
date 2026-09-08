@@ -7,9 +7,11 @@ map.
 
 ## Rules that hold in every phase
 
-1. The regression suite in `tests/regress/` is green on every commit. A script
-   only goes into `tests/regress/xfail` when the failure is upstream's and
-   documented there.
+1. `meson test` (unit, Lua specs, e2e) is green under ASAN and UBSAN on every
+   commit. Upstream tmux's `regress/` runs against `build/termo` with
+   `just upstream-regress` before every release and after every upstream
+   cherry-pick; a script only goes into `tools/regress-xfail` when the failure
+   is upstream's and documented there.
 2. Every build in CI runs under ASAN and UBSAN and is warning-free with
    `-Dwerror=true`.
 3. Compiled-in defaults are tmux's. termo's opinionated defaults live in
@@ -33,7 +35,9 @@ map.
 - `etc/termo.conf`: vi keys with `v`/`y`, 50k history, renumber-windows,
   focus events, OSC 52, 10 ms escape, RGB for every terminal.
 - CI: Linux (gcc, clang) and macOS with sanitizers, nightly fuzzing and build
-  variants, CodeQL, Scorecard, workflow linting, commit linting.
+  variants, CodeQL, Scorecard, workflow linting, commit linting. Revised
+  2026-09-08 (plan 005): builder images in GHCR, no macOS in the gate, the
+  upstream regress scripts out of the tree, e2e in pytest.
 
 ## Phase 2: unit test suite (tests landed 2026-09-07; plan `docs/sdlc/plan/003`)
 
@@ -98,7 +102,7 @@ the floating panes that already exist in the core, and `termopack` (git-based, `
 manifests) once the palette works.
 
 Evals: `tests/lua/*_spec.lua` covering every function in `termo.api.list()`, ASAN clean
-through `lua_close`, and regress unchanged with `-Dluajit=disabled`.
+through `lua_close`, and `meson test` green with `-Dluajit=disabled`.
 
 ## Phase 5: Rust in leaf modules
 
@@ -107,7 +111,8 @@ Strangler-fig, one module at a time, through Meson's native Rust support
 `utf8/`, `grid/`, `input/`. Each module keeps its C ABI from `termo.h`, shares
 structs as `#[repr(C)]` with size checks on both sides, and stays behind a
 build option until stable. The primary eval is differential fuzzing of the C
-and Rust builds on the `tests/fuzz` corpus; the second is regress; the third is
+and Rust builds on the `tests/fuzz` corpus; the second is the e2e suite plus
+`just upstream-regress`; the third is
 the VT throughput benchmark, with a 10% regression as the gate.
 
 `input.c` goes last: it is where terminal-emulator CVEs live and it only

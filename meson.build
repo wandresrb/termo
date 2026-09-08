@@ -1,5 +1,6 @@
 project('termo', 'c',
   version: '0.1.0',
+  meson_version: '>= 1.4.0',
   default_options: [
     'c_std=c23',
     'warning_level=2',
@@ -481,6 +482,11 @@ supported_c_args = cc.get_supported_arguments([
   '-Wno-pointer-sign',
   # glibc _FORTIFY_SOURCE marks write(2) and friends; not fixable with (void)
   '-Wno-unused-result',
+  # gcc's flow analysis reports ten upstream sites that are initialised on every
+  # path it cannot see; the kernel turns this one off for the same reason
+  '-Wno-maybe-uninitialized',
+  # format_pretty_time prints a two-digit year on purpose
+  '-Wno-format-y2k',
 ])
 c_args += supported_c_args
 

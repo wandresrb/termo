@@ -1,4 +1,5 @@
-py = import('python').find_installation('python3')
+pymod = import('python')
+py = pymod.find_installation('python3')
 
 # Unit tests: one binary, TAP output, `termo-test [module [case]]`.
 unit_sources = files(
@@ -33,34 +34,43 @@ termo_test = executable('termo-test', unit_sources,
   link_with: termo_lib,
 )
 foreach m : unit_modules
-  test('unit-' + m, termo_test, args: [m], suite: 'unit', protocol: 'tap', timeout: 60)
+  test('unit-' + m, termo_test, args: [m], suite: 'unit', protocol: 'tap', timeout: 60,
+    priority: 100)
 endforeach
 
-# Lua specs inside a real server (TAP relayed by run-lua), and the Lua UI
-# driven through a pty-attached client
+# Lua specs inside a real server (TAP relayed by run-lua)
 if luajit_dep.found()
   test('lua', find_program('sh'), args: [files('lua/run.sh'), termo_exe],
-    suite: 'lua', protocol: 'tap', timeout: 60)
-  test('integration_lua_ui', py,
-    args: [files('integration/test_lua_ui.py'), termo_exe],
-    suite: 'integration',
-    timeout: 180,
-  )
+    suite: 'lua', protocol: 'tap', timeout: 60, priority: 50)
 endif
 
-# Integration test suite in Python
-test('integration_termo', py,
-  args: [files('integration/test_termo.py'), termo_exe],
-  suite: 'integration',
-  timeout: 30,
-)
-
-# Upstream regression suite, all scripts, in parallel
-test('regress', py,
-  args: [files('regress/runner.py'), termo_exe],
-  suite: 'regress',
-  timeout: 1500,
-)
+# End-to-end: pytest drives the binary over its socket, control mode and a
+# pty. One test per module; every server has its own socket, so they run in
+# parallel. The Lua modules skip themselves on a build without LuaJIT.
+py_e2e = pymod.find_installation('python3', modules: ['pytest'], required: get_option('e2e'))
+if py_e2e.found()
+  e2e_env = {
+    'TERMO_BIN': termo_exe.full_path(),
+    'TERMO_RUNTIME': meson.project_source_root() / 'runtime',
+    'TERMO_HAS_LUA': luajit_dep.found() ? '1' : '0',
+    'TERMO_E2E_TIMEOUT_SCALE': get_option('b_sanitize').contains('address') ? '3' : '1',
+    'TERMO_E2E_UNDER_MESON': '1',
+    'PYTHONDONTWRITEBYTECODE': '1',
+  }
+  foreach m : ['cli', 'session', 'control', 'screen', 'layout', 'lua', 'lua_ui']
+    test('e2e-' + m, py_e2e,
+      args: ['-m', 'pytest', '-q', '-p', 'no:cacheprovider',
+             '--junitxml=' + meson.project_build_root() / 'meson-logs' / 'e2e-' + m + '.xml',
+             files('e2e/test_' + m + '.py'), '--termo', termo_exe.full_path()],
+      env: e2e_env,
+      depends: termo_exe,
+      suite: m == 'cli' ? ['e2e', 'smoke'] : ['e2e'],
+      timeout: 120,
+      workdir: meson.current_source_dir() / 'e2e')
+  endforeach
+else
+  warning('pytest not found: the e2e suite is not registered (-De2e=enabled to require it)')
+endif
 
 # libFuzzer harnesses for the four external-input parsers. The library is
 # rebuilt with coverage instrumentation so the fuzzer can see branches.

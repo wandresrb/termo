@@ -2637,7 +2637,7 @@ server_client_set_progress_bar(struct client *c)
 	if (pane_pb->state == c->progress_bar.state &&
 	    pane_pb->progress == c->progress_bar.progress)
 		return;
-	memcpy(&c->progress_bar, pane_pb, sizeof c->progress_bar);
+	c->progress_bar = *pane_pb;
 	tty_set_progress_bar(&c->tty, &c->progress_bar);
 }
 

@@ -78,13 +78,14 @@ ninja -C build
 `termo` uses a multi-tiered test pyramid integrated into Meson and Python 3:
 
 ```sh
-# Run all test suites (unit + integration + regression)
+# Run all test suites (unit + lua + e2e)
 meson test -C build --verbose
 
 # Run individual suites
 meson test -C build --suite unit           # C unit tests, seconds
-meson test -C build --suite integration
-meson test -C build --suite regress        # the 129 upstream scripts, in parallel
+meson test -C build --suite lua            # Lua specs inside a server
+meson test -C build --suite e2e            # pytest over the socket, control mode and a pty
+just upstream-regress                      # upstream tmux's regress/, on demand
 ./build/tests/termo-test format            # one unit module directly
 ```
 

@@ -1,0 +1,60 @@
+name: image
+
+on:
+  workflow_call:
+    outputs:
+      ubuntu:
+        description: tag of ghcr.io/<repo>-ci-ubuntu
+        value: ${{ jobs.image.outputs.ubuntu }}
+      alpine:
+        description: tag of ghcr.io/<repo>-ci-alpine
+        value: ${{ jobs.image.outputs.alpine }}
+
+permissions:
+  contents: read
+
+jobs:
+  image:
+    name: builder images
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      ubuntu: ${{ steps.tags.outputs.ubuntu }}
+      alpine: ${{ steps.tags.outputs.alpine }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+
+      - name: tag is the sha256 of each Dockerfile
+        id: tags
+        run: |
+          echo "ubuntu=$(sha256sum ci/Dockerfile.ubuntu | cut -c1-16)" >> "$GITHUB_OUTPUT"
+          echo "alpine=$(sha256sum ci/Dockerfile.alpine | cut -c1-16)" >> "$GITHUB_OUTPUT"
+
+      - name: login to ghcr.io
+        env:
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ACTOR: ${{ github.actor }}
+        run: echo "$TOKEN" | docker login ghcr.io -u "$ACTOR" --password-stdin
+
+      - name: build the images whose tag does not exist yet
+        env:
+          REPO: ${{ github.repository }}
+          UBUNTU: ${{ steps.tags.outputs.ubuntu }}
+          ALPINE: ${{ steps.tags.outputs.alpine }}
+        run: |
+          ensure() {
+            ref="ghcr.io/$REPO-ci-$1:$2"
+            if docker manifest inspect "$ref" >/dev/null 2>&1; then
+              echo "$ref: present"
+              return
+            fi
+            docker build --pull -f "ci/Dockerfile.$1" -t "$ref" ci
+            docker push "$ref"
+          }
+          ensure ubuntu "$UBUNTU"
+          ensure alpine "$ALPINE"

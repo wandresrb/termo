@@ -33,6 +33,14 @@ int	test_eq_str(const char *, int, const char *, const char *,
 int	test_eq_ptr(const char *, int, const char *, const void *,
 	    const void *);
 
+static inline int
+test_check(const char *file, int line, const char *expr, int ok)
+{
+	if (!ok)
+		test_fail(file, line, "%s", expr);
+	return (ok);
+}
+
 #define TEST(mod, nm)							\
 	static void test_##mod##_##nm(void);				\
 	static struct test test_##mod##_##nm##_entry = {		\
@@ -56,13 +64,12 @@ int	test_eq_ptr(const char *, int, const char *, const void *,
 	default: test_eq_int						\
 	)(__FILE__, __LINE__, #a " == " #b, (a), (b))
 
-#define CHECK(cond)							\
-	((cond) ? 1 : test_fail(__FILE__, __LINE__, "%s", #cond))
+#define CHECK(cond)	test_check(__FILE__, __LINE__, #cond, (cond) != 0)
 #define CHECK_EQ(a, b)		TEST_EQ(a, b)
 #define CHECK_NULL(p)							\
 	test_eq_ptr(__FILE__, __LINE__, #p " == NULL", (p), nullptr)
 #define CHECK_NONNULL(p)						\
-	((p) != nullptr ? 1 : test_fail(__FILE__, __LINE__, "%s is NULL", #p))
+	test_check(__FILE__, __LINE__, #p " is NULL", (p) != nullptr)
 
 #define REQUIRE(cond)		do { if (!CHECK(cond)) return; } while (0)
 #define REQUIRE_EQ(a, b)	do { if (!CHECK_EQ(a, b)) return; } while (0)

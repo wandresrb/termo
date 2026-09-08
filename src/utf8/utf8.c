@@ -907,7 +907,7 @@ utf8_cstrwidth(const char *s)
 			}
 			s -= tmp.have;
 		}
-		if (*s > 0x1f && *s != 0x7f)
+		if (*s > 0x1f && *s < 0x7f)
 			width++;
 		s++;
 	}

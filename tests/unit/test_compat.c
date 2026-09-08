@@ -185,12 +185,15 @@ TEST(compat, strtonum_enforces_range)
 	CHECK_EQ(err, "invalid");
 }
 
+/* glibc's reallocarray under ASan aborts on overflow instead of failing. */
+#ifndef HAVE_REALLOCARRAY
 TEST(compat, reallocarray_rejects_overflow)
 {
-	void	*p;
+	void		*p;
+	volatile size_t	 n = SIZE_MAX / 2;
 
 	errno = 0;
-	p = reallocarray(nullptr, SIZE_MAX / 2, 4);
+	p = reallocarray(nullptr, n, 4);
 	CHECK_NULL(p);
 	CHECK_EQ(errno, ENOMEM);
 
@@ -198,6 +201,7 @@ TEST(compat, reallocarray_rejects_overflow)
 	CHECK_NONNULL(p);
 	free(p);
 }
+#endif
 
 TEST(compat, recallocarray_zeroes_new_space)
 {

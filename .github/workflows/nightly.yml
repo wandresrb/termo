@@ -8,22 +8,35 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: nightly
+  cancel-in-progress: false
+
 jobs:
+  image:
+    uses: ./.github/workflows/image.yml
+    permissions:
+      contents: read
+      packages: write
+
   fuzz:
+    needs: image
     runs-on: ubuntu-24.04
     timeout-minutes: 90
+    permissions:
+      contents: read
+      packages: read
+    container:
+      image: ghcr.io/${{ github.repository }}-ci-ubuntu:${{ needs.image.outputs.ubuntu }}
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
     env:
       CC: clang-20
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           persist-credentials: false
-      - run: |
-          sudo apt-get update
-          sudo apt-get install -y meson ninja-build bison pkg-config \
-            libevent-dev libncurses-dev libutf8proc-dev
-          wget -qO /tmp/llvm.sh https://apt.llvm.org/llvm.sh && sudo bash /tmp/llvm.sh 20
-          sudo sysctl vm.mmap_rnd_bits=28
       - run: meson setup build -Dfuzz=enabled -Db_sanitize=address,undefined -Dluajit=disabled
       - run: ninja -C build
       - name: fuzz 10 minutes per target
@@ -33,19 +46,29 @@ jobs:
               -dict=tests/fuzz/$t-fuzzer.dict tests/fuzz/corpus/$t
           done
       - if: failure()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: fuzz-crashes
           path: |
             crash-*
             leak-*
             timeout-*
+            /tmp/termo-asan.*
           if-no-files-found: ignore
 
   variants:
     name: ${{ matrix.name }}
+    needs: image
     runs-on: ubuntu-24.04
-    timeout-minutes: 45
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: read
+    container:
+      image: ghcr.io/${{ github.repository }}-ci-ubuntu:${{ needs.image.outputs.ubuntu }}
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
     strategy:
       fail-fast: false
       matrix:
@@ -54,33 +77,40 @@ jobs:
             opts: -Dluajit=disabled -Dutf8proc=disabled
           - name: sixel-release
             opts: -Dsixel=true -Dbuildtype=release
+    env:
+      CC: gcc-14
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           persist-credentials: false
-      - run: |
-          sudo apt-get update
-          sudo apt-get install -y meson ninja-build bison pkg-config \
-            libevent-dev libncurses-dev libutf8proc-dev libluajit-5.1-dev
-      - run: meson setup build -Dwerror=true ${{ matrix.opts }}
+      - run: meson setup build -Dwerror=true -De2e=enabled ${{ matrix.opts }}
       - run: ninja -C build
       - run: meson test -C build --print-errorlogs
+      - if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: logs-${{ matrix.name }}
+          path: build/meson-logs/testlog.txt
+          if-no-files-found: ignore
 
   clang-tidy:
+    needs: image
     runs-on: ubuntu-24.04
-    timeout-minutes: 45
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: read
+    container:
+      image: ghcr.io/${{ github.repository }}-ci-ubuntu:${{ needs.image.outputs.ubuntu }}
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
     env:
       CC: clang-20
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           persist-credentials: false
-      - run: |
-          sudo apt-get update
-          sudo apt-get install -y meson ninja-build bison pkg-config \
-            libevent-dev libncurses-dev libutf8proc-dev libluajit-5.1-dev
-          wget -qO /tmp/llvm.sh https://apt.llvm.org/llvm.sh && sudo bash /tmp/llvm.sh 20
-          sudo apt-get install -y clang-tidy-20
       - run: meson setup build
       - run: ninja -C build cmd-parse.c
       - name: clang-tidy against the committed baseline
@@ -96,6 +126,37 @@ jobs:
           else
             echo "no tools/clang-tidy-baseline yet: commit this count to start enforcing" >> "$GITHUB_STEP_SUMMARY"
           fi
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: clang-tidy
+          path: tidy.log
+
+  alpine:
+    name: alpine musl gcc
+    needs: image
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: read
+    container:
+      image: ghcr.io/${{ github.repository }}-ci-alpine:${{ needs.image.outputs.alpine }}
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - run: meson setup build -Dwerror=true -De2e=enabled
+      - run: meson compile -C build
+      - run: meson test -C build --print-errorlogs
+      - if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: logs-alpine
+          path: build/meson-logs/testlog.txt
+          if-no-files-found: ignore
 
   freebsd:
     runs-on: ubuntu-24.04
@@ -104,11 +165,12 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           persist-credentials: false
-      - uses: vmactions/freebsd-vm@v1
+      - uses: vmactions/freebsd-vm@f0552d3b69211736abd97f02ff3d4674c56b73b1 # v1.5.5
         with:
           usesh: true
-          prepare: pkg install -y meson ninja bison pkgconf libevent utf8proc python3
+          copyback: false
+          prepare: pkg install -y meson ninja bison pkgconf libevent utf8proc luajit python3 py311-pytest
           run: |
-            meson setup build -Dwerror=true -Dluajit=disabled
+            meson setup build -Dwerror=true -De2e=enabled
             ninja -C build
             meson test -C build --print-errorlogs

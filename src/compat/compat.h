@@ -293,7 +293,7 @@ const char	*getprogname(void);
 
 #ifndef HAVE_SETPROCTITLE
 /* setproctitle.c */
-void		 setproctitle(const char *, ...);
+[[gnu::format(printf, 1, 2)]] void		 setproctitle(const char *, ...);
 #endif
 
 #ifndef HAVE_B64_NTOP

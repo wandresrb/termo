@@ -1,0 +1,32 @@
+ninja: Entering directory `/src/build-ci'
+[1/188] Generating cmd-parse.c with a custom command
+[2/188] Compiling C object libtermo.a.p/src_core_attributes.c.o
+[3/188] Compiling C object libtermo.a.p/src_core_util.c.o
+[4/188] Compiling C object libtermo.a.p/src_core_alerts.c.o
+[5/188] Compiling C object libtermo.a.p/src_core_colour.c.o
+[6/188] Compiling C object libtermo.a.p/src_core_events.c.o
+[7/188] Compiling C object libtermo.a.p/src_core_control-notify.c.o
+[8/188] Compiling C object libtermo.a.p/src_core_environ.c.o
+[9/188] Compiling C object libtermo.a.p/src_core_fuzzy.c.o
+[10/188] Compiling C object libtermo.a.p/src_core_arguments.c.o
+[11/188] Compiling C object libtermo.a.p/src_core_hooks.c.o
+[12/188] Compiling C object libtermo.a.p/src_core_events-payload.c.o
+[13/188] Compiling C object libtermo.a.p/src_core_job.c.o
+[14/188] Compiling C object libtermo.a.p/src_core_key-string.c.o
+[15/188] Compiling C object libtermo.a.p/src_core_control.c.o
+FAILED: libtermo.a.p/src_core_control.c.o 
+gcc-14 -Ilibtermo.a.p -I. -I.. -I../src -I../src/core -I../src/compat -I/usr/include/luajit-2.1 -fdiagnostics-color=always -fsanitize=address,undefined -fno-omit-frame-pointer -D_FILE_OFFSET_BITS=64 -Wall -Winvalid-pch -Wextra -Werror -std=c23 -O2 -g -fPIC -DUTF8PROC_EXPORTS -D_DEFAULT_SOURCE -D_XOPEN_SOURCE=600 '-DTERMO_VERSION="0.1.0"' '-DTMUX_VERSION="0.1.0"' '-DTMUX_CONF="/usr/local/etc/termo/termo.conf:~/.config/termo/termo.conf:~/.config/tmux/tmux.conf:~/.tmux.conf:~/.config/termo/init.lua"' '-DTERMO_RUNTIME="/usr/local/share/termo/runtime"' '-DTMUX_LOCK_CMD="lock -np"' '-DTMUX_TERM="screen"' -DTMUX_MOUSE=1 -DDEBUG -DASAN -DHAVE_NCURSES_H=1 -DHAVE_UTF8PROC=1 -DHAVE_LUAJIT=1 -D_GNU_SOURCE -DHAVE_EVENT2_EVENT_H=1 -DHAVE_PATHS_H=1 -DHAVE_STDINT_H=1 -DHAVE_PTY_H=1 -DHAVE_CLOSEFROM=1 -DHAVE_EXPLICIT_BZERO=1 -DHAVE_REALLOCARRAY=1 -DHAVE_MALLOC_TRIM=1 -DHAVE_SYSTEMD=1 -DENABLE_CGROUPS=1 -DHAVE_B64_NTOP=1 -DHAVE_TIPARM_S=1 -Wimplicit-fallthrough -Wshadow -Wmissing-prototypes -Wstrict-prototypes -Wvla -Wformat=2 -Wsign-compare -Wno-pointer-sign -Wno-unused-result -MD -MQ libtermo.a.p/src_core_control.c.o -MF libtermo.a.p/src_core_control.c.o.d -o libtermo.a.p/src_core_control.c.o -c ../src/core/control.c
+../src/core/control.c: In function ‘control_write_guard’:
+../src/core/control.c:485:29: error: ‘%s’ directive argument is null [-Werror=format-overflow=]
+  485 |         xasprintf(&line, "%%%s %ld %u %d", guard, t, number, flags);
+      |                             ^~
+cc1: all warnings being treated as errors
+[16/188] Compiling C object libtermo.a.p/src_core_log.c.o
+[17/188] Compiling C object libtermo.a.p/meson-generated_.._cmd-parse.c.o
+[18/188] Compiling C object libtermo.a.p/src_core_menu.c.o
+[19/188] Compiling C object libtermo.a.p/src_core_hyperlinks.c.o
+[20/188] Compiling C object libtermo.a.p/src_core_key-bindings.c.o
+[21/188] Compiling C object libtermo.a.p/src_core_mode-tree.c.o
+ninja: build stopped: subcommand failed.
+INFO: autodetecting backend as ninja
+INFO: calculating backend command to run: /usr/bin/ninja -C /src/build-ci

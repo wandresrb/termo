@@ -1,0 +1,17 @@
+# termo CI builder: musl, gcc 14 from Alpine 3.22 main. No sanitizers: Alpine
+# ships no libasan. Meson comes from apk (1.8, above the 1.4 floor); samurai
+# is the ninja Meson finds as `samu`.
+FROM alpine:3.22
+
+ARG REFRESH=2026-09-08
+
+ENV LANG=C.UTF-8 \
+    LC_ALL=C.UTF-8 \
+    CC=gcc
+
+RUN apk add --no-cache \
+      bash git ca-certificates curl procps-ng \
+      gcc musl-dev binutils linux-headers \
+      bison pkgconf meson samurai ccache \
+      libevent-dev ncurses-dev ncurses-terminfo utf8proc-dev luajit-dev \
+      python3 py3-pytest
