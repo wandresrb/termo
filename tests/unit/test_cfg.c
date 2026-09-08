@@ -87,6 +87,7 @@ TEST(cfg, termo_conf_sets_every_promised_default)
 
 	CHECK_EQ(options_get_number(global_s_options, "history-limit"), 50000);
 	CHECK_EQ(options_get_number(global_s_options, "renumber-windows"), 1);
+	CHECK_EQ(options_get_number(global_s_options, "mouse"), 1);
 	CHECK_EQ(options_get_number(global_options, "escape-time"), 10);
 	CHECK_EQ(options_get_number(global_options, "focus-events"), 1);
 	CHECK_EQ(options_get_number(global_options, "set-clipboard"), 2);

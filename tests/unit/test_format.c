@@ -164,7 +164,7 @@ TEST(format, variables_from_options_and_environ)
 {
 	setup();
 	EXPECT("#{history-limit}", "2000");
-	EXPECT("#{mouse}", "1");
+	EXPECT("#{mouse}", "0");
 	EXPECT("#{mode-keys}", "emacs");
 	EXPECT("#{prefix}", "C-b");
 	EXPECT("#{command-alias[0]}", "split-pane=split-window");
@@ -178,7 +178,7 @@ TEST(format, variables_from_options_and_environ)
 	EXPECT("#{t:TERMO_TEST_ENV}", "");
 	environ_unset(global_environ, "TERMO_TEST_ENV");
 	format_add(ft, "mouse", "%s", "tree");
-	EXPECT("#{mouse}", "1");
+	EXPECT("#{mouse}", "0");
 	format_free(ft);
 }
 
@@ -372,9 +372,9 @@ TEST(format, conditionals_multi_arm_and_option_conditions)
 	EXPECT("#{?empty,A,a,B,C}", "B");
 	EXPECT("#{?empty,A,nope,B}", "");
 	EXPECT("#{?empty,A,nope,B,D}", "D");
-	EXPECT("#{?mouse,on,off}", "on");
-	options_set_number(global_s_options, "mouse", 0);
 	EXPECT("#{?mouse,on,off}", "off");
+	options_set_number(global_s_options, "mouse", 1);
+	EXPECT("#{?mouse,on,off}", "on");
 	EXPECT("#{?#{e|>|:#{num},40},big,small}", "big");
 	EXPECT("#{?a,#{a}#,x,y}", "hello,x");
 	format_free(ft);

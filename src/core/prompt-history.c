@@ -19,8 +19,10 @@
 #include <sys/types.h>
 
 #include <errno.h>
+#include <fcntl.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 #include "termo.h"
 
@@ -112,18 +114,25 @@ prompt_save_history(void)
 	FILE	*f;
 	u_int	 i, type;
 	char	*history_file;
+	int	 fd;
 
 	if ((history_file = prompt_find_history_file()) == NULL)
 		return;
 	log_debug("saving history to %s", history_file);
 
-	f = fopen(history_file, "w");
-	if (f == NULL) {
+	/* Prompt input can be a password: 0600, like a shell history file. */
+	fd = open(history_file, O_WRONLY|O_CREAT|O_TRUNC, 0600);
+	if (fd == -1) {
 		log_debug("%s: %s", history_file, strerror(errno));
 		free(history_file);
 		return;
 	}
 	free(history_file);
+	f = fdopen(fd, "w");
+	if (f == NULL) {
+		close(fd);
+		return;
+	}
 
 	for (type = 0; type < PROMPT_NTYPES; type++) {
 		for (i = 0; i < prompt_hsize[type]; i++) {

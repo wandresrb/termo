@@ -296,13 +296,11 @@ const char	*getprogname(void);
 [[gnu::format(printf, 1, 2)]] void		 setproctitle(const char *, ...);
 #endif
 
-#ifndef HAVE_B64_NTOP
-/* base64.c */
+/* base64.c, on every platform; <resolv.h> maps the names to glibc's */
 #undef b64_ntop
 #undef b64_pton
 int		 b64_ntop(const u_char *, size_t, char *, size_t);
 int		 b64_pton(const char *, u_char *, size_t);
-#endif
 
 /* fdforkpty.c */
 int		 getptmfd(void);

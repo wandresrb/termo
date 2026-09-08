@@ -19,7 +19,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
           persist-credentials: false
@@ -30,6 +30,8 @@ jobs:
         run: |
           rc=0
           for c in $(git rev-list "$BASE".."$HEAD"); do
+            # Dependabot writes a body on every commit; its PRs are squashed at merge
+            [ "$(git log -1 --format=%an "$c")" = 'dependabot[bot]' ] && continue
             subject=$(git log -1 --format=%s "$c")
             body=$(git log -1 --format=%b "$c")
             if [ ${#subject} -gt 72 ]; then echo "$c: subject over 72 chars"; rc=1; fi
@@ -41,15 +43,15 @@ jobs:
           exit $rc
 
   image:
-    uses: ./.github/workflows/image.yml
+    uses: $/.github/workflows/image.yml
     permissions:
       contents: read
       packages: write
 
-  # Every stage runs in the same image at the same path, so the build tree
-  # (minus objects) travels as an artifact and the test stages only run it.
-  build:
-    name: build ${{ matrix.cc }}
+  # One job per compiler: the stages are steps, so the image is pulled once and
+  # the build tree never leaves the runner.
+  linux:
+    name: ${{ matrix.cc }}
     needs: image
     runs-on: ubuntu-24.04
     timeout-minutes: 30
@@ -70,7 +72,7 @@ jobs:
       CCACHE_DIR: ${{ github.workspace }}/.ccache
       CCACHE_MAXSIZE: 400M
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -86,105 +88,74 @@ jobs:
         run: ninja -C build
       - name: ccache stats
         run: ccache -s
-      - name: pack the build tree without objects
-        run: tar -czf build-${{ matrix.cc }}.tgz --exclude='*.p' --exclude='*.a' build
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: build-${{ matrix.cc }}
-          path: build-${{ matrix.cc }}.tgz
-          retention-days: 1
-
-  unit:
-    name: unit ${{ matrix.cc }}
-    needs: [image, build]
-    runs-on: ubuntu-24.04
-    timeout-minutes: 10
-    permissions:
-      contents: read
-      packages: read
-    container:
-      image: ghcr.io/${{ github.repository }}-ci-ubuntu:${{ needs.image.outputs.ubuntu }}
-      credentials:
-        username: ${{ github.actor }}
-        password: ${{ secrets.GITHUB_TOKEN }}
-    strategy:
-      fail-fast: false
-      matrix:
-        cc: [gcc-14, clang-20]
-    steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-        with:
-          persist-credentials: false
-      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
-        with:
-          name: build-${{ matrix.cc }}
-      - run: tar -xzf build-${{ matrix.cc }}.tgz
       - name: unit
         run: meson test -C build --suite unit --no-rebuild --print-errorlogs
-
-  smoke:
-    name: smoke ${{ matrix.cc }}
-    needs: [image, unit]
-    runs-on: ubuntu-24.04
-    timeout-minutes: 10
-    permissions:
-      contents: read
-      packages: read
-    container:
-      image: ghcr.io/${{ github.repository }}-ci-ubuntu:${{ needs.image.outputs.ubuntu }}
-      credentials:
-        username: ${{ github.actor }}
-        password: ${{ secrets.GITHUB_TOKEN }}
-    strategy:
-      fail-fast: false
-      matrix:
-        cc: [gcc-14, clang-20]
-    steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-        with:
-          persist-credentials: false
-      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
-        with:
-          name: build-${{ matrix.cc }}
-      - run: tar -xzf build-${{ matrix.cc }}.tgz
-      - name: lua specs and the smoke e2e module
+      - name: smoke
         run: meson test -C build --suite lua --suite smoke --no-rebuild --print-errorlogs
-
-  e2e:
-    name: e2e ${{ matrix.cc }}
-    needs: [image, smoke]
-    runs-on: ubuntu-24.04
-    timeout-minutes: 15
-    permissions:
-      contents: read
-      packages: read
-    container:
-      image: ghcr.io/${{ github.repository }}-ci-ubuntu:${{ needs.image.outputs.ubuntu }}
-      credentials:
-        username: ${{ github.actor }}
-        password: ${{ secrets.GITHUB_TOKEN }}
-    strategy:
-      fail-fast: false
-      matrix:
-        cc: [gcc-14, clang-20]
-    steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-        with:
-          persist-credentials: false
-      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
-        with:
-          name: build-${{ matrix.cc }}
-      - run: tar -xzf build-${{ matrix.cc }}.tgz
       - name: e2e
         run: meson test -C build --suite e2e --no-suite smoke --no-rebuild --print-errorlogs
       - name: logs
         if: failure()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: logs-e2e-${{ matrix.cc }}
+          name: logs-${{ matrix.cc }}
           path: |
             build/meson-logs/testlog.txt
             build/meson-logs/e2e-*.xml
             /tmp/termo-asan.*
             /tmp/termo-ubsan.*
+          if-no-files-found: ignore
+
+  # The development platform, last: it only spends its minutes on code that
+  # already passed both Linux compilers.
+  macos:
+    needs: linux
+    runs-on: macos-26
+    timeout-minutes: 30
+    env:
+      CC: clang
+      CCACHE_DIR: ${{ github.workspace }}/.ccache
+      CCACHE_MAXSIZE: 400M
+      HOMEBREW_NO_AUTO_UPDATE: '1'
+      HOMEBREW_NO_INSTALL_CLEANUP: '1'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: dependencies
+        run: |
+          brew install meson ninja bison pkgconf ccache libevent ncurses utf8proc luajit
+          python3 -m venv .venv
+          .venv/bin/pip install --quiet pytest
+          echo "$PWD/.venv/bin" >> "$GITHUB_PATH"
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .ccache
+          key: ccache-macos-${{ github.sha }}
+          restore-keys: ccache-macos-
+      - name: configure
+        run: >
+          meson setup build -Db_sanitize=address,undefined -Dbuildtype=debugoptimized
+          -Dwerror=true -De2e=enabled
+      - name: build
+        run: ninja -C build
+      - name: ccache stats
+        run: ccache -s
+      - name: unit
+        run: meson test -C build --suite unit --no-rebuild --print-errorlogs
+      - name: smoke
+        run: meson test -C build --suite lua --suite smoke --no-rebuild --print-errorlogs
+      - name: e2e
+        run: meson test -C build --suite e2e --no-suite smoke --no-rebuild --print-errorlogs
+      - name: logs
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: logs-macos
+          path: |
+            build/meson-logs/testlog.txt
+            build/meson-logs/e2e-*.xml
+            /tmp/termo-asan.*
+            /tmp/termo-ubsan.*
+            ~/Library/Logs/DiagnosticReports/termo-*.ips
           if-no-files-found: ignore

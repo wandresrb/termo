@@ -32,12 +32,14 @@ map.
   harnesses behind `-Dfuzz=enabled`.
 - Rebranding: `termo.h`, `$TERMO`, `$TERMO_PANE`, `/tmp/termo-<uid>/`, with
   `$TMUX`/`$TMUX_PANE` kept for compatibility.
-- `etc/termo.conf`: vi keys with `v`/`y`, 50k history, renumber-windows,
+- `etc/termo.conf`: vi keys with `v`/`y`, mouse, 50k history, renumber-windows,
   focus events, OSC 52, 10 ms escape, RGB for every terminal.
 - CI: Linux (gcc, clang) and macOS with sanitizers, nightly fuzzing and build
   variants, CodeQL, Scorecard, workflow linting, commit linting. Revised
-  2026-09-08 (plan 005): builder images in GHCR, no macOS in the gate, the
-  upstream regress scripts out of the tree, e2e in pytest.
+  2026-09-08 (plan 005): builder images in GHCR, one job per compiler with the
+  stages as steps, macOS last, the upstream regress scripts out of the tree,
+  e2e in pytest; the repository is public, with a `main` ruleset, Dependabot
+  and SARIF from CodeQL, Scorecard and zizmor (`docs/ci.md`).
 
 ## Phase 2: unit test suite (tests landed 2026-09-07; plan `docs/sdlc/plan/003`)
 
@@ -64,7 +66,7 @@ quiet tree. Compiler floor: GCC 14, Clang 20, Apple clang 21, enforced at `meson
    `compat.h` loses its attribute shims; `-Wimplicit-fallthrough` on.
 2. Platforms and compat, measured against POSIX.1-2024: `osdep/` keeps Linux, macOS,
    FreeBSD, OpenBSD, NetBSD; `compat/` keeps only what a target lacks (macOS: `reallocarray`,
-   `closefrom`, `explicit_bzero`; glibc: `getprogname`, `strtonum`, `b64`); every `HAVE_*`
+   `closefrom`, `explicit_bzero`; glibc: `getprogname`, `strtonum`; `base64` always); every `HAVE_*`
    the code reads is defined by a Meson probe or deleted. `systemd` option wired.
 3. Warnings measured then enforced: `-Wshadow`, `-Wmissing-prototypes`, `-Wstrict-prototypes`,
    `-Wvla`, `-Wformat=2` under `-Werror`; `-Wconversion` recorded, not forced.

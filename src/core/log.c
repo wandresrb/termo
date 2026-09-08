@@ -19,6 +19,7 @@
 #include <sys/types.h>
 
 #include <errno.h>
+#include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -55,16 +56,23 @@ void
 log_open(const char *name)
 {
 	char	*path;
+	int	 fd;
 
 	if (log_level == 0)
 		return;
 	log_close();
 
 	xasprintf(&path, "termo-%s-%ld.log", name, (long)getpid());
-	log_file = fopen(path, "a");
+	/* -vv logs every byte the panes receive: never world-readable. */
+	fd = open(path, O_WRONLY|O_CREAT|O_APPEND, 0600);
 	free(path);
-	if (log_file == NULL)
+	if (fd == -1)
 		return;
+	log_file = fdopen(fd, "a");
+	if (log_file == NULL) {
+		close(fd);
+		return;
+	}
 
 	setvbuf(log_file, NULL, _IOLBF, 0);
 	event_set_log_callback(log_event_cb);

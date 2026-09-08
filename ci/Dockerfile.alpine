@@ -3,6 +3,11 @@
 # is the ninja Meson finds as `samu`.
 FROM alpine:3.22
 
+# GHCR reads these: the package page links here and shows this description.
+LABEL org.opencontainers.image.source=https://github.com/wandresrb/termo \
+      org.opencontainers.image.description="termo CI builder: Alpine 3.22, musl, gcc 14, Meson, LuaJIT, pytest" \
+      org.opencontainers.image.licenses=ISC
+
 ARG REFRESH=2026-09-08
 
 ENV LANG=C.UTF-8 \

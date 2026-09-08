@@ -265,11 +265,6 @@ if m_dep.found()
   deps += m_dep
 endif
 
-# Resolv library (for b64_ntop on some OSes)
-resolv_dep = cc.find_library('resolv', required: false)
-if resolv_dep.found()
-  deps += resolv_dep
-endif
 
 # Optional utf8proc
 utf8proc_opt = get_option('utf8proc')
@@ -311,7 +306,6 @@ c_args = [
   '-DTERMO_RUNTIME="' + get_option('prefix') / get_option('datadir') / 'termo/runtime"',
   '-DTMUX_LOCK_CMD="lock -np"',
   '-DTMUX_TERM="screen"',
-  '-DTMUX_MOUSE=1',
   '-DDEBUG',
 ]
 if get_option('b_sanitize').contains('address')
@@ -445,12 +439,10 @@ else
   sources += files('src/compat/vis.c', 'src/compat/unvis.c')
 endif
 
-# Check for b64_ntop
-if cc.has_function('b64_ntop', prefix: '#include <sys/types.h>\n#include <netinet/in.h>\n#include <resolv.h>', dependencies: deps)
-  c_args += '-DHAVE_B64_NTOP=1'
-else
-  sources += files('src/compat/base64.c')
-endif
+# base64 is always ours: glibc keeps b64_ntop in libresolv behind macros, and
+# gcc 14's libasan on aarch64 shadows those with interceptors that resolve to
+# nothing, so the call jumps to NULL.
+sources += files('src/compat/base64.c')
 
 # Check for imsg
 if cc.has_function('imsg_init', prefix: '#include <sys/types.h>\n#include <imsg.h>', dependencies: deps)

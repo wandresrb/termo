@@ -233,7 +233,7 @@ window_clock_draw_screen(struct window_mode_entry *wme)
 	struct format_tree		*ft;
 	char				 tim[64], *ptr;
 	time_t				 t;
-	struct tm			*tm;
+	struct tm			 tmbuf, *tm;
 	u_int				 i, j, x, y, idx;
 
 	ft = format_create_defaults(NULL, NULL, NULL, NULL, wp);
@@ -245,12 +245,12 @@ window_clock_draw_screen(struct window_mode_entry *wme)
 	screen_write_start(&ctx, s);
 
 	t = time(NULL);
-	tm = localtime(&t);
+	tm = localtime_r(&t, &tmbuf);
 	if (style == 0 || style == 2) {
 		if (style == 2)
-			strftime(tim, sizeof tim, "%l:%M:%S ", localtime(&t));
+			strftime(tim, sizeof tim, "%l:%M:%S ", tm);
 		else
-			strftime(tim, sizeof tim, "%l:%M ", localtime(&t));
+			strftime(tim, sizeof tim, "%l:%M ", tm);
 		if (tm->tm_hour >= 12)
 			strlcat(tim, "PM", sizeof tim);
 		else

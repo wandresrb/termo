@@ -389,10 +389,9 @@ TEST(options, to_string_renders_every_type)
 
 	e = options_get(global_s_options, "history-limit");
 	CHECK_STR(options_to_string(e, nullptr, 0), "2000");
-	/* meson.build passes -DTMUX_MOUSE=1: the compiled default is on. */
 	e = options_get(global_s_options, "mouse");
-	CHECK_STR(options_to_string(e, nullptr, 0), "on");
-	CHECK_STR(options_to_string(e, nullptr, 1), "1");
+	CHECK_STR(options_to_string(e, nullptr, 0), "off");
+	CHECK_STR(options_to_string(e, nullptr, 1), "0");
 	e = options_get(global_w_options, "mode-keys");
 	CHECK_STR(options_to_string(e, nullptr, 0), "emacs");
 	e = options_get(global_s_options, "prefix");
@@ -412,7 +411,7 @@ TEST(options, to_string_renders_every_type)
 	CHECK_STR(options_to_string(e, "", 0), "");
 
 	CHECK_STR(options_default_to_string(options_search("prefix")), "C-b");
-	CHECK_STR(options_default_to_string(options_search("mouse")), "on");
+	CHECK_STR(options_default_to_string(options_search("mouse")), "off");
 	CHECK_STR(options_default_to_string(options_search("mode-keys")),
 	    "emacs");
 	CHECK_STR(options_default_to_string(options_search("history-limit")),

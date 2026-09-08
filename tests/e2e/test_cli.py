@@ -20,6 +20,7 @@ def test_termo_conf_defaults(server):
     assert server.option("history-limit") == "50000"
     assert server.option("focus-events") == "on"
     assert server.option("renumber-windows") == "on"
+    assert server.option("mouse") == "on"
     assert server.option("escape-time") == "10"
     assert server.option("default-terminal") == "tmux-256color"
 

@@ -3,6 +3,11 @@
 # bumping REFRESH to pick up base-image updates) produces a new image.
 FROM ubuntu:24.04
 
+# GHCR reads these: the package page links here and shows this description.
+LABEL org.opencontainers.image.source=https://github.com/wandresrb/termo \
+      org.opencontainers.image.description="termo CI builder: Ubuntu 24.04, gcc-14, clang-20, Meson, LuaJIT, pytest" \
+      org.opencontainers.image.licenses=ISC
+
 ARG LLVM=20
 ARG MESON=1.12.0
 ARG REFRESH=2026-09-08

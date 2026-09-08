@@ -9,11 +9,23 @@
 - ASan and LSan support `vm.mmap_rnd_bits=32` since LLVM (April 2023) and GCC 14 ships that
   runtime; the `sysctl` step is unnecessary and impossible inside `container:`. TSan and MSan
   are not used.
-- Private-repo Linux runners have 2 vCPU and 8 GB; macOS runners are 3 M1 cores at 10x.
+- Public-repo standard runners are free: Linux has 4 vCPU and 16 GB, macOS is 3 M1 cores. A
+  job boundary costs about 35 s (image pull 18 to 27 s for the 967 MB image, setup, checkout,
+  artifact upload or download, 8 to 10 s of scheduler); the first gate spent 258 s on 90 s of
+  work with four jobs per compiler.
+- A hosted runner is a fresh VM: a restored `build/` is not incremental because the checkout
+  writes today's mtimes and ninja decides by mtime, so everything is rebuilt anyway. ccache,
+  content-addressed, in `actions/cache` is the remote cache that works there. Real
+  incrementality needs a persistent workspace, which only a self-hosted runner has.
+- GitHub's guidance: self-hosted runners should almost never be used in public repositories,
+  because a pull request from a fork runs arbitrary code on the machine. A self-hosted runner
+  in termo never serves `pull_request`.
+- A pull request from a fork runs with a read-only `GITHUB_TOKEN`: it can pull a public GHCR
+  image but cannot push one. `pull_request_target` is never used.
 - `container.image` accepts the `github` and `needs` contexts and no functions, so an image
   tag has to come from a previous job's output.
-- The repository is private without Advanced Security: no SARIF upload can land, so CodeQL and
-  Scorecard are removed until the repository is public; zizmor reports to the log.
+- The repository is public: Code Scanning (SARIF upload), secret scanning, push protection,
+  Dependabot and private vulnerability reporting are available without Advanced Security.
 - Control mode: `%begin`/`%end` numbers come from a server-wide counter (`src/cmd/queue.c`),
   so correlation is positional; an empty stdin line exits the client (`src/core/control.c`);
   notifications are never emitted inside an open block. `EDITOR`/`VISUAL` containing `vi` flip
@@ -34,24 +46,48 @@ package is linked to the repository.
 - `ci/Dockerfile.alpine`: `alpine:3.22`, gcc 14, musl-dev, Meson 1.8 from apk, samurai, bison,
   libevent, ncurses, utf8proc, luajit, python3 + py3-pytest, bash and git. No sanitizers.
 
-`ci.yml` (`push: main`, `pull_request`, cancel-in-progress): `lint` (commit subjects, PR only)
-and `image`, then per compiler (`gcc-14`, `clang-20`) in the Ubuntu container (`credentials`
-with `GITHUB_TOKEN`, `packages: read`) four stages, each a job that `needs` the previous:
-`build` (ccache via `actions/cache`, `meson setup -Db_sanitize=address,undefined
--Dbuildtype=debugoptimized -Dwerror=true -De2e=enabled`, `ninja`, then the build tree without
-`*.p` objects and `*.a` uploaded as an artifact), `unit` (`meson test --suite unit
---no-rebuild`), `smoke` (`--suite lua --suite smoke`: the Lua specs and the `cli` e2e module),
-`e2e` (`--suite e2e --no-suite smoke`, logs and `/tmp/termo-{asan,ubsan}.*` uploaded on
-failure). Every stage runs in the same image at the same workspace path, which is what lets the
-Meson build directory move between jobs. No macOS.
+`ci.yml` (`push: main`, `pull_request`, cancel-in-progress): `lint` (commit subjects, PR only,
+Dependabot's commits skipped) and `image`, then `linux`, one job per compiler named `gcc-14` and
+`clang-20`, in the Ubuntu container (`credentials` with `GITHUB_TOKEN`, `packages: read`), whose
+steps are `configure` (ccache via `actions/cache`, `meson setup -Db_sanitize=address,undefined
+-Dbuildtype=debugoptimized -Dwerror=true -De2e=enabled`), `build`, `unit` (`meson test --suite
+unit --no-rebuild`), `smoke` (`--suite lua --suite smoke`: the Lua specs and the `cli` e2e
+module), `e2e` (`--suite e2e --no-suite smoke`), logs and `/tmp/termo-{asan,ubsan}.*` uploaded
+on failure. Stages are steps, not jobs: a failing step stops the job at the first red stage,
+which is the same signal the job graph gave, without paying the boundary. Then `macos`
+(`macos-26`, Apple clang, `brew install meson ninja bison pkgconf ccache libevent ncurses
+utf8proc luajit`, pytest in a venv on `GITHUB_PATH`, ccache in `actions/cache`), `needs: linux`,
+the same steps: the development platform, after Linux so it never spends its slower minutes on
+code that fails there. Required checks: `commit messages`, `gcc-14`, `clang-20`, `macos`.
+
+`image.yml`: on a pull request from a fork (`head.repo.full_name != github.repository`) a
+missing tag is an error with a message, never a build: a maintainer pushes the branch to the
+repository and the workflow builds it there.
 
 `nightly.yml` (cron, dispatch): `image`, then `fuzz` (clang-20, 10 min per target), `variants`
 (`no-luajit-no-utf8proc`, `sixel-release`), `clang-tidy` in the Ubuntu image; `alpine` in the
 Alpine image (`meson compile`, `meson test`); `freebsd` on `vmactions/freebsd-vm` 15.1 with
-luajit and pytest. NetBSD and OpenBSD later.
+luajit and pytest. The container jobs run on `vars.TERMO_LINUX_RUNNER || 'ubuntu-24.04'`, the
+hook for a self-hosted runner that serves everything except pull requests. NetBSD and OpenBSD
+later.
 
-`zizmor.yml`: job permissions include `contents: read`; action pinned by SHA; log output.
-`lintcommit.yml`, `codeql.yml`, `scorecard.yml`: removed (folded into `ci.yml`; require GHAS).
+Scanning, all SARIF to Security → Code scanning: `codeql.yml` (`c-cpp`, `security-extended`,
+manual build inside the Ubuntu image with `CCACHE_DISABLE=1`; `push: main`, PRs touching
+`src/**` or the Meson files, weekly; not a required check because of the path filter),
+`scorecard.yml` (`publish_results: true`, `id-token: write`, weekly and `push: main`),
+`zizmor.yml` (`security-events: write`, `actions: read`, on workflow changes).
+`.github/dependabot.yml`: `github-actions` at `/` and `docker` at `/ci`, weekly, grouped,
+prefix `ci`. `lintcommit.yml` stays folded into `ci.yml`.
+
+Repository, set once through the REST API: secret scanning and push protection
+(`security_and_analysis`), Dependabot alerts (`vulnerability-alerts`), security updates
+(`automated-security-fixes`), private vulnerability reporting. Ruleset `main` on the default
+branch: `pull_request` (0 approvals, one maintainer; review threads resolved),
+`required_status_checks` with the four contexts (not strict), `non_fast_forward`, `deletion`;
+bypass for the admin role in `pull_request` mode, so the maintainer can merge past a red check
+but not push to `main`. Community files: `CODEOWNERS`, issue forms (`bug.yml`, `feature.yml`,
+no blank issues), `CONTRIBUTING.md` with the fork flow and the image rule, `docs/ci.md` with
+the self-hosted recipe. GHCR package visibility is UI only.
 
 `meson.build`: `meson_version: '>= 1.4.0'` (`c_std=c23` needs it).
 
@@ -103,6 +139,9 @@ luajit and pytest. NetBSD and OpenBSD later.
 
 `meson test -C build --print-errorlogs` green under ASan with unit, lua and every e2e module;
 `-Dluajit=disabled` build green with the Lua modules skipped; `grep -r 'sleep(' tests/e2e`
-empty; first CI run builds both images and passes `gcc-14` and `clang-20`; nightly by dispatch
-green on fuzz, variants, clang-tidy, alpine and freebsd; `just upstream-regress
+empty; first CI run builds both images and passes `gcc-14`, `clang-20` and `macos`, total time
+noted in the plan against the 258 s of the four-job version; nightly by dispatch green on
+fuzz, variants, clang-tidy, alpine and freebsd; `zizmor`, `codeql` and `scorecard` green with
+results in Security → Code scanning; a direct push to `main` rejected by the ruleset;
+`podman pull ghcr.io/wandresrb/termo-ci-ubuntu:<tag>` without login; `just upstream-regress
 screen-redraw-tiled` runs upstream's script.

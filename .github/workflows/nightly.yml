@@ -8,20 +8,23 @@ on:
 permissions:
   contents: read
 
+# The container jobs run on the runner named by the repository variable
+# TERMO_LINUX_RUNNER (a self-hosted label, or unset for GitHub's); nothing here
+# runs on pull_request, so a self-hosted runner never executes a fork's code.
 concurrency:
   group: nightly
   cancel-in-progress: false
 
 jobs:
   image:
-    uses: ./.github/workflows/image.yml
+    uses: $/.github/workflows/image.yml
     permissions:
       contents: read
       packages: write
 
   fuzz:
     needs: image
-    runs-on: ubuntu-24.04
+    runs-on: ${{ vars.TERMO_LINUX_RUNNER || 'ubuntu-24.04' }}
     timeout-minutes: 90
     permissions:
       contents: read
@@ -34,7 +37,7 @@ jobs:
     env:
       CC: clang-20
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       - run: meson setup build -Dfuzz=enabled -Db_sanitize=address,undefined -Dluajit=disabled
@@ -59,7 +62,7 @@ jobs:
   variants:
     name: ${{ matrix.name }}
     needs: image
-    runs-on: ubuntu-24.04
+    runs-on: ${{ vars.TERMO_LINUX_RUNNER || 'ubuntu-24.04' }}
     timeout-minutes: 30
     permissions:
       contents: read
@@ -80,7 +83,7 @@ jobs:
     env:
       CC: gcc-14
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       - run: meson setup build -Dwerror=true -De2e=enabled ${{ matrix.opts }}
@@ -95,7 +98,7 @@ jobs:
 
   clang-tidy:
     needs: image
-    runs-on: ubuntu-24.04
+    runs-on: ${{ vars.TERMO_LINUX_RUNNER || 'ubuntu-24.04' }}
     timeout-minutes: 30
     permissions:
       contents: read
@@ -108,7 +111,7 @@ jobs:
     env:
       CC: clang-20
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       - run: meson setup build
@@ -134,7 +137,7 @@ jobs:
   alpine:
     name: alpine musl gcc
     needs: image
-    runs-on: ubuntu-24.04
+    runs-on: ${{ vars.TERMO_LINUX_RUNNER || 'ubuntu-24.04' }}
     timeout-minutes: 30
     permissions:
       contents: read
@@ -145,7 +148,7 @@ jobs:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       - run: meson setup build -Dwerror=true -De2e=enabled
@@ -162,7 +165,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       - uses: vmactions/freebsd-vm@f0552d3b69211736abd97f02ff3d4674c56b73b1 # v1.5.5

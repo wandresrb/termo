@@ -90,6 +90,8 @@ struct cmd_parse_state {
 static struct cmd_parse_state parse_state;
 
 static char	*cmd_parse_get_error(const char *, u_int, const char *);
+static void	 cmd_parse_free_argument(struct cmd_parse_argument *);
+static void	 cmd_parse_free_arguments(struct cmd_parse_arguments *);
 static void	 cmd_parse_free_command(struct cmd_parse_command *);
 static struct cmd_parse_commands *cmd_parse_new_commands(void);
 static void	 cmd_parse_free_commands(struct cmd_parse_commands *);
@@ -130,6 +132,15 @@ static void	 cmd_parse_print_commands(struct cmd_parse_input *,
 %type <commands> argument_statements statements statement
 %type <commands> commands condition condition1
 %type <command> command
+
+/* A syntax error abandons the parse stack; free what the actions built. */
+%destructor { free($$); } FORMAT TOKEN EQUALS expanded format
+%destructor { cmd_parse_free_arguments($$); free($$); } arguments
+%destructor { cmd_parse_free_argument($$); } argument
+%destructor { cmd_parse_free_commands($$.commands); } elif elif1
+%destructor { cmd_parse_free_commands($$); } argument_statements statements statement
+%destructor { cmd_parse_free_commands($$); } commands condition condition1
+%destructor { cmd_parse_free_command($$); } command
 
 %%
 

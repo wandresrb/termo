@@ -53,7 +53,8 @@ reply(void)
 	size_t		 len = EVBUFFER_LENGTH(evb);
 	char		*out = xmalloc(len + 1);
 
-	memcpy(out, EVBUFFER_DATA(evb), len);
+	if (len != 0)
+		memcpy(out, EVBUFFER_DATA(evb), len);
 	out[len] = '\0';
 	evbuffer_drain(evb, len);
 	return (out);

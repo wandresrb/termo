@@ -24,8 +24,12 @@ jobs:
     outputs:
       ubuntu: ${{ steps.tags.outputs.ubuntu }}
       alpine: ${{ steps.tags.outputs.alpine }}
+    env:
+      # A pull request from a fork runs with a read-only GITHUB_TOKEN: it can
+      # pull the public images but never push one.
+      FORK: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository }}
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
@@ -52,6 +56,10 @@ jobs:
             if docker manifest inspect "$ref" >/dev/null 2>&1; then
               echo "$ref: present"
               return
+            fi
+            if [ "$FORK" = true ]; then
+              echo "::error file=ci/Dockerfile.$1::$ref does not exist and a fork's token cannot push it. A maintainer builds it by pushing this branch to $REPO; keep ci/Dockerfile.$1 out of the fork PR until then."
+              return 1
             fi
             docker build --pull -f "ci/Dockerfile.$1" -t "$ref" ci
             docker push "$ref"
