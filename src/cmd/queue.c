@@ -83,6 +83,9 @@ struct cmdq_state {
 
 	struct key_event	 event;
 	struct cmd_find_state	 current;
+
+	struct evbuffer		*capture_out;
+	struct evbuffer		*capture_err;
 };
 
 /* Command queue. */
@@ -248,6 +251,15 @@ cmdq_copy_state(struct cmdq_state *state, struct cmd_find_state *current)
 	if (current != NULL)
 		return (cmdq_new_state(current, &state->event, state->flags));
 	return (cmdq_new_state(&state->current, &state->event, state->flags));
+}
+
+/* Divert output and errors of every command sharing a state into buffers. */
+void
+cmdq_capture(struct cmdq_state *state, struct evbuffer *out,
+    struct evbuffer *err)
+{
+	state->capture_out = out;
+	state->capture_err = err;
 }
 
 /* Free a state. */
@@ -809,6 +821,13 @@ cmdq_guard(struct cmdq_item *item, const char *guard, int flags)
 void
 cmdq_print_data(struct cmdq_item *item, struct evbuffer *evb)
 {
+	struct evbuffer	*out = item->state->capture_out;
+
+	if (out != NULL) {
+		evbuffer_add(out, EVBUFFER_DATA(evb), EVBUFFER_LENGTH(evb));
+		evbuffer_add(out, "\n", 1);
+		return;
+	}
 	server_client_print(item->client, 1, evb);
 }
 
@@ -848,8 +867,17 @@ cmdq_error(struct cmdq_item *item, const char *fmt, ...)
 
 	log_debug("%s: %s", __func__, msg);
 
+	if (item->state->capture_err != NULL) {
+		evbuffer_add_printf(item->state->capture_err, "%s\n", msg);
+		free(msg);
+		return;
+	}
+
 	if (c == NULL) {
-		cmd_get_source(cmd, &file, &line);
+		file = NULL;
+		line = 0;
+		if (cmd != NULL)
+			cmd_get_source(cmd, &file, &line);
 		if (!cfg_finished) {
 			if (file != NULL)
 				cfg_add_cause("%s:%u: %s", file, line, msg);

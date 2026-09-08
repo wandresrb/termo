@@ -110,7 +110,7 @@ cfg_lua_file(struct cmdq_item *item, void *data)
 {
 	char	*path = data;
 
-	termo_lua_load_file(path, item);
+	termo_lua_load_file(path, item, NULL, false);
 	free(path);
 	return (CMD_RETURN_NORMAL);
 }

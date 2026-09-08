@@ -7,6 +7,7 @@
 
 #include "termo.h"
 #include "lua/runtime.h"
+#include "harness.h"
 #include "test.h"
 
 static void
@@ -21,7 +22,7 @@ eval(const char *code)
 {
 	char	*result = nullptr;
 
-	termo_lua_eval(code, nullptr, &result);
+	termo_lua_eval(code, nullptr, &result, false);
 	return (result);
 }
 
@@ -71,12 +72,12 @@ TEST(lua, errors_are_reported_not_fatal)
 	char	*got;
 
 	start();
-	CHECK_EQ(termo_lua_eval("return (", nullptr, &got), -1);
+	CHECK_EQ(termo_lua_eval("return (", nullptr, &got, false), -1);
 	CHECK_NULL(got);
 	CHECK_EQ(cfg_ncauses, before + 1);
-	CHECK_EQ(termo_lua_eval("error('boom')", nullptr, &got), -1);
+	CHECK_EQ(termo_lua_eval("error('boom')", nullptr, &got, false), -1);
 	CHECK_EQ(cfg_ncauses, before + 2);
-	CHECK_EQ(termo_lua_eval("nope()", nullptr, nullptr), -1);
+	CHECK_EQ(termo_lua_eval("nope()", nullptr, nullptr, false), -1);
 	CHECK_EQ(cfg_ncauses, before + 3);
 	EXPECT("return 'still alive'", "still alive");
 	termo_lua_free();
@@ -134,7 +135,7 @@ TEST(lua, api_version_and_list)
 {
 	start();
 	EXPECT("return termo.api.version()", getversion());
-	EXPECT("return #termo.api.list()", "5");
+	EXPECT("return #termo.api.list()", "24");
 	EXPECT("return termo.api.list()[1].name", "version");
 	EXPECT("return type(termo.api.list()[3].signature)", "string");
 	EXPECT("return termo.version()", getversion());
@@ -182,5 +183,106 @@ TEST(lua, print_outside_a_command_goes_to_the_log)
 {
 	start();
 	EXPECT("print('x', 1, nil) return 'ok'", "ok");
+	termo_lua_free();
+}
+
+TEST(lua, cmd_runs_now_outside_a_command)
+{
+	start();
+	EXPECT("return tostring(termo.api.cmd('set -g history-limit 4242'))",
+	    "nil");
+	CHECK_EQ(options_get_number(global_s_options, "history-limit"), 4242);
+	EXPECT("return (termo.api.cmd('display -p hi'))", "hi");
+	EXPECT("return select(2, termo.api.cmd('set -g no-such-option 1'))",
+	    "invalid option: no-such-option");
+	EXPECT("return select(2, pcall(termo.api.cmd, 'bogus-command'))",
+	    "unknown command: bogus-command");
+	termo_lua_free();
+}
+
+TEST(lua, cmd_async_calls_back_with_output)
+{
+	start();
+	EXPECT("termo.api.cmd_async('display -p later', function(out, err) "
+	    "termo.api.set_option('@async', out .. '/' .. tostring(err)) end) "
+	    "return 'queued'", "queued");
+	EXPECT("return tostring(termo.api.get_option('@async'))", "nil");
+	while (cmdq_next(nullptr) != 0)
+		;
+	EXPECT("return termo.api.get_option('@async')", "later/nil");
+	termo_lua_free();
+}
+
+TEST(lua, events_round_trip_and_hold_commands)
+{
+	start();
+	EXPECT("local got; termo.api.on('@t', function(p) got = p.event .. p.a "
+	    "termo.api.cmd('set -g @from_sink 1') end) termo.api.emit('@t', "
+	    "{a = 'x'}) return got .. '/' .. tostring(termo.api.get_option("
+	    "'@from_sink'))", "@tx/nil");
+	while (cmdq_next(nullptr) != 0)
+		;
+	EXPECT("return termo.api.get_option('@from_sink')", "1");
+	termo_lua_free();
+}
+
+TEST(lua, keymap_binds_run_lua)
+{
+	struct key_table	*table;
+	struct key_binding	*bd;
+	char			*s;
+
+	start();
+	EXPECT("termo.api.keymap_set('prefix', 'F12', function(ev) "
+	    "termo.api.set_option('@key', ev.table) end) return 'ok'", "ok");
+	REQUIRE_NONNULL(table = key_bindings_get_table("prefix", 0));
+	REQUIRE_NONNULL(bd = key_bindings_get(table, KEYC_F12));
+	s = cmd_list_print(bd->cmdlist, 0);
+	CHECK_EQ(strncmp(s, "run-lua -r ", 11), 0);
+	free(s);
+	EXPECT("termo.api.keymap_del('prefix', 'F12') return 'ok'", "ok");
+	/* The table went away with its last binding. */
+	CHECK_NULL(key_bindings_get_table("prefix", 0));
+	termo_lua_free();
+}
+
+TEST(lua, format_variables_are_lazy)
+{
+	char	*s;
+
+	start();
+	EXPECT("termo.api.format_add('lua_t', function(n) return n .. '!' end) "
+	    "return 'ok'", "ok");
+	s = format_single(nullptr, "#{lua_t}", nullptr, nullptr, nullptr, nullptr);
+	CHECK_EQ(s, "lua_t!");
+	free(s);
+	EXPECT("local n = 0 termo.api.format_add('lua_n', function() n = n + 1 "
+	    "return n end) termo.api.eval('#{version}') return n", "0");
+	EXPECT("return select(2, pcall(termo.api.format_add, 'a-b', print))",
+	    "bad variable name: a-b");
+	termo_lua_free();
+	s = format_single(nullptr, "[#{lua_t}]", nullptr, nullptr, nullptr,
+	    nullptr);
+	CHECK_EQ(s, "[]");
+	free(s);
+}
+
+TEST(lua, timers_fire_from_the_loop)
+{
+	uint64_t	t0;
+
+	start();
+	EXPECT("local t = termo.api.timer(1, function() termo.api.set_option("
+	    "'@ticks', tostring((tonumber(termo.api.get_option('@ticks')) or 0) "
+	    "+ 1)) end) termo.api.defer(20, function() t:stop() end) "
+	    "return 'armed'", "armed");
+	t0 = get_timer();
+	while (get_timer() - t0 < 500) {
+		event_base_loop(libevent, EVLOOP_NONBLOCK);
+		if (options_get_only(global_s_options, "@ticks") != nullptr &&
+		    get_timer() - t0 > 40)
+			break;
+	}
+	EXPECT("return tonumber(termo.api.get_option('@ticks')) >= 3", "true");
 	termo_lua_free();
 }

@@ -15,9 +15,9 @@
 
 #include "termo.h"
 #include "lua/runtime.h"
+#include "lua/api.h"
 
 constexpr u_int TERMO_LUA_HOOK_COUNT = 10000;
-constexpr u_int TERMO_LUA_BUDGET_MS = 2000;
 
 static lua_State	*state;
 static struct cmdq_item	*current_item;
@@ -128,34 +128,35 @@ termo_lua_call(lua_State *L, int nargs, int nresults, u_int budget_ms,
 	return (-1);
 }
 
-int
-termo_lua_load_file(const char *path, struct cmdq_item *item)
+/* Encode the value at 1 with runtime/lua/termo/json.lua. */
+static int
+json_encode(lua_State *L)
 {
-	lua_State	*L = state;
-
-	if (luaL_loadfile(L, path) != 0) {
-		report(item, lua_tostring(L, -1));
-		lua_pop(L, 1);
-		return (-1);
-	}
-	return (termo_lua_call(L, 0, 0, TERMO_LUA_BUDGET_MS, item));
+	lua_getglobal(L, "require");
+	lua_pushstring(L, "termo.json");
+	lua_call(L, 1, 1);
+	lua_getfield(L, -1, "encode");
+	lua_pushvalue(L, 1);
+	lua_call(L, 1, 1);
+	return (1);
 }
 
-int
-termo_lua_eval(const char *code, struct cmdq_item *item, char **result)
+/* Run the loaded chunk on top of the stack; its value goes to result. */
+static int
+run_chunk(lua_State *L, struct cmdq_item *item, char **result, bool json)
 {
-	lua_State	*L = state;
 	const char	*s;
 
 	if (result != nullptr)
 		*result = nullptr;
-	if (luaL_loadstring(L, code) != 0) {
-		report(item, lua_tostring(L, -1));
-		lua_pop(L, 1);
-		return (-1);
-	}
 	if (termo_lua_call(L, 0, 1, TERMO_LUA_BUDGET_MS, item) != 0)
 		return (-1);
+	if (json) {
+		lua_pushcfunction(L, json_encode);
+		lua_insert(L, -2);
+		if (termo_lua_call(L, 1, 1, TERMO_LUA_BUDGET_MS, item) != 0)
+			return (-1);
+	}
 	if (result != nullptr && !lua_isnil(L, -1)) {
 		lua_getglobal(L, "tostring");
 		lua_insert(L, -2);
@@ -165,6 +166,38 @@ termo_lua_eval(const char *code, struct cmdq_item *item, char **result)
 	}
 	lua_pop(L, 1);
 	return (0);
+}
+
+int
+termo_lua_load_file(const char *path, struct cmdq_item *item, char **result,
+    bool json)
+{
+	lua_State	*L = state;
+
+	if (result != nullptr)
+		*result = nullptr;
+	if (luaL_loadfile(L, path) != 0) {
+		report(item, lua_tostring(L, -1));
+		lua_pop(L, 1);
+		return (-1);
+	}
+	return (run_chunk(L, item, result, json));
+}
+
+int
+termo_lua_eval(const char *code, struct cmdq_item *item, char **result,
+    bool json)
+{
+	lua_State	*L = state;
+
+	if (result != nullptr)
+		*result = nullptr;
+	if (luaL_loadstring(L, code) != 0) {
+		report(item, lua_tostring(L, -1));
+		lua_pop(L, 1);
+		return (-1);
+	}
+	return (run_chunk(L, item, result, json));
 }
 
 static const char *
@@ -260,6 +293,8 @@ termo_lua_free(void)
 {
 	if (state == nullptr)
 		return;
+	termo_lua_events_free();
+	termo_lua_format_free();
 	lua_close(state);
 	state = nullptr;
 	current_item = nullptr;

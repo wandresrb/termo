@@ -2,6 +2,7 @@
 #define TERMO_LUA_RUNTIME_H
 
 #include <lua.h>
+#include <stdbool.h>
 
 struct cmdq_item;
 
@@ -19,10 +20,15 @@ struct cmdq_item *termo_lua_item(void);
  * Returns 0 or -1.
  */
 int		 termo_lua_call(lua_State *, int, int, u_int, struct cmdq_item *);
-int		 termo_lua_load_file(const char *, struct cmdq_item *);
-int		 termo_lua_eval(const char *, struct cmdq_item *, char **);
+int		 termo_lua_load_file(const char *, struct cmdq_item *, char **,
+		     bool);
+int		 termo_lua_eval(const char *, struct cmdq_item *, char **, bool);
 
 /* api.c */
 void		 termo_lua_api_register(lua_State *);
+
+/* format.c: Lua variables for a new tree; a no-op without any. */
+struct format_tree;
+void		 termo_lua_format_register(struct format_tree *);
 
 #endif

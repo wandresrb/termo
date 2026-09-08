@@ -286,7 +286,9 @@ luajit_opt = get_option('luajit')
 luajit_dep = dependency('luajit', version: '>=2.1', required: luajit_opt)
 if luajit_dep.found()
   deps += luajit_dep
-  sources += files('src/lua/runtime.c', 'src/lua/api.c', 'src/cmd/run-lua.c')
+  sources += files('src/lua/runtime.c', 'src/lua/api.c', 'src/lua/cmd.c',
+    'src/lua/events.c', 'src/lua/keymap.c', 'src/lua/timer.c',
+    'src/lua/format.c', 'src/lua/ui.c', 'src/cmd/run-lua.c')
   install_subdir('runtime', install_dir: get_option('datadir') / 'termo')
 endif
 

@@ -313,6 +313,24 @@ status_redraw(struct client *c)
 	return (force || changed);
 }
 
+/*
+ * A prompt or message is drawn over a copy of the status screen, which
+ * only status_redraw updates; with more than one status line the others
+ * would freeze while the overlay is up, so refresh it first.
+ */
+static void
+status_refresh_under_overlay(struct client *c)
+{
+	struct status_line	*sl = &c->status;
+	struct screen		*active = sl->active;
+
+	if (status_line_size(c) <= 1)
+		return;
+	sl->active = &sl->screen;
+	status_redraw(c);
+	sl->active = active;
+}
+
 /* Escape # characters in a string so format_draw treats them as literal. */
 static char *
 status_message_escape(const char *s)
@@ -474,6 +492,7 @@ status_message_redraw(struct client *c)
 
 	if (c->tty.sx == 0 || c->tty.sy == 0)
 		return (0);
+	status_refresh_under_overlay(c);
 	memcpy(&old_screen, sl->active, sizeof old_screen);
 
 	lines = status_line_size(c);
@@ -664,6 +683,7 @@ status_prompt_redraw(struct client *c)
 
 	if (c->tty.sx == 0 || c->tty.sy == 0)
 		return (0);
+	status_refresh_under_overlay(c);
 	memcpy(&old_screen, sl->active, sizeof old_screen);
 
 	lines = status_line_size(c);

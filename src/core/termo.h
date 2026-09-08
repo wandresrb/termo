@@ -2720,6 +2720,7 @@ struct window_pane *format_get_pane(struct format_tree *);
 void		 format_add_tv(struct format_tree *, const char *,
 		     struct timeval *);
 void		 format_add_cb(struct format_tree *, const char *, format_cb);
+const char	*format_cb_key(struct format_tree *);
 void		 format_log_debug(struct format_tree *, const char *);
 void		 format_each(struct format_tree *, void (*)(const char *,
 		     const char *, void *), void *);
@@ -3218,6 +3219,8 @@ struct cmdq_state *cmdq_link_state(struct cmdq_state *);
 struct cmdq_state *cmdq_copy_state(struct cmdq_state *,
 		     struct cmd_find_state *);
 void		  cmdq_free_state(struct cmdq_state *);
+void		  cmdq_capture(struct cmdq_state *, struct evbuffer *,
+		      struct evbuffer *);
 [[gnu::format(printf, 3, 4)]] void cmdq_add_format(struct cmdq_state *, const char *,
 		     const char *, ...);
 void		  cmdq_add_formats(struct cmdq_state *, struct format_tree *);

@@ -36,10 +36,16 @@ foreach m : unit_modules
   test('unit-' + m, termo_test, args: [m], suite: 'unit', protocol: 'tap', timeout: 60)
 endforeach
 
-# Lua specs inside a real server (TAP relayed by run-lua)
+# Lua specs inside a real server (TAP relayed by run-lua), and the Lua UI
+# driven through a pty-attached client
 if luajit_dep.found()
   test('lua', find_program('sh'), args: [files('lua/run.sh'), termo_exe],
     suite: 'lua', protocol: 'tap', timeout: 60)
+  test('integration_lua_ui', py,
+    args: [files('integration/test_lua_ui.py'), termo_exe],
+    suite: 'integration',
+    timeout: 180,
+  )
 endif
 
 # Integration test suite in Python

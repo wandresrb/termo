@@ -140,10 +140,10 @@ cmd_display_message_exec(struct cmd *self, struct cmdq_item *item)
 	else
 		msg = format_expand_time(ft, template);
 
-	if (cmdq_get_client(item) == NULL)
-		cmdq_error(item, "%s", msg);
-	else if (args_has(args, 'p'))
+	if (args_has(args, 'p'))
 		cmdq_print(item, "%s", msg);
+	else if (cmdq_get_client(item) == NULL)
+		cmdq_error(item, "%s", msg);
 	else if (tc != NULL && (tc->flags & CLIENT_CONTROL)) {
 		evb = evbuffer_new();
 		if (evb == NULL)

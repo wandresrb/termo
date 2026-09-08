@@ -33,6 +33,9 @@
 #include <unistd.h>
 
 #include "termo.h"
+#ifdef HAVE_LUAJIT
+#include "lua/runtime.h"
+#endif
 
 /*
  * Build a list of key-value pairs and use them to expand #{key} entries in a
@@ -182,6 +185,8 @@ struct format_tree {
 	u_int			 tag;
 
 	struct mouse_event	 m;
+
+	const char		*cb_key;	/* entry whose callback is running */
 
 	RB_HEAD(format_entry_tree, format_entry) tree;
 };
@@ -4278,8 +4283,18 @@ format_create(struct client *c, struct cmdq_item *item, int tag, int flags)
 
 	if (item != NULL)
 		format_create_add_item(ft, item);
+#ifdef HAVE_LUAJIT
+	termo_lua_format_register(ft);
+#endif
 
 	return (ft);
+}
+
+/* Key of the entry whose callback is running, for callbacks shared by many. */
+const char *
+format_cb_key(struct format_tree *ft)
+{
+	return (ft->cb_key);
 }
 
 /* Free a tree. */
@@ -4351,6 +4366,7 @@ format_each(struct format_tree *ft, void (*cb)(const char *, const char *,
 			cb(fe->key, s, arg);
 		} else {
 			if (fe->value == NULL && fe->cb != NULL) {
+				ft->cb_key = fe->key;
 				fe->value = fe->cb(ft);
 				if (fe->value == NULL)
 					fe->value = xstrdup("");
@@ -4636,6 +4652,7 @@ format_find(struct format_tree *ft, const char *key, uint64_t modifiers,
 			goto found;
 		}
 		if (fe->value == NULL && fe->cb != NULL) {
+			ft->cb_key = fe->key;
 			fe->value = fe->cb(ft);
 			if (fe->value == NULL)
 				fe->value = xstrdup("");
