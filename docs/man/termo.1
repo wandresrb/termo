@@ -8807,7 +8807,7 @@ If the command fails, the exit status is also displayed.
 .Tg wait
 .It Xo Ic run\-lua
 .Op Fl j
-.Op Fl f Ar path
+.Op Fl f Ar path | Fl r Ar ref
 .Op Ar code
 .Xc
 Run Lua inside the server.
@@ -8818,15 +8818,25 @@ run the file at
 otherwise run
 .Ar code
 as a chunk.
-The value the chunk returns is printed; with
+The value the file or chunk returns is printed; with
 .Fl j
-it is printed as JSON.
+it is printed as JSON, which is how other programs read the same API, for
+example
+.Ql run-lua -j \(aqreturn termo.api.list_panes()\(aq .
 Errors are reported to the client with a traceback and the command fails.
+.Fl r
+runs the function a key was bound to with
+.Ic termo.keymap.set
+and is what
+.Ic list-keys
+shows for such bindings; it is not meant to be typed.
 The
 .Ic termo.api
 table holds the functions available to Lua;
 .Ql run-lua \(aqreturn termo.api.list()\(aq
-lists them.
+lists them and
+.Pa docs/api.md
+describes them.
 A file named
 .Pa ~/.config/termo/init.lua
 is loaded after the configuration files, and a
@@ -8836,6 +8846,10 @@ file given to
 or
 .Ic source-file
 is run as Lua.
+Lua runs inside the server's event loop with a time budget: a call from a
+key, this command or a timer may take two seconds, an event handler or a
+status line variable fifty milliseconds, after which it is stopped with an
+error.
 .It Xo Ic wait\-for
 .Op Fl ELSUlv
 .Op Fl F Ar format

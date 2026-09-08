@@ -73,7 +73,7 @@ Not in scope: `NULL` to `nullptr` sweeps, `u_int` to `uint32_t`, replacing `queu
 `tree.h`, `cmd-parse.y`, `gettimeofday` or `ioctl`; `<stdbit.h>`, `memset_explicit`,
 `#embed`, `char8_t` (missing on a target or on GCC 14).
 
-## Phase 4: LuaJIT runtime and `termo.api` (plan `docs/sdlc/plan/002`)
+## Phase 4: LuaJIT runtime and `termo.api` (plan `docs/sdlc/plan/002`, done, verified 2026-09-07)
 
 Why Lua and not Rust, Go, JS or a data format is argued in the plan; the short form: the code
 runs inside the server's single libevent thread on every keystroke and redraw, so it must be

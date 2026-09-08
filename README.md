@@ -90,12 +90,55 @@ meson test -C build --suite regress        # the 129 upstream scripts, in parall
 
 ---
 
+## Scripting with Lua
+
+`~/.config/termo/init.lua` is loaded after `termo.conf`. Everything the config
+language does is there as a function, plus what it cannot do: functions on keys,
+hooks with their payload, status line variables computed in Lua, menus, popups,
+timers and processes that never block the server. The full surface is in
+[`docs/api.md`](docs/api.md); a longer example is
+[`docs/example_init.lua`](docs/example_init.lua).
+
+```lua
+termo.opt.history_limit = 100000                 -- set -g history-limit 100000
+
+termo.keymap.set("|", "split-window -h")          -- bind-key | split-window -h
+termo.keymap.set("C-t", function(ev)              -- a function on a key
+	termo.ui.message("pressed %s in %s", ev.key, ev.table)
+end)
+
+termo.on("window-renamed", function(ev)           -- a hook with its payload
+	termo.cmd("display-message 'renamed " .. ev.window .. "'")
+end)
+
+termo.format.add("branch", function()             -- #{branch} in any format
+	local f = io.open(termo.eval("#{pane_current_path}") .. "/.git/HEAD")
+	if not f then return "" end
+	local head = f:read("*l") f:close()
+	return head:match("refs/heads/(.*)") or head:sub(1, 7)
+end)
+termo.opt.status_right = "#{branch} %H:%M"
+
+termo.keymap.set("m", function()                  -- a menu
+	termo.ui.menu{ title = "Panes", items = {
+		{ "Split right", "r", "split-window -h" },
+		{ "Kill", "x", function() termo.cmd("kill-pane") end },
+	} }
+end)
+termo.palette.setup{ key = "p" }                  -- fuzzy command palette
+```
+
+From outside the server any language gets the same API as JSON:
+`termo run-lua -j 'return termo.api.list_panes()'`.
+
+---
+
 ## Configuration & Environment
 
 - **Configuration Files** (in load order):
   - `<sysconfdir>/termo/termo.conf` (termo's defaults, `/usr/local/etc/termo/termo.conf` by default)
   - `~/.config/termo/termo.conf`
-  - `~/.config/termo/init.lua` *(Phase 2)*
+  - `~/.config/termo/init.lua` (Lua, see below)
   - Legacy fallback: `~/.tmux.conf`
 - **Socket Directory**:
   - `/tmp/termo-<uid>/default` (controlled via `TERMO_TMPDIR`)

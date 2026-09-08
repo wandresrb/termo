@@ -1,7 +1,9 @@
 # Spec 002: embedded LuaJIT runtime and `termo.api`
 
 - Status: Approved 2026-09-07; amended 2026-09-07: compiler off, command context rule for
-  sinks, removed stdlib
+  sinks, removed stdlib; amended again after implementation: UI callbacks hold the queue
+  like sinks, in-order insertion, queue-busy error, `run-lua -f` prints the return value,
+  `format_cb_key`, user options (see the plan's Progress section)
 - Intent: [`intent/002-luajit-runtime.md`](../intent/002-luajit-runtime.md)
 - Plan: [`plan/002-luajit.md`](../plan/002-luajit.md)
 - Parent: [`specs/001-termo-architecture.md`](001-termo-architecture.md)
@@ -104,9 +106,16 @@ operation; it does what `hooks_insert_one` does. Three contexts:
   queue with `cmdq_append(NULL)` and returns `nil`; nothing runs until the core is back in the
   loop. The runtime knows it is in a sink through a counter the sink dispatcher raises around
   `termo_lua_call`. `emit()` from a sink is fine, the bus is reentrant.
+- A menu, prompt or popup callback is running: the same as a sink (the runtime raises the
+  hold around it, with the client), because draining there would free the overlay whose
+  callback is on the stack. Commands go to that client's queue.
 - Neither (a timer, `defer`, a `system` callback): `cmd()` appends to the global queue, drains
   with `cmdq_next(NULL)` and returns `output, err`. If the item is still `CMDQ_WAITING` after
-  draining, `cmd()` returns `nil, "asynchronous command, use cmd_async"`.
+  draining, `cmd()` returns `nil, "asynchronous command, use cmd_async"`; if it never started
+  because an earlier item waits, `nil, "command queue busy, use cmd_async"`.
+
+Consecutive `cmd()` calls inside a running command insert after the last item inserted, so
+they run in call order.
 
 `cmd_async(str, fn)` works in all three: the callback item goes after the command group and
 `fn(output, err)` runs when the queue reaches it.

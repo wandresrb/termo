@@ -1,6 +1,6 @@
 # Plan 002: LuaJIT runtime and `termo.api`
 
-- Status: Approved 2026-09-07 (starts after plan 004, C23 and POSIX, closes)
+- Status: Approved 2026-09-07; implemented 2026-09-07, steps 1 to 8 (see Progress)
 - Intent: [`intent/002-luajit-runtime.md`](../intent/002-luajit-runtime.md)
 - Spec: [`specs/002-luajit-runtime.md`](../specs/002-luajit-runtime.md)
 
@@ -187,3 +187,55 @@ append/insert_after/next/get_callback`, `options_search/from_string/get_*/push_c
   function has no spec.
 - A reference `init.lua` in `docs/` (function keymap, hook, Lua status variable, menu, popup)
   runs as an integration smoke test, ASAN clean from `new-session` to `kill-server`.
+
+## Progress
+
+All eight steps landed on `worktree-phase4-lua-api`, `meson test` green under ASAN+UBSAN
+with LuaJIT and with `-Dluajit=disabled -Dwerror=true` (unit and integration), regress
+unchanged. What differs from the plan above, decided while implementing:
+
+1. **Runtime**: `run-lua -f` prints the file's return value like a chunk; `run-lua -j` uses
+   `runtime/lua/termo/json.lua` through the budget. `cmdq_error` tolerates a callback item
+   with no command (a Lua error inside a callback item and no client hit `cmd_get_source`
+   with a null command).
+2. **Commands**: `cmdq_capture()` sets the two buffers on a `cmdq_state`; `display-message
+   -p` now prints before the no-client check so a captured `cmd("display -p x")` returns `x`
+   (before, with no client, it went to `cmdq_error`). Consecutive `cmd()` calls inside a
+   command insert after the last inserted item (an anchor per running item), or they would
+   run in reverse. Draining from a timer distinguishes "asynchronous command" (ours waits)
+   from "command queue busy" (something ahead waits); both say to use `cmd_async`.
+3. **Events**: no core change was needed: upstream already fires `pane-died`,
+   `pane-mode-changed`, `session-added-to-group`, `command-error` and the rest through
+   `events_fire*`. `emit` takes a table of strings, numbers and booleans; `on` accepts any
+   hook name or `@custom`; handlers removed during dispatch become `false` entries so the
+   walk is stable.
+4. **Keymaps, timers, processes**: the registry entry behind `run-lua -r` is `{fn, table}`
+   so the handler learns its key table; `keymap_del` and a rebind unref it. `defer` returns
+   the same handle as `timer`. `system` accepts a string (shell) or an argv table, plus
+   `cwd` and `stderr`.
+5. **Formats**: `format_cb` keeps its signature; `struct format_tree` gained `cb_key`, set
+   before a tree entry's callback runs, with `format_cb_key()` to read it. A callback that
+   references itself is cut at depth four. `get_option`/`set_option` also take `@user`
+   options, and a table sets an array option element by element.
+6. **UI**: menu, prompt and popup callbacks run under `api_hold(client)`, the same counter
+   event sinks raise, because draining the queue from inside a prompt callback frees the
+   prompt on the stack; commands from those callbacks go to the client's queue. The
+   `api_client` rule is: the named client, the running command's target client, else the
+   most recently active attached client. One core change in `src/core/status.c`: a prompt or
+   message is drawn over a copy of the status screen that only `status_redraw` refreshes, so
+   with `status 2` the second line froze while a prompt was open (and was blank when the
+   prompt opened right after `status` changed); `status_prompt_redraw` and
+   `status_message_redraw` now refresh it first when there is more than one line, which is
+   what the palette's live match list needs.
+7. **Runtime Lua**: `termo.opt.of(handle)`, `termo.keymap.root`, `termo.ui.confirm`,
+   `termo.layout.apply` chains `cmd_async` (it needs each new pane id), `termo.hints` keeps
+   `status` at 2 while a mode is active, `termo.palette` is a prompt whose matches show in
+   `status-format[1]`, `termo.float` is `new-pane`, `break-pane -W`, `join-pane` and
+   `move-pane -P`, `termo.pack` runs `termo.json` plugins under `setfenv` over a read-only
+   `_G` and clones with `git` through `system`.
+8. **Docs**: `docs/api.md` from `tools/gen-api-doc.sh`, `docs/example_init.lua` is also the
+   fixture idea behind `tests/integration/test_lua_ui.py`.
+
+Not done: `#{lua:}` is still deliberately absent; `termopack` has no registry or manifest
+schema beyond `name`, `main` and the `lua/` directory; `termo.palette` selection with the
+arrow keys depends on the prompt reporting moves, which it does without a direction.
