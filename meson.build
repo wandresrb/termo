@@ -28,6 +28,7 @@ inc_dirs = include_directories('.', 'src', 'src/core', 'src/compat')
 # Core engine & shared utilities
 core_sources = files(
   'src/core/util.c',
+  'src/core/scan.c',
   'src/core/arguments.c',
   'src/core/attributes.c',
   'src/core/alerts.c',

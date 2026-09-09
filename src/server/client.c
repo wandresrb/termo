@@ -1338,7 +1338,7 @@ server_client_is_assume_paste(struct client *c)
 		return (0);
 
 	timersub(&c->activity_time, &c->last_activity_time, &tv);
-	if (tv.tv_sec == 0 && tv.tv_usec < t * 1000) {
+	if (tv.tv_sec == 0 && tv.tv_usec / 1000 < t) {
 		if (c->flags & CLIENT_ASSUMEPASTING)
 			return (1);
 		c->flags |= CLIENT_ASSUMEPASTING;
@@ -3070,11 +3070,14 @@ server_client_get_cwd(struct client *c, struct session *s)
 static uint64_t
 server_client_control_flags(struct client *c, const char *next)
 {
+	const char	*p = next;
+
 	if (strcmp(next, "pause-after") == 0) {
 		c->pause_age = 0;
 		return (CLIENT_CONTROL_PAUSEAFTER);
 	}
-	if (sscanf(next, "pause-after=%u", &c->pause_age) == 1) {
+	if (scan_lit(&p, "pause-after=") &&
+	    scan_u(&p, &c->pause_age, UINT_MAX / 1000) && *p == '\0') {
 		c->pause_age *= 1000;
 		return (CLIENT_CONTROL_PAUSEAFTER);
 	}

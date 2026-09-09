@@ -1928,7 +1928,8 @@ window_copy_cmd_previous_matching_bracket(struct window_copy_cmd_state *cs)
 	struct window_copy_mode_data	*data = wme->data;
 	struct screen			*s = data->backing;
 	char				 open[] = "{[(", close[] = "}])";
-	char				 tried, found, start, *cp;
+	char				 tried, *cp;
+	u_char				 found, start;
 	u_int				 px, py, xx, n;
 	struct grid_cell		 gc;
 	int				 failed;
@@ -2014,7 +2015,8 @@ window_copy_cmd_next_matching_bracket(struct window_copy_cmd_state *cs)
 	struct window_copy_mode_data	*data = wme->data;
 	struct screen			*s = data->backing;
 	char				 open[] = "{[(", close[] = "}])";
-	char				 tried, found, end, *cp;
+	char				 tried, *cp;
+	u_char				 found, end;
 	u_int				 px, py, xx, yy, sx, sy, n;
 	struct grid_cell		 gc;
 	int				 failed;
@@ -5033,7 +5035,10 @@ window_copy_match_at_cursor(struct window_copy_mode_data *data)
 		return (NULL);
 	if (data->searchmark[at] == 0) {
 		/* Allow one position after the match. */
-		if (at == 0 || data->searchmark[--at] == 0)
+		if (at == 0)
+			return (NULL);
+		at--;
+		if (data->searchmark[at] == 0)
 			return (NULL);
 	}
 	window_copy_match_start_end(data, at, &start, &end);

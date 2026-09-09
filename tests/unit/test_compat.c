@@ -18,7 +18,7 @@
 #include "test.h"
 
 /* The flags log.c, term.c, capture.c and util.c pass. */
-constexpr int	tree_vis_flags = VIS_OCTAL|VIS_CSTYLE|VIS_TAB|VIS_NL;
+static constexpr int	tree_vis_flags = VIS_OCTAL|VIS_CSTYLE|VIS_TAB|VIS_NL;
 
 TEST(compat, strnvis_escapes_into_dst)
 {

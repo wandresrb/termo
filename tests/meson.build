@@ -10,6 +10,7 @@ unit_sources = files(
   'unit/test_cfg.c',
   'unit/test_format.c',
   'unit/test_regsub.c',
+  'unit/test_scan.c',
   'unit/test_utf8.c',
   'unit/test_grid.c',
   'unit/test_colour.c',
@@ -20,7 +21,7 @@ unit_sources = files(
   'unit/test_screen_write.c',
   'unit/test_input.c',
 )
-unit_modules = ['compat', 'options', 'cfg', 'format', 'regsub', 'utf8', 'grid',
+unit_modules = ['compat', 'options', 'cfg', 'format', 'regsub', 'scan', 'utf8', 'grid',
                 'colour', 'style', 'key_string', 'arguments', 'layout',
                 'screen_write', 'input']
 if luajit_dep.found()

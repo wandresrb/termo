@@ -2546,8 +2546,9 @@ screen_write_insert_clears(struct screen_write_ctx *ctx, u_int px, u_int nx)
 			bg = gc.bg;
 		}
 	}
-	log_debug("%s: from %u, size %u", __func__, start, xx - start);
-	screen_write_collect_insert_clear(ctx, start, xx - start, bg);
+	n = xx - start;
+	log_debug("%s: from %u, size %u", __func__, start, n);
+	screen_write_collect_insert_clear(ctx, start, n, bg);
 }
 
 /* Finish and store collected cells. */

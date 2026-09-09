@@ -680,6 +680,7 @@ tty_keys_winsz(struct tty *tty, const char *buf, size_t len, size_t *size)
 	size_t		 end;
 	char		 tmp[64];
 	u_int		 sx, sy, xpixel, ypixel, char_x, char_y;
+	const char	*p = tmp;
 
 	*size = 0;
 
@@ -717,13 +718,17 @@ tty_keys_winsz(struct tty *tty, const char *buf, size_t len, size_t *size)
 	tmp[end - 2] = '\0';
 
 	/* Try to parse the window size sequence. */
-	if (sscanf(tmp, "8;%u;%u", &sy, &sx) == 2) {
+	if (scan_lit(&p, "8;") && scan_u(&p, &sy, UINT_MAX) &&
+	    scan_lit(&p, ";") && scan_u(&p, &sx, UINT_MAX)) {
 		/* Window size in characters. */
 		tty_set_size(tty, sx, sy, tty->xpixel, tty->ypixel);
 
 		*size = end + 1;
 		return (0);
-	} else if (sscanf(tmp, "4;%u;%u", &ypixel, &xpixel) == 2) {
+	}
+	p = tmp;
+	if (scan_lit(&p, "4;") && scan_u(&p, &ypixel, UINT_MAX) &&
+	    scan_lit(&p, ";") && scan_u(&p, &xpixel, UINT_MAX)) {
 		/* Window size in pixels. */
 		char_x = (xpixel && tty->sx) ? xpixel / tty->sx : 0;
 		char_y = (ypixel && tty->sy) ? ypixel / tty->sy : 0;
@@ -1087,6 +1092,7 @@ tty_keys_extended_key(struct tty *tty, const char *buf, size_t len,
 	key_code	 nkey, onlykey;
 	struct utf8_data ud;
 	utf8_char	 uc;
+	const char	*p = tmp;
 
 	*size = 0;
 
@@ -1121,10 +1127,12 @@ tty_keys_extended_key(struct tty *tty, const char *buf, size_t len,
 
 	/* Try to parse either form of key. */
 	if (buf[end] == '~') {
-		if (sscanf(tmp, "27;%u;%u", &modifiers, &number) != 2)
+		if (!scan_lit(&p, "27;") || !scan_u(&p, &modifiers, UINT_MAX) ||
+		    !scan_lit(&p, ";") || !scan_u(&p, &number, UINT_MAX))
 			return (-1);
 	} else {
-		if (sscanf(tmp ,"%u;%u", &number, &modifiers) != 2)
+		if (!scan_u(&p, &number, UINT_MAX) || !scan_lit(&p, ";") ||
+		    !scan_u(&p, &modifiers, UINT_MAX))
 			return (-1);
 	}
 	*size = end + 1;

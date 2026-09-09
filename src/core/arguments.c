@@ -218,8 +218,9 @@ args_parse_flags(const struct args_parse *parse, struct args_value *values,
 
 	string = value->string;
 	log_debug("%s: next %s", __func__, string);
-	if (*string++ != '-' || *string == '\0')
+	if (string[0] != '-' || string[1] == '\0')
 		return (1);
+	string++;
 	(*i)++;
 	if (string[0] == '-' && string[1] == '\0')
 		return (1);

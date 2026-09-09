@@ -284,7 +284,7 @@ void
 default_window_size(struct client *c, struct session *s, struct window *w,
 	u_int *sx, u_int *sy, u_int *xpixel, u_int *ypixel, int type)
 {
-	const char	*value;
+	const char	*value, *p;
 
 	/* Get type if not provided. */
 	if (type == -1)
@@ -318,7 +318,9 @@ default_window_size(struct client *c, struct session *s, struct window *w,
 	if (!clients_calculate_size(type, 0, c, s, w,
 	    default_window_size_skip_client, sx, sy, xpixel, ypixel)) {
 		value = options_get_string(s->options, "default-size");
-		if (sscanf(value, "%ux%u", sx, sy) != 2) {
+		p = value;
+		if (!scan_u(&p, sx, UINT_MAX) || !scan_lit(&p, "x") ||
+		    !scan_u(&p, sy, UINT_MAX) || *p != '\0') {
 			*sx = 80;
 			*sy = 24;
 		}

@@ -5,8 +5,9 @@ What runs where, and why. The workflows are `.github/workflows/`; the design is
 
 ## The gate: `ci.yml`
 
-Runs on every pull request and on every push to `main`. Four checks are required
-by the `main` ruleset: `commit messages`, `gcc-14`, `clang-20`, `macos`.
+Runs on every pull request and on every push to `main`. Five checks are required
+by the `main` ruleset: `commit messages`, `clang-tidy`, `gcc-14`, `clang-20`,
+`macos`.
 
 ```
 commit messages (PR only) ─┐
@@ -17,6 +18,11 @@ image ─────────────────────┼─► g
 - `image` computes the tag of each builder image (`sha256sum ci/Dockerfile.<x>`,
   16 hex digits) and builds and pushes to GHCR only when the tag is missing. The
   packages are public: pulling needs no login.
+- `clang-tidy` runs the linter over the whole tree (`src/` minus `compat/`, plus
+  `tests/unit/`) inside the Ubuntu image, at zero findings: `.clang-tidy` enables
+  the checks and turns off, with a reason on each, the ones that flag tmux idioms
+  rather than bugs. Enabling a check is one commit that also fixes what it finds.
+  `just tidy` runs the same command locally.
 - `gcc-14` and `clang-20` run inside `ghcr.io/wandresrb/termo-ci-ubuntu` with
   ASan and UBSan and `-Dwerror`. The stages are steps of one job, in order:
   `configure`, `build`, `unit`, `smoke` (Lua specs and the `cli` e2e module),
@@ -40,8 +46,7 @@ steps in the same image with Docker or Podman.
 ## Nightly: `nightly.yml`
 
 Cron and `workflow_dispatch`: fuzzing (10 min per target), build variants
-(`-Dluajit=disabled -Dutf8proc=disabled`, `-Dsixel=true` release), clang-tidy
-against `tools/clang-tidy-baseline`, the Alpine musl build, FreeBSD in
+(`-Dluajit=disabled -Dutf8proc=disabled`, `-Dsixel=true` release), the Alpine musl build, FreeBSD in
 `vmactions/freebsd-vm`. The container jobs run on the runner named by the
 repository variable `TERMO_LINUX_RUNNER`; unset, that is `ubuntu-24.04`.
 

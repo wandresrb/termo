@@ -56,7 +56,7 @@ stack. Files, in order of value: `compat` (the `strnvis` bug class), `options` a
 has named cases that prove it (plan 003, Step 5). Coverage is measured locally as information to
 find untested paths; it is not a gate and does not run in CI.
 
-## Phase 3: C23 and POSIX.1-2024 (plan `docs/sdlc/plan/004`)
+## Phase 3: C23 and POSIX.1-2024 (done, verified 2026-09-08; plan `docs/sdlc/plan/004`)
 
 Done before Lua so new code is born in the final style and the warning floor rises on a
 quiet tree. Compiler floor: GCC 14, Clang 20, Apple clang 21, enforced at `meson setup`.

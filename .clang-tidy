@@ -1,15 +1,63 @@
-# Checks the tree is expected to hold at zero; nightly compares against tools/clang-tidy-baseline.
+# Zero findings or the gate fails: every check enabled here holds at zero on the whole tree
+# (src/ minus compat/, plus tests/unit/), the way Neovim runs it. Enabling a check is one commit
+# that also fixes what it finds. `just tidy` runs it locally in the CI image.
+#
+# Off, with the reason. clang-tidy has no comments inside `Checks`, so they live up here.
+# tmux idioms, not bugs; rewriting hundreds of sites buys neither safety nor clarity:
+#   bugprone-assignment-in-if-condition        `if ((p = f()) == NULL)` everywhere
+#   bugprone-multi-level-implicit-pointer-conversion   `void **` in qsort comparators, trees
+#   bugprone-switch-missing-default-case       the parsers switch over characters on purpose
+#   bugprone-easily-swappable-parameters       `(u_int px, u_int py)` is the whole codebase
+#   bugprone-branch-clone                      `if (a) x = 1; else if (b) x = 1;` names each
+#                                              case; folding them into one `||` hides the cases
+#   cert-err33-c                               unchecked printf/fclose everywhere; err34 is on
+#   misc-no-recursion                          formats, layouts and the parser recurse by design
+#   misc-include-cleaner                       include-what-you-use policy, not a bug class
+#   bugprone-suspicious-missing-comma          the default key table concatenates a command
+#                                              string with a menu-definition macro on purpose
+#   readability-implicit-bool-conversion       C mixes bool and int freely; noisy, Neovim off
+#   bugprone-implicit-widening-of-multiplication-result   bounded int arithmetic (24*3600,
+#                                              screen widths); no real overflow, high noise
+#   misc-misleading-bidirectional              the one bidi is REDRAW_START_ISOLATE, an octal-
+#                                              escaped U+2066 for status-line isolation, wanted
+#   cert-env33-c                               lock-command runs through system() by design
+#   performance-no-int-to-ptr                  terminfo tigetstr returns (char *)-1 as error
+#   readability-enum-initial-value / cert-int09-c   protocol wire values (termo-protocol.h) and
+#                                              sentinels (cmd_retval, prompt_type) are deliberate
+# Aliases of checks that are on under their own name:
+#   bugprone-narrowing-conversions, cert-dcl37-c, cert-dcl51-cpp (reserved-identifier),
+#   cert-exp42-c, cert-flp37-c (suspicious-memory-comparison), cert-int09-c
+#   (readability-enum-initial-value), cert-str34-c (signed-char-misuse)
+# src/compat/ is OpenBSD code that is re-imported, never edited (CLAUDE.md), so it is out of
+# the file and header scope; `run-clang-tidy` gets the file regex from ci.yml and the justfile.
+WarningsAsErrors: '*'
+HeaderFilterRegex: 'src/.*'
+ExcludeHeaderFilterRegex: 'src/compat/.*'
+FormatStyle: none
 Checks: >
   -*,
   bugprone-*,
+  -bugprone-assignment-in-if-condition,
+  -bugprone-multi-level-implicit-pointer-conversion,
+  -bugprone-switch-missing-default-case,
   -bugprone-easily-swappable-parameters,
+  -bugprone-branch-clone,
+  -bugprone-implicit-widening-of-multiplication-result,
   -bugprone-narrowing-conversions,
   cert-*,
   -cert-err33-c,
+  -cert-dcl37-c,
+  -cert-dcl51-cpp,
+  -cert-exp42-c,
+  -cert-flp37-c,
+  -cert-int09-c,
+  -cert-env33-c,
+  -cert-str34-c,
   misc-*,
   -misc-no-recursion,
   -misc-include-cleaner,
-  readability-implicit-bool-conversion
-WarningsAsErrors: ''
-HeaderFilterRegex: 'src/.*'
-FormatStyle: none
+  -bugprone-suspicious-missing-comma,
+  -misc-misleading-bidirectional,
+  performance-*,
+  -performance-no-int-to-ptr,
+  portability-*

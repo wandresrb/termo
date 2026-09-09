@@ -96,44 +96,6 @@ jobs:
           path: build/meson-logs/testlog.txt
           if-no-files-found: ignore
 
-  clang-tidy:
-    needs: image
-    runs-on: ${{ vars.TERMO_LINUX_RUNNER || 'ubuntu-24.04' }}
-    timeout-minutes: 30
-    permissions:
-      contents: read
-      packages: read
-    container:
-      image: ghcr.io/${{ github.repository }}-ci-ubuntu:${{ needs.image.outputs.ubuntu }}
-      credentials:
-        username: ${{ github.actor }}
-        password: ${{ secrets.GITHUB_TOKEN }}
-    env:
-      CC: clang-20
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      - run: meson setup build
-      - run: ninja -C build cmd-parse.c
-      - name: clang-tidy against the committed baseline
-        run: |
-          run-clang-tidy-20 -p build -quiet 'src/.*' > tidy.log 2>&1 || true
-          count=$(grep -c 'warning:' tidy.log || true)
-          echo "clang-tidy findings: $count" | tee -a "$GITHUB_STEP_SUMMARY"
-          grep 'warning:' tidy.log | sed 's/^/    /' | head -50 >> "$GITHUB_STEP_SUMMARY" || true
-          if [ -f tools/clang-tidy-baseline ]; then
-            base=$(cat tools/clang-tidy-baseline)
-            echo "baseline: $base" | tee -a "$GITHUB_STEP_SUMMARY"
-            [ "$count" -le "$base" ] || { echo "more findings than the baseline"; exit 1; }
-          else
-            echo "no tools/clang-tidy-baseline yet: commit this count to start enforcing" >> "$GITHUB_STEP_SUMMARY"
-          fi
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: clang-tidy
-          path: tidy.log
-
   alpine:
     name: alpine musl gcc
     needs: image

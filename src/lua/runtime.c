@@ -17,7 +17,7 @@
 #include "lua/runtime.h"
 #include "lua/api.h"
 
-constexpr u_int TERMO_LUA_HOOK_COUNT = 10000;
+static constexpr u_int TERMO_LUA_HOOK_COUNT = 10000;
 
 static lua_State	*state;
 static struct cmdq_item	*current_item;

@@ -1,6 +1,6 @@
 # Plan 004: C23 and POSIX.1-2024 modernisation
 
-- Status: Approved 2026-09-07
+- Status: Approved 2026-09-07; steps 0 to 6 landed, closed 2026-09-08 (see Progress)
 - Intent: [`intent/004-c23-posix.md`](../intent/004-c23-posix.md)
 - Spec: [`specs/004-c23-posix.md`](../specs/004-c23-posix.md)
 
@@ -113,3 +113,49 @@ Create: `.clang-tidy`.
 ## Close
 
 All of the above merged, `docs/sdlc/plan/002-luajit.md` (Lua) starts on the modernised tree.
+
+## Progress
+
+Steps 0 to 5 were implemented on 2026-09-07 and the plan never recorded it; verified against the
+tree on 2026-09-08, on the Linux gate (gcc-14, clang-20) and macOS:
+
+- Step 0: `c_std=c23`, the probe and its message in `meson.build`; the floor in `README.md`,
+  `CONTRIBUTING.md`, `CLAUDE.md`.
+- Step 1: `grep -rn '__attribute__\|printflike\|__dead\|__unused'` is empty outside
+  `src/compat/`; `-Wimplicit-fallthrough` in `c_args`.
+- Step 2: the proof grep needs one correction: the eleven `HAVE_*` that `compat.h` reads
+  (`HAVE_CLOSEFROM` ... `HAVE_STRTONUM`) are not spelled out in `meson.build`, the
+  `check_functions` loop defines them as `-DHAVE_@0@=1`; with that accounted for, no `HAVE_*` is
+  read without a probe and none is probed without a reader. `test_compat.c` has 24 cases, one per
+  shim that stays, and runs on both platforms. `base64` is compiled unconditionally since plan 005
+  (gcc's libasan breaks glibc's copy).
+- Step 3: the six warnings are under `-Werror` in the gate; `-Wconversion` (1574) and
+  `-Wcast-qual` (60) recorded above, not forced.
+- Step 4: 8 `ckd_*` calls, all in `grid.c`, as decided above; the other inventoried sites stay.
+- Step 5: `termo.h` has 25 `constexpr`, 13 fixed-type enums with `static_assert`, 4
+  `static inline` size accessors; 19 function-like macros remain, the upper-case predicates the
+  step chose to keep.
+- Step 6, closed 2026-09-08. `.clang-tidy` runs at zero findings, enforced by the `clang-tidy`
+  job on every PR (not a nightly baseline): `WarningsAsErrors: '*'`, the checks it turns off each
+  carry a one-line reason, and `src/compat/` (re-imported OpenBSD code) is out of scope. Modelled
+  on Neovim, which runs clang-tidy the same way and ports 12k Vim patches by hand, so an inherited
+  tree is no reason to keep debt. The run found 668 locations; enabling a check is one commit that
+  also fixes it, so the findings were resolved rather than frozen:
+  - The 27 `sscanf` parsers (cert-err34-c) are gone. `src/core/scan.c` is a set of cursor scanners
+    (`scan_u`/`scan_i`/`scan_x`/`scan_d`/`scan_lit`) that take only digits, bound with `ckd_*`, and
+    reject trailing junk; a format is a chain of `&&` ending in `*p == '\0'`. Applied to `colour`,
+    `key-string`, `layout`, `refresh-client`, `monitor`, `new-session`, `resize`, control flags and
+    the two terminal size replies in `tty/keys.c`; unit module `scan` covers it.
+  - signed-char-misuse: `(u_char)` casts in `input/keys.c`, `confirm-before.c`, and `found`/`start`/
+    `end` made `u_char` in the copy-mode bracket matcher (`window/copy.c`), the aarch64 char class.
+  - `pledge` off OpenBSD went from a `(0)` macro to a `static inline int`, which removes the four
+    `misc-redundant-expression` (`(0) != 0`) at its call sites.
+  - inc-dec-in-conditions (`arguments.c`, `control.c`, `copy.c`), macro-parentheses
+    (`options-table.c`, `termo.h`, `tty.c`), a `static` on a test constant, and the style test's
+    struct `memcmp` replaced by a `style_tostring` comparison (padding-independent).
+  - Off with a reason in `.clang-tidy`: the tmux idioms (`if ((p=f())==NULL)`, `void **` comparators,
+    switch-without-default, branch chains that name each case), widening of bounded integer
+    arithmetic, enums with deliberate wire values or sentinels, the declared bidi isolate, the
+    key-table string concatenation, `system()` for `lock-command`, terminfo's `(char *)-1`, and
+    `readability-implicit-bool-conversion` (noisy in C, Neovim disables it too).
+  - `just tidy` runs the exact gate command in the CI image.

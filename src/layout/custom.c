@@ -175,16 +175,13 @@ layout_parse(struct window *w, const char *layout, char **cause)
 {
 	struct layout_cell	*lcchild, *tiled_lc = NULL;
 	struct window_pane	*wp;
-	u_int			 npanes, ncells, sx = 0, sy = 0;
-	u_short			 csum;
-	int			 n = 0;
+	u_int			 npanes, ncells, sx = 0, sy = 0, csum;
 
 	/* Check validity. */
-	if (sscanf(layout, "%hx,%n", &csum, &n) != 1 || n != 5) {
+	if (!scan_x(&layout, &csum, 4) || !scan_lit(&layout, ",")) {
 		*cause = xstrdup("invalid layout");
 		return (-1);
 	}
-	layout += n;
 	if (csum != layout_checksum(layout)) {
 		*cause = xstrdup("invalid layout");
 		return (-1);
@@ -322,40 +319,23 @@ static struct layout_cell *
 layout_construct_cell(struct layout_cell *lcparent, const char **layout)
 {
 	struct layout_cell     *lc;
-	u_int			sx, sy;
-	int			xoff, yoff;
-	const char	       *saved;
+	u_int			 sx, sy, id;
+	int			 xoff, yoff;
+	const char	       *p = *layout, *q;
 
-	if (!isdigit((u_char) **layout))
-		return (NULL);
-	if (sscanf(*layout, "%ux%u,%d,%d", &sx, &sy, &xoff, &yoff) != 4)
+	if (!scan_u(&p, &sx, UINT_MAX) || !scan_lit(&p, "x") ||
+	    !scan_u(&p, &sy, UINT_MAX) || !scan_lit(&p, ",") ||
+	    !scan_i(&p, &xoff, 0, INT_MAX) || !scan_lit(&p, ",") ||
+	    !scan_i(&p, &yoff, 0, INT_MAX))
 		return (NULL);
 
-	while (isdigit((u_char) **layout))
-		(*layout)++;
-	if (**layout != 'x')
-		return (NULL);
-	(*layout)++;
-	while (isdigit((u_char) **layout))
-		(*layout)++;
-	if (**layout != ',')
-		return (NULL);
-	(*layout)++;
-	while (isdigit((u_char) **layout))
-		(*layout)++;
-	if (**layout != ',')
-		return (NULL);
-	(*layout)++;
-	while (isdigit((u_char) **layout))
-		(*layout)++;
-	if (**layout == ',') {
-		saved = *layout;
-		(*layout)++;
-		while (isdigit((u_char) **layout))
-			(*layout)++;
-		if (**layout == 'x')
-			*layout = saved;
+	/* A pane id may follow, unless the digits start the next cell. */
+	if (*p == ',') {
+		q = p + 1;
+		if (scan_u(&q, &id, UINT_MAX) && *q != 'x')
+			p = q;
 	}
+	*layout = p;
 
 	lc = layout_create_cell(lcparent);
 	lc->g.sx = sx;

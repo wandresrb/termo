@@ -524,7 +524,7 @@ input_key_vt10x(struct bufferevent *bev, key_code key)
 	if (key & KEYC_CTRL) {
 		p = strchr(standard_map[0], onlykey);
 		if (p != NULL)
-			key = standard_map[1][p - standard_map[0]];
+			key = (u_char)standard_map[1][p - standard_map[0]];
 		else if (onlykey >= '3' && onlykey <= '7')
 			key = onlykey - '\030';
 		else if (onlykey >= '@' && onlykey <= '~')

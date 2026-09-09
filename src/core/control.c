@@ -485,9 +485,11 @@ control_write_guard(struct client *c, const char *guard, long t, u_int number,
 	xasprintf(&line, "%%%s %ld %u %d", guard, t, number, flags);
 	control_write_line(c, line);
 
-	if (strcmp(guard, "begin") != 0 && cs->guard_depth > 0 &&
-	    --cs->guard_depth == 0)
-		control_flush_deferred(c);
+	if (strcmp(guard, "begin") != 0 && cs->guard_depth > 0) {
+		cs->guard_depth--;
+		if (cs->guard_depth == 0)
+			control_flush_deferred(c);
+	}
 }
 
 /*

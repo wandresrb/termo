@@ -135,6 +135,10 @@ TEST(colour, parseX11_accepts_every_documented_form)
 	CHECK_EQ(colour_parseX11("cmyk:0/0.5/1/0"), 0xff7f00 | COLOUR_FLAG_RGB);
 	CHECK_EQ(colour_parseX11("cmy:0/0.5/1"), 0xff7f00 | COLOUR_FLAG_RGB);
 	CHECK_EQ(colour_parseX11("cmyk:2/0/0/0"), -1);
+	/* partial matches leave targets unwritten: no branch may read them */
+	CHECK_EQ(colour_parseX11("cmyk:0.5/0.5"), -1);
+	CHECK_EQ(colour_parseX11("cmyk:0/0/0"), -1);
+	CHECK_EQ(colour_parseX11("cmy:0/0"), -1);
 	CHECK_EQ(colour_parseX11("AliceBlue"), 0xf0f8ff | COLOUR_FLAG_RGB);
 	CHECK_EQ(colour_parseX11("  AliceBlue  "), 0xf0f8ff | COLOUR_FLAG_RGB);
 	/* round(2.55 * 50) is 127: the double product lands under 127.5. */

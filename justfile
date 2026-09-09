@@ -44,3 +44,8 @@ image:
 # the CI gate inside the image; `docker login ghcr.io` and pull, or `just image` first
 ci-local cc="gcc-14":
     {{docker}} run --rm -v "$PWD":/src -w /src -e CC={{cc}} {{image}}:{{tag}} sh -ec 'meson setup build-ci {{opts}} -De2e=enabled && meson compile -C build-ci && meson test -C build-ci --suite unit --print-errorlogs && meson test -C build-ci --suite lua --print-errorlogs && meson test -C build-ci --suite e2e --print-errorlogs'
+
+# clang-tidy in the CI image, zero findings or it fails (the gate runs the same). Mounted at
+# /work so the src regex matches; excludes src/compat/ (re-imported OpenBSD code).
+tidy:
+    {{docker}} run --rm -v "$PWD":/work -w /work -e CC=clang-20 {{image}}:{{tag}} sh -ec 'rm -rf build-tidy; meson setup build-tidy >/dev/null; ninja -C build-tidy cmd-parse.c >/dev/null; run-clang-tidy-20 -p build-tidy -quiet -warnings-as-errors="*" "(src/(?!compat/)|tests/unit/).*\.c$"'

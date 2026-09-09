@@ -240,33 +240,33 @@ static const char *options_table_status_format_default[] = {
 
 /* Helpers for hook options. */
 #define OPTIONS_TABLE_HOOK(hook_name, default_value, hook_text) \
-	{ .name = hook_name, \
+	{ .name = (hook_name), \
 	  .type = OPTIONS_TABLE_COMMAND, \
 	  .scope = OPTIONS_TABLE_SESSION, \
 	  .flags = OPTIONS_TABLE_IS_ARRAY|OPTIONS_TABLE_IS_HOOK, \
-	  .default_str = default_value,	\
+	  .default_str = (default_value),	\
 	  .separator = "", \
-	  .text = hook_text \
+	  .text = (hook_text) \
 	}
 
 #define OPTIONS_TABLE_PANE_HOOK(hook_name, default_value, hook_text) \
-	{ .name = hook_name, \
+	{ .name = (hook_name), \
 	  .type = OPTIONS_TABLE_COMMAND, \
 	  .scope = OPTIONS_TABLE_WINDOW|OPTIONS_TABLE_PANE, \
 	  .flags = OPTIONS_TABLE_IS_ARRAY|OPTIONS_TABLE_IS_HOOK, \
-	  .default_str = default_value,	\
+	  .default_str = (default_value),	\
 	  .separator = "", \
-	  .text = hook_text \
+	  .text = (hook_text) \
 	}
 
 #define OPTIONS_TABLE_WINDOW_HOOK(hook_name, default_value, hook_text) \
-	{ .name = hook_name, \
+	{ .name = (hook_name), \
 	  .type = OPTIONS_TABLE_COMMAND, \
 	  .scope = OPTIONS_TABLE_WINDOW, \
 	  .flags = OPTIONS_TABLE_IS_ARRAY|OPTIONS_TABLE_IS_HOOK, \
-	  .default_str = default_value,	\
+	  .default_str = (default_value),	\
 	  .separator = "", \
-	  .text = hook_text \
+	  .text = (hook_text) \
 	}
 
 #define OPTIONS_TABLE_AFTER_HOOK(command_name) \

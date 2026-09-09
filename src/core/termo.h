@@ -986,8 +986,8 @@ struct style_line_entry {
 };
 
 /* Default style width and pad. */
-#define STYLE_WIDTH_DEFAULT -1
-#define STYLE_PAD_DEFAULT -1
+#define STYLE_WIDTH_DEFAULT (-1)
+#define STYLE_PAD_DEFAULT (-1)
 
 /* Style default. */
 enum style_default_type {
@@ -2618,6 +2618,13 @@ const char	*sig2name(int);
 const char	*find_cwd(void);
 const char	*find_home(void);
 const char	*getversion(void);
+
+/* scan.c */
+[[nodiscard]] bool scan_lit(const char **, const char *);
+[[nodiscard]] bool scan_u(const char **, u_int *, u_int);
+[[nodiscard]] bool scan_i(const char **, int *, int, int);
+[[nodiscard]] bool scan_x(const char **, u_int *, u_int);
+[[nodiscard]] bool scan_d(const char **, double *);
 
 /* proc.c */
 struct imsg;

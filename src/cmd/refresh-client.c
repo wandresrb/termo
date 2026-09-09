@@ -64,10 +64,22 @@ cmd_refresh_client_control_client_size(struct cmd *self, struct cmdq_item *item)
 {
 	struct args		*args = cmd_get_args(self);
 	struct client		*tc = cmdq_get_target_client(item);
-	const char		*size = args_get(args, 'C');
+	const char		*size = args_get(args, 'C'), *p = size;
 	u_int			 w, x, y;
 
-	if (sscanf(size, "@%u:%ux%u", &w, &x, &y) == 3) {
+	if (scan_lit(&p, "@") && scan_u(&p, &w, UINT_MAX) && scan_lit(&p, ":")) {
+		if (*p == '\0') {
+			log_debug("%s: client %s window @%u: no size", __func__,
+			    tc->name, w);
+			control_clear_window_size(tc, w);
+			recalculate_sizes_now(1);
+			return (CMD_RETURN_NORMAL);
+		}
+		if (!scan_u(&p, &x, UINT_MAX) || !scan_lit(&p, "x") ||
+		    !scan_u(&p, &y, UINT_MAX) || *p != '\0') {
+			cmdq_error(item, "bad size argument");
+			return (CMD_RETURN_ERROR);
+		}
 		if (x < WINDOW_MINIMUM || x > WINDOW_MAXIMUM ||
 		    y < WINDOW_MINIMUM || y > WINDOW_MAXIMUM) {
 			cmdq_error(item, "size too small or too big");
@@ -80,16 +92,11 @@ cmd_refresh_client_control_client_size(struct cmd *self, struct cmdq_item *item)
 		recalculate_sizes_now(1);
 		return (CMD_RETURN_NORMAL);
 	}
-	if (sscanf(size, "@%u:", &w) == 1) {
-		log_debug("%s: client %s window @%u: no size", __func__,
-		    tc->name, w);
-		control_clear_window_size(tc, w);
-		recalculate_sizes_now(1);
-		return (CMD_RETURN_NORMAL);
-	}
 
-	if (sscanf(size, "%u,%u", &x, &y) != 2 &&
-	    sscanf(size, "%ux%u", &x, &y) != 2) {
+	p = size;
+	if (!scan_u(&p, &x, UINT_MAX) ||
+	    !(scan_lit(&p, ",") || scan_lit(&p, "x")) ||
+	    !scan_u(&p, &y, UINT_MAX) || *p != '\0') {
 		cmdq_error(item, "bad size argument");
 		return (CMD_RETURN_ERROR);
 	}
@@ -109,6 +116,7 @@ cmd_refresh_client_update_offset(struct client *tc, const char *value)
 {
 	struct window_pane	*wp;
 	char			*copy, *split;
+	const char		*p;
 	u_int			 pane;
 
 	if (*value != '%')
@@ -118,7 +126,8 @@ cmd_refresh_client_update_offset(struct client *tc, const char *value)
 		goto out;
 	*split++ = '\0';
 
-	if (sscanf(copy, "%%%u", &pane) != 1)
+	p = copy;
+	if (!scan_lit(&p, "%") || !scan_u(&p, &pane, UINT_MAX) || *p != '\0')
 		goto out;
 	wp = window_pane_find_by_id(pane);
 	if (wp == NULL)
@@ -145,6 +154,7 @@ cmd_refresh_report(struct tty *tty, const char *value)
 	int			 fg, bg;
 	size_t			 size = 0;
 	char			*copy, *split;
+	const char		*p;
 
 	if (*value != '%')
 		return;
@@ -153,7 +163,8 @@ cmd_refresh_report(struct tty *tty, const char *value)
 		goto out;
 	*split++ = '\0';
 
-	if (sscanf(copy, "%%%u", &pane) != 1)
+	p = copy;
+	if (!scan_lit(&p, "%") || !scan_u(&p, &pane, UINT_MAX) || *p != '\0')
 		goto out;
 	wp = window_pane_find_by_id(pane);
 	if (wp == NULL)

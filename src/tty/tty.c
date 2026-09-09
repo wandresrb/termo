@@ -74,7 +74,7 @@ static void	tty_write_one(void (*)(struct tty *, const struct tty_ctx *),
 #endif
 
 #define tty_use_margin(tty) \
-	(tty->term->flags & TERM_DECSLRM)
+	((tty)->term->flags & TERM_DECSLRM)
 #define tty_full_width(tty, ctx) \
 	((ctx)->xoff == 0 && (ctx)->sx >= (tty)->sx)
 

@@ -131,7 +131,8 @@ cmd_confirm_before_callback(struct client *c, void *data, const char *s,
 
 	if (s == NULL)
 		goto out;
-	if (s[0] != cdata->confirm_key && (s[0] != '\r' || !cdata->default_yes))
+	if ((u_char)s[0] != cdata->confirm_key &&
+	    (s[0] != '\r' || !cdata->default_yes))
 		goto out;
 	retcode = 0;
 

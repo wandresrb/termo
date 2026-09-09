@@ -99,7 +99,12 @@
 #endif
 
 #ifndef __OpenBSD__
-#define pledge(s, p) (0)
+static inline int
+pledge([[maybe_unused]] const char *promises,
+    [[maybe_unused]] const char *execpromises)
+{
+	return (0);
+}
 #endif
 
 #ifndef IMAXBEL

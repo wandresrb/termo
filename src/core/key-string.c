@@ -195,14 +195,15 @@ static const struct {
 static key_code
 key_string_search_table(const char *string)
 {
-	u_int	i, user;
+	u_int		 i, user;
+	const char	*p = string;
 
 	for (i = 0; i < nitems(key_string_table); i++) {
 		if (strcasecmp(string, key_string_table[i].string) == 0)
 			return (key_string_table[i].key);
 	}
 
-	if (sscanf(string, "User%u", &user) == 1 && user <= KEYC_NUSER)
+	if (scan_lit(&p, "User") && scan_u(&p, &user, KEYC_NUSER) && *p == '\0')
 		return (KEYC_USER + user);
 
 	return (KEYC_UNKNOWN);
@@ -249,6 +250,7 @@ key_string_lookup_string(const char *string)
 	utf8_char		 uc;
 	char			 m[MB_LEN_MAX + 1];
 	int			 mlen;
+	const char		*p;
 
 	/* Is this no key or any key? */
 	if (strcasecmp(string, "None") == 0)
@@ -258,7 +260,8 @@ key_string_lookup_string(const char *string)
 
 	/* Is this a hexadecimal value? */
 	if (string[0] == '0' && string[1] == 'x') {
-		if (sscanf(string + 2, "%x", &u) != 1)
+		p = string + 2;
+		if (!scan_x(&p, &u, 0) || *p != '\0')
 			return (KEYC_UNKNOWN);
 		if (u < 32)
 			return (u);

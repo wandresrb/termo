@@ -586,6 +586,13 @@ monitor_destroy(struct monitor_set *ms)
 	}
 }
 
+static bool
+monitor_parse_id(const char *what, const char *prefix, int *id)
+{
+	return (scan_lit(&what, prefix) && scan_i(&what, id, 0, INT_MAX) &&
+	    *what == '\0');
+}
+
 /* Parse a subscription. */
 int
 monitor_parse(const char *value, char **name, enum monitor_type *type, int *id,
@@ -608,11 +615,11 @@ monitor_parse(const char *value, char **name, enum monitor_type *type, int *id,
 
 	if (strcmp(what, "%*") == 0)
 		*type = MONITOR_ALL_PANES;
-	else if (sscanf(what, "%%%d", id) == 1 && *id >= 0)
+	else if (monitor_parse_id(what, "%", id))
 		*type = MONITOR_PANE;
 	else if (strcmp(what, "@*") == 0)
 		*type = MONITOR_ALL_WINDOWS;
-	else if (sscanf(what, "@%d", id) == 1 && *id >= 0)
+	else if (monitor_parse_id(what, "@", id))
 		*type = MONITOR_WINDOW;
 	else
 		*type = MONITOR_SESSION;

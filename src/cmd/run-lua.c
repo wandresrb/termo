@@ -50,7 +50,7 @@ cmd_run_lua_exec(struct cmd *self, struct cmdq_item *item)
 			return (CMD_RETURN_ERROR);
 		}
 		if (termo_lua_load_file(path, item, &result,
-		    args_has(args, 'j')) != 0)
+		    args_has(args, 'j') != 0) != 0)
 			return (CMD_RETURN_ERROR);
 	} else {
 		if (args_count(args) != 1) {
@@ -58,7 +58,7 @@ cmd_run_lua_exec(struct cmd *self, struct cmdq_item *item)
 			return (CMD_RETURN_ERROR);
 		}
 		if (termo_lua_eval(args_string(args, 0), item, &result,
-		    args_has(args, 'j')) != 0)
+		    args_has(args, 'j') != 0) != 0)
 			return (CMD_RETURN_ERROR);
 	}
 	if (result != NULL) {

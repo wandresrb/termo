@@ -76,7 +76,7 @@ cmd_new_session_exec(struct cmd *self, struct cmdq_item *item)
 	struct options		*oo;
 	struct termios		 tio, *tiop;
 	struct session_group	*sg = NULL;
-	const char		*errstr, *template, *group, *tmp;
+	const char		*errstr, *template, *group, *tmp, *p;
 	char			*cause, *cwd = NULL, *cp, *ename;
 	char			*wname = NULL, *sname = NULL, *prefix = NULL;
 	int			 detached, already_attached, is_control = 0;
@@ -254,7 +254,9 @@ cmd_new_session_exec(struct cmd *self, struct cmdq_item *item)
 			sy--;
 	} else {
 		tmp = options_get_string(global_s_options, "default-size");
-		if (sscanf(tmp, "%ux%u", &sx, &sy) != 2) {
+		p = tmp;
+		if (!scan_u(&p, &sx, UINT_MAX) || !scan_lit(&p, "x") ||
+		    !scan_u(&p, &sy, UINT_MAX) || *p != '\0') {
 			sx = dsx;
 			sy = dsy;
 		} else {

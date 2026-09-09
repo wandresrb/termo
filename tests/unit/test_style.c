@@ -284,7 +284,7 @@ TEST(style, dim_width_pad_align_list_range_forms_and_bad_input_atomicity)
 	    "fg=red,bogus", nullptr };
 	struct style		 sy = fresh(), saved;
 	const char		*s;
-	char			 big[301];
+	char			*before, big[301];
 	u_int			 i;
 
 	CHECK_EQ(style_parse(&sy, &grid_default_cell, "dim=30"), 0);
@@ -327,14 +327,18 @@ TEST(style, dim_width_pad_align_list_range_forms_and_bad_input_atomicity)
 	CHECK_NONNULL(strstr(s, "range=pane|%7"));
 
 	style_copy(&saved, &sy);
+	/* A failed parse must leave the style untouched; compare observable
+	 * state, not the raw bytes (struct style has padding). */
+	before = xstrdup(style_tostring(&saved));
 	for (i = 0; bad[i] != nullptr; i++) {
 		CHECK_EQ(style_parse(&sy, &grid_default_cell, bad[i]), -1);
-		CHECK_EQ(memcmp(&sy, &saved, sizeof sy), 0);
+		CHECK_EQ(strcmp(style_tostring(&sy), before), 0);
 	}
 	memset(big, 'a', sizeof big - 1);
 	big[sizeof big - 1] = '\0';
 	CHECK_EQ(style_parse(&sy, &grid_default_cell, big), -1);
-	CHECK_EQ(memcmp(&sy, &saved, sizeof sy), 0);
+	CHECK_EQ(strcmp(style_tostring(&sy), before), 0);
+	free(before);
 }
 
 TEST(style, ranges_get_range_by_position)

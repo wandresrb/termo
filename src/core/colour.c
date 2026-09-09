@@ -389,16 +389,13 @@ colour_fromstring(const char *s)
 	const char	*errstr;
 	const char	*cp;
 	int		 n;
-	u_char		 r, g, b;
+	u_int		 r, g, b;
 	u_int		 i;
 
-	if (*s == '#' && strlen(s) == 7) {
-		for (cp = s + 1; isxdigit((u_char) *cp); cp++)
-			;
-		if (*cp != '\0')
-			return (-1);
-		n = sscanf(s + 1, "%2hhx%2hhx%2hhx", &r, &g, &b);
-		if (n != 3)
+	if (*s == '#') {
+		cp = s + 1;
+		if (!scan_x(&cp, &r, 2) || !scan_x(&cp, &g, 2) ||
+		    !scan_x(&cp, &b, 2) || *cp != '\0')
 			return (-1);
 		return (colour_join_rgb(r, g, b));
 	}
@@ -1171,27 +1168,57 @@ colour_byname(const char *name)
 	return (-1);
 }
 
+static bool
+colour_scan_hex3(const char *p, const char *prefix, u_int width,
+    const char *sep, u_int *r, u_int *g, u_int *b)
+{
+	return (scan_lit(&p, prefix) && scan_x(&p, r, width) &&
+	    scan_lit(&p, sep) && scan_x(&p, g, width) && scan_lit(&p, sep) &&
+	    scan_x(&p, b, width) && *p == '\0');
+}
+
+static bool
+colour_scan_dec3(const char *p, u_int *r, u_int *g, u_int *b)
+{
+	return (scan_u(&p, r, 255) && scan_lit(&p, ",") &&
+	    scan_u(&p, g, 255) && scan_lit(&p, ",") && scan_u(&p, b, 255) &&
+	    *p == '\0');
+}
+
+/* cmyk:c/m/y/k or cmy:c/m/y; k is 0 for the second form. */
+static bool
+colour_scan_cmyk(const char *p, double *c, double *m, double *y, double *k)
+{
+	const char	*q = p;
+
+	if (scan_lit(&q, "cmyk:") && scan_d(&q, c) && scan_lit(&q, "/") &&
+	    scan_d(&q, m) && scan_lit(&q, "/") && scan_d(&q, y) &&
+	    scan_lit(&q, "/") && scan_d(&q, k) && *q == '\0')
+		return (true);
+	q = p;
+	*k = 0;
+	return (scan_lit(&q, "cmy:") && scan_d(&q, c) && scan_lit(&q, "/") &&
+	    scan_d(&q, m) && scan_lit(&q, "/") && scan_d(&q, y) && *q == '\0');
+}
+
 /* Parse colour from an X11 string. */
 int
 colour_parseX11(const char *p)
 {
-	double	 c, m, y, k = 0;
+	double	 c, m, y, k;
 	u_int	 r, g, b;
 	size_t	 len = strlen(p);
 	int	 colour = -1;
 	char	*copy;
 
-	if ((len == 12 && sscanf(p, "rgb:%02x/%02x/%02x", &r, &g, &b) == 3) ||
-	    (len == 7 && sscanf(p, "#%02x%02x%02x", &r, &g, &b) == 3) ||
-	    (sscanf(p, "%d,%d,%d", &r, &g, &b) == 3 && r <= 255 && g <= 255 &&
-	    b <= 255))
+	if (colour_scan_hex3(p, "rgb:", 2, "/", &r, &g, &b) ||
+	    colour_scan_hex3(p, "#", 2, "", &r, &g, &b) ||
+	    colour_scan_dec3(p, &r, &g, &b))
 		colour = colour_join_rgb(r, g, b);
-	else if ((len == 18 &&
-	    sscanf(p, "rgb:%04x/%04x/%04x", &r, &g, &b) == 3) ||
-	    (len == 13 && sscanf(p, "#%04x%04x%04x", &r, &g, &b) == 3))
+	else if (colour_scan_hex3(p, "rgb:", 4, "/", &r, &g, &b) ||
+	    colour_scan_hex3(p, "#", 4, "", &r, &g, &b))
 		colour = colour_join_rgb(r >> 8, g >> 8, b >> 8);
-	else if ((sscanf(p, "cmyk:%lf/%lf/%lf/%lf", &c, &m, &y, &k) == 4 ||
-	    sscanf(p, "cmy:%lf/%lf/%lf", &c, &m, &y) == 3) &&
+	else if (colour_scan_cmyk(p, &c, &m, &y, &k) &&
 	    c >= 0 && c <= 1 && m >= 0 && m <= 1 &&
 	    y >= 0 && y <= 1 && k >= 0 && k <= 1) {
 		colour = colour_join_rgb(
