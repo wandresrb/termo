@@ -1,0 +1,15 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 -c 'import json,sys; p=json.load(sys.stdin).get(\"tool_input\",{}).get(\"file_path\",\"\"); sys.exit(0 if \"/src/\" in p or p.endswith(\"meson.build\") else 1)' && (ninja -C \"$CLAUDE_PROJECT_DIR/build\" >/tmp/termo-ninja.log 2>&1 || { grep -E 'error|warning' /tmp/termo-ninja.log >&2; exit 2; }) || true"
+          }
+        ]
+      }
+    ]
+  }
+}

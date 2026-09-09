@@ -1,0 +1,6 @@
+option('utf8proc', type: 'feature', value: 'auto', description: 'Enable utf8proc for Unicode normalization and width')
+option('sixel', type: 'boolean', value: false, description: 'Enable Sixel image support')
+option('systemd', type: 'feature', value: 'auto', description: 'Enable systemd notify support on Linux')
+option('luajit', type: 'feature', value: 'auto', description: 'Enable LuaJIT scripting engine')
+option('fuzz', type: 'feature', value: 'disabled', description: 'Build libFuzzer harnesses (needs clang with the libFuzzer runtime)')
+option('e2e', type: 'feature', value: 'auto', description: 'Register the pytest end-to-end suite (needs pytest)')

@@ -1,0 +1,2 @@
+# <script> <reason>. Scripts expected to fail; the runner reports them but does not count them.
+copy-mode-unicode-whitespace.sh upstream test (77309c07) for NBSP word motion whose code is not in tmux master yet

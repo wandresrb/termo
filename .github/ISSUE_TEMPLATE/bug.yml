@@ -1,0 +1,46 @@
+name: Bug report
+description: Something termo does wrong
+labels: [bug]
+body:
+  - type: input
+    id: version
+    attributes:
+      label: termo version
+      description: Output of `termo -V`, plus the commit if built from source.
+      placeholder: termo 0.1.0 (eef4f9e3)
+    validations:
+      required: true
+  - type: input
+    id: platform
+    attributes:
+      label: OS and terminal
+      description: OS and version, terminal emulator, and `$TERM` outside and inside termo.
+      placeholder: macOS 26.0, Ghostty 1.2, xterm-ghostty / tmux-256color
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Minimal reproduction
+      description: Start from `termo -Ltest -f/dev/null` so your own config is not involved; paste the smallest `termo.conf` or `init.lua` and the commands or keys that trigger it.
+      render: sh
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual
+      description: What happens instead; a screenshot helps for rendering issues.
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: If the cause is not obvious, run with `termo -vv` and attach `termo-server-PID.log` and `termo-client-PID.log` from the current directory.

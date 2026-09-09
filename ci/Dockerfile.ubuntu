@@ -1,0 +1,37 @@
+# termo CI builder: glibc, gcc-14 and clang-20, Meson from PyPI. The image tag
+# is the first 16 hex digits of this file's sha256, so any edit (including
+# bumping REFRESH to pick up base-image updates) produces a new image.
+FROM ubuntu:24.04
+
+# GHCR reads these: the package page links here and shows this description.
+LABEL org.opencontainers.image.source=https://github.com/wandresrb/termo \
+      org.opencontainers.image.description="termo CI builder: Ubuntu 24.04, gcc-14, clang-20, Meson, LuaJIT, pytest" \
+      org.opencontainers.image.licenses=ISC
+
+ARG LLVM=20
+ARG MESON=1.12.0
+ARG REFRESH=2026-09-08
+
+ENV DEBIAN_FRONTEND=noninteractive \
+    LANG=C.UTF-8 \
+    LC_ALL=C.UTF-8 \
+    CC=gcc-14
+
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends \
+      ca-certificates curl git procps \
+      gcc-14 libc6-dev libasan8 libubsan1 \
+      bison pkg-config ninja-build ccache \
+      libevent-dev libncurses-dev libutf8proc-dev libluajit-5.1-dev libsystemd-dev \
+      ncurses-base ncurses-term \
+      python3 python3-pip python3-pytest \
+ && curl -fsSL https://apt.llvm.org/llvm-snapshot.gpg.key \
+      -o /usr/share/keyrings/apt.llvm.org.asc \
+ && echo "deb [signed-by=/usr/share/keyrings/apt.llvm.org.asc] http://apt.llvm.org/noble/ llvm-toolchain-noble-${LLVM} main" \
+      > /etc/apt/sources.list.d/llvm.list \
+ && apt-get update \
+ && apt-get install -y --no-install-recommends \
+      clang-${LLVM} clang-tidy-${LLVM} llvm-${LLVM} libclang-rt-${LLVM}-dev \
+ && ln -s /usr/bin/llvm-symbolizer-${LLVM} /usr/local/bin/llvm-symbolizer \
+ && pip install --no-cache-dir --break-system-packages meson==${MESON} \
+ && rm -rf /var/lib/apt/lists/*

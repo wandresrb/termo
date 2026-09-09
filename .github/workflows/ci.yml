@@ -1,0 +1,186 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    name: commit messages
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: one line, imperative, under 72 chars, no body
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          rc=0
+          for c in $(git rev-list "$BASE".."$HEAD"); do
+            # Dependabot writes a body on every commit; its PRs are squashed at merge
+            [ "$(git log -1 --format=%an "$c")" = 'dependabot[bot]' ] && continue
+            subject=$(git log -1 --format=%s "$c")
+            body=$(git log -1 --format=%b "$c")
+            if [ ${#subject} -gt 72 ]; then echo "$c: subject over 72 chars"; rc=1; fi
+            if [ -n "$body" ]; then echo "$c: has a body; termo commits are one line"; rc=1; fi
+            case "$subject" in
+              *.) echo "$c: subject ends with a period"; rc=1 ;;
+            esac
+          done
+          exit $rc
+
+  image:
+    uses: $/.github/workflows/image.yml
+    permissions:
+      contents: read
+      packages: write
+
+  tidy:
+    name: clang-tidy
+    needs: image
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      packages: read
+    container:
+      image: ghcr.io/${{ github.repository }}-ci-ubuntu:${{ needs.image.outputs.ubuntu }}
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      # Only cmd-parse.c is generated; the rest of the tree is checked from source.
+      - run: meson setup build
+      - run: ninja -C build cmd-parse.c
+      - name: clang-tidy, zero findings
+        run: >
+          run-clang-tidy-20 -p build -quiet -warnings-as-errors='*'
+          '(src/(?!compat/)|tests/unit/).*\.c$'
+
+  # One job per compiler: the stages are steps, so the image is pulled once and
+  # the build tree never leaves the runner.
+  linux:
+    name: ${{ matrix.cc }}
+    needs: image
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: read
+    container:
+      image: ghcr.io/${{ github.repository }}-ci-ubuntu:${{ needs.image.outputs.ubuntu }}
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    strategy:
+      fail-fast: false
+      matrix:
+        cc: [gcc-14, clang-20]
+    env:
+      CC: ${{ matrix.cc }}
+      CCACHE_DIR: ${{ github.workspace }}/.ccache
+      CCACHE_MAXSIZE: 400M
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .ccache
+          key: ccache-${{ matrix.cc }}-${{ github.sha }}
+          restore-keys: ccache-${{ matrix.cc }}-
+      - name: configure
+        run: >
+          meson setup build -Db_sanitize=address,undefined -Dbuildtype=debugoptimized
+          -Dwerror=true -De2e=enabled
+      - name: build
+        run: ninja -C build
+      - name: ccache stats
+        run: ccache -s
+      - name: unit
+        run: meson test -C build --suite unit --no-rebuild --print-errorlogs
+      - name: smoke
+        run: meson test -C build --suite lua --suite smoke --no-rebuild --print-errorlogs
+      - name: e2e
+        run: meson test -C build --suite e2e --no-suite smoke --no-rebuild --print-errorlogs
+      - name: logs
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: logs-${{ matrix.cc }}
+          path: |
+            build/meson-logs/testlog.txt
+            build/meson-logs/e2e-*.xml
+            /tmp/termo-asan.*
+            /tmp/termo-ubsan.*
+          if-no-files-found: ignore
+
+  # The development platform, last: it only spends its minutes on code that
+  # already passed both Linux compilers.
+  macos:
+    needs: linux
+    runs-on: macos-26
+    timeout-minutes: 30
+    env:
+      CC: clang
+      CCACHE_DIR: ${{ github.workspace }}/.ccache
+      CCACHE_MAXSIZE: 400M
+      HOMEBREW_NO_AUTO_UPDATE: '1'
+      HOMEBREW_NO_INSTALL_CLEANUP: '1'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: dependencies
+        run: |
+          brew install meson ninja bison pkgconf ccache libevent ncurses utf8proc luajit
+          python3 -m venv .venv
+          .venv/bin/pip install --quiet pytest
+          echo "$PWD/.venv/bin" >> "$GITHUB_PATH"
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .ccache
+          key: ccache-macos-${{ github.sha }}
+          restore-keys: ccache-macos-
+      - name: configure
+        run: >
+          meson setup build -Db_sanitize=address,undefined -Dbuildtype=debugoptimized
+          -Dwerror=true -De2e=enabled
+      - name: build
+        run: ninja -C build
+      - name: ccache stats
+        run: ccache -s
+      - name: unit
+        run: meson test -C build --suite unit --no-rebuild --print-errorlogs
+      - name: smoke
+        run: meson test -C build --suite lua --suite smoke --no-rebuild --print-errorlogs
+      - name: e2e
+        run: meson test -C build --suite e2e --no-suite smoke --no-rebuild --print-errorlogs
+      - name: logs
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: logs-macos
+          path: |
+            build/meson-logs/testlog.txt
+            build/meson-logs/e2e-*.xml
+            /tmp/termo-asan.*
+            /tmp/termo-ubsan.*
+            ~/Library/Logs/DiagnosticReports/termo-*.ips
+          if-no-files-found: ignore

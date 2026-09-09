@@ -1,84 +1,77 @@
-## What should I do before opening an issue?
+# Contributing
 
-Before opening an issue, please ensure that:
+termo follows the process in `docs/sdlc/`: an intent (what and why), a spec
+(how), and a plan (files, order, verification) before implementation. Small
+fixes need none of that, just a PR.
 
-- Your problem is a specific problem or question or suggestion, not a general
-  complaint.
+## Pull requests
 
-- `$TERM` inside tmux is screen, screen-256color, tmux or tmux-256color. Check
-  by running `echo $TERM` inside tmux.
+Fork the repository, branch from `main`, push to your fork and open a PR against
+`main`. CI is the gate: a PR merges when `commit messages`, `gcc-14`, `clang-20`
+and `macos` are green, which means `meson test` (unit, Lua specs, e2e) passes
+under ASan and UBSan with `-Werror` on Linux gcc and clang and on macOS. Nobody
+merges around a red check, and review threads are resolved before merging.
+`docs/ci.md` explains what each check runs.
 
-- You can reproduce the problem with the latest tmux release, or a build from
-  Git master.
+## Before opening a PR
 
-- Your question or issue is not covered [in the
-  manual](https://man.openbsd.org/tmux.1) (run `man tmux`).
+You need a C23 compiler: GCC 14+, Clang 20+, or Xcode 26+.
 
-- Your problem is not mentioned in [the CHANGES
-  file](https://raw.githubusercontent.com/tmux/tmux/master/CHANGES).
+```sh
+meson setup build -Db_sanitize=address,undefined -Dbuildtype=debugoptimized
+ninja -C build
+meson test -C build
+```
 
-- Nobody else has opened the same issue recently.
+`meson test` runs the C unit tests, the Lua specs and the pytest e2e suite
+(`tests/e2e/`, needs pytest; `just build && just test` does the same). Everything
+must be green and sanitizer clean. A change in a leaf module (`utf8/`, `grid/`,
+`input/`, `format.c`, `options.c`, `cfg.c`, `compat/`) comes with a unit test in
+`tests/unit/test_<module>.c`; see `tests/unit/test.h`. A change in behaviour a
+user sees comes with an e2e test. Run one thing at a time with:
 
-## What should I include in an issue?
+```sh
+./build/tests/termo-test format expressions
+pytest tests/e2e -k menu --termo build/termo
+just upstream-regress alerts      # upstream tmux's regress/, before a release
+```
 
-Please include the output of:
+## The gate locally
 
-~~~bash
-uname -sp && tmux -V && echo $TERM
-~~~
+The Linux checks run inside `ghcr.io/wandresrb/termo-ci-ubuntu`, a public image
+tagged by the sha256 of `ci/Dockerfile.ubuntu`. `just ci-local` runs the same
+configure, build and test steps in that image with Docker or Podman, whichever
+is installed; `just ci-local clang-20` does it with clang. The build tree is
+`build-ci/`.
 
-Also include:
+## Changing the CI image
 
-- Your platform (Linux, macOS, or whatever).
+`ci/Dockerfile.ubuntu` and `ci/Dockerfile.alpine` are the toolchain; jobs
+install nothing. A change to either is a new tag, built and pushed by the
+workflow on the first run that sees it. A PR from a fork runs with a read-only
+token and cannot push, so its `image` job fails and says so: keep Dockerfile
+changes out of fork PRs, or ask a maintainer to push your branch to the
+repository, where the image gets built and the PR then passes. Never push an
+image from a laptop; the workflow owns the package.
 
-- A brief description of the problem with steps to reproduce.
+## Code
 
-- A minimal tmux config, if you can't reproduce without a config.
+C23. New code: `nullptr`, `bool`, `constexpr` constants, fixed-type enums for flags,
+`[[nodiscard]]` where a return must not be dropped, `ckd_add`/`ckd_mul` on sizes, no VLAs, no
+direct `__attribute__` (use `[[gnu::...]]`). Do not restyle existing code; a change in a leaf
+module comes with its unit test. `-Werror` is on in CI with the warning set in `meson.build`.
 
-- Your terminal, and `$TERM` inside and outside of tmux.
+## Commits
 
-- Logs from tmux (see below). Please attach logs to the issue directly rather
-  than using a download site or pastebin. Put in a zip file if necessary.
+One line, imperative, at most 72 characters, no trailing period, no body, no
+trailers; the `commit messages` check enforces it on every commit in the PR.
+The PR description carries the reasoning and links the intent/spec/plan it
+implements.
 
-- At most one or two screenshots, if helpful.
+## Bugs
 
-## How do I test without a .tmux.conf?
-
-Run a separate tmux server with `-f/dev/null` to skip loading `.tmux.conf`:
-
-~~~bash
-tmux -Ltest kill-server
-tmux -Ltest -f/dev/null new
-~~~
-
-## How do I get logs from tmux?
-
-Add `-vv` to tmux to create three log files in the current directory. If you can
-reproduce without a configuration file:
-
-~~~bash
-tmux -Ltest kill-server
-tmux -vv -Ltest -f/dev/null new
-~~~
-
-Or if you need your configuration:
-
-~~~bash
-tmux kill-server
-tmux -vv new
-~~~
-
-The log files are:
-
-- `tmux-server*.log`: server log file.
-
-- `tmux-client*.log`: client log file.
-
-- `tmux-out*.log`: output log file.
-
-Please attach the log files to your issue.
-
-## What does it mean if an issue is closed?
-
-All it means is that work on the issue is not planned for the near future. See
-the issue's comments to find out if contributions would be welcome.
+Use the bug report form. Include `termo -V`, your platform, `$TERM` inside and
+outside termo, and a reproduction with `termo -Ltest -f/dev/null` so your own
+config is not involved. Attach `termo-server-PID.log` and `termo-client-PID.log`
+from `termo -vv` if the problem is not obvious. Vulnerabilities go through
+private reporting, see `docs/SECURITY.md`.
