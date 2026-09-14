@@ -1,0 +1,18 @@
+#!/usr/bin/env python3
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from gen import args, emit, rng
+
+a = args()
+r = rng(a.seed)
+alphabet = bytes(range(0x21, 0x7f))
+
+
+def moves():
+    while True:
+        yield b"\x1b[%d;%dH%c" % (r.randrange(1, 25), r.randrange(1, 81), r.choice(alphabet))
+
+
+emit(moves(), a.bytes)

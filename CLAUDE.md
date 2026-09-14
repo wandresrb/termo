@@ -22,7 +22,7 @@ Non-trivial work follows `docs/sdlc/`: `intent/NNN-*.md` (what and why) → `spe
 meson setup build -Db_sanitize=address,undefined -Dbuildtype=debugoptimized
 ninja -C build
 ./build/termo -V
-just              # lists recipes: build, test, unit, lua, smoke, e2e, upstream-regress, image, ci-local, tidy, install
+just              # lists recipes: build, test, unit, lua, smoke, e2e, upstream-regress, image, ci-local, tidy, install, bench, bench-compare
 just install      # release build into ~/.local (PREFIX=/opt/termo just install to override), build tree build-release/
 ```
 
@@ -52,6 +52,8 @@ just upstream-regress alerts                    # upstream tmux's regress/ again
 **Upstream regress**: upstream tmux's `regress/*.sh` are not in the tree. `just upstream-regress [script...]` fetches `upstream/master:regress/` into `build/upstream-regress/` and runs it with `tools/regress-runner.py` (parallel, `TEST_TMUX`, `SHELL=/bin/sh`, leaked-server reaping, failures in `build/upstream-regress/logs/`). Run it before a release and after an upstream cherry-pick. `tools/regress-xfail` lists scripts known to fail with the reason, only when the failure is upstream's.
 
 **Fuzzers**: `meson setup build -Dfuzz=enabled` (clang with libFuzzer, not Apple clang) builds `tests/<target>-fuzzer` for `cmd-parse`, `format`, `input`, `style`, with seed corpora in `tests/fuzz/corpus/`; `meson test --suite fuzz` is a short smoke run, nightly CI runs them for 10 minutes each.
+
+**Benchmark** (`tools/bench/`, `docs/bench.md`): `just bench [scenario...]` builds a release tree without sanitizers in `build-bench/` and feeds seven payloads (`ascii`, `utf8`, `sgr`, `scroll`, `cursor`, `sync`, `resize`) through a pane, detached and with a pty client at 80x24 and 200x60, writing `build/bench/<sha>.json`; `just bench-compare <sha>` exits 1 when any measurement is more than 10% worse than that file. It never runs in CI. A change to `input/`, `grid/`, `utf8/`, `screen/write.c` or `tty/` comes with a before/after comparison.
 
 **Coverage** is measured locally, never as a CI gate: `brew install gcovr`, `meson setup build-cov -Db_coverage=true -Db_sanitize=none -Dbuildtype=debug`, `meson test -C build-cov --suite unit`, `ninja -C build-cov coverage-text`, report in `build-cov/meson-logs/coverage.txt`. The Phase 2 close criterion is the "Must cover" table in `docs/sdlc/specs/003-test-suite.md`, not a percentage.
 

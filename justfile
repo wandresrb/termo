@@ -56,3 +56,13 @@ install prefix=env_var_or_default("PREFIX", env_var("HOME") / ".local"):
     ninja -C build-release
     meson install -C build-release
 
+
+# VT throughput benchmark on a release build without sanitizers; results in build/bench/<sha>.json
+bench *args:
+    [ -d build-bench ] || meson setup build-bench -Dbuildtype=release -Db_sanitize=none
+    meson compile -C build-bench
+    python3 tools/bench/bench.py --termo build-bench/termo {{args}}
+
+# the 10% gate: compare build/bench/<sha>.json against the current HEAD's file
+bench-compare sha:
+    python3 tools/bench/bench.py --compare {{sha}}
