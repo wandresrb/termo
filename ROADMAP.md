@@ -21,7 +21,13 @@ map.
 5. Extensibility is LuaJIT in-process or control mode out-of-process. No
    WebAssembly runtime, ever.
 6. Upstream tmux fixes are cherry-picked per release into the parts that are
-   still tmux (`input/`, `tty/`, `grid/`, `utf8/`). No full merges.
+   still tmux. No full merges. Once `utf8/`, `grid/` and `input/` are Rust,
+   upstream changes in those directories are ported by hand and each port is
+   recorded in `docs/SYNCING.md`.
+7. Before any feature or improvement is brought in, from upstream or from the
+   field, it is evaluated for where it belongs: Lua, Rust, C, or a plugin.
+   Internal changes to copy mode, grid and layout are allowed when a product
+   feature needs them, never for style, and are recorded in `docs/SYNCING.md`.
 
 ## Phase 1: build system and defaults (done, verified 2026-09-06)
 
@@ -106,16 +112,28 @@ manifests) once the palette works.
 Evals: `tests/lua/*_spec.lua` covering every function in `termo.api.list()`, ASAN clean
 through `lua_close`, and `meson test` green with `-Dluajit=disabled`.
 
-## Phase 5: Rust in leaf modules
+## Phase 5: Rust where the bytes are untrusted, measured before moved (intent `docs/sdlc/intent/006-rust.md`, approved 2026-09-09)
 
-Strangler-fig, one module at a time, through Meson's native Rust support
-(`rust_abi: 'c'`, no cargo, no crates): `regsub.c` as the pipeline proof, then
-`utf8/`, `grid/`, `input/`. Each module keeps its C ABI from `termo.h`, shares
-structs as `#[repr(C)]` with size checks on both sides, and stays behind a
-build option until stable. The primary eval is differential fuzzing of the C
-and Rust builds on the `tests/fuzz` corpus; the second is the e2e suite plus
-`just upstream-regress`; the third is
-the VT throughput benchmark, with a 10% regression as the gate.
+Step 0 is the VT throughput benchmark through a pty against `build/termo`
+(ASCII, UTF-8, SGR, scroll, resize; parser stage and apply/draw stage
+reported separately) and the C fixes that need no Rust. No Rust module lands
+before the number exists; the 10% gate is a comparison of two runs of it.
+
+Then strangler-fig, one module at a time, through Meson's native Rust support
+(`rust_abi: 'c'`, no cargo in the build of the termo binary, vendored
+dependency-free crates only): `utf8/` first (Unicode 17 tables, graphemes),
+then `grid/` (paged history with idle-time compression, OSC 133 marks,
+image placements), then `input/`. Each module keeps its C ABI from `termo.h`,
+shares structs as `#[repr(C)]` with size checks on both sides, and stays behind
+a build option until stable. Rust floor 1.98, edition 2024, rustup pinned in
+every CI image; nightly Rust only in CI for verification (`-Zsanitizer` in the
+fuzz job, Miri), never in a release. Primary eval: differential fuzzing of the
+C and Rust builds on the `tests/fuzz` corpus; second, the e2e suite plus
+`just upstream-regress`; third, the benchmark.
 
 `input.c` goes last: it is where terminal-emulator CVEs live and it only
-moves after `grid/` is stable in Rust.
+moves after `grid/` is stable in Rust. Auxiliary executables (agent server,
+QUIC attach, streaming, web bridge) live out of process over control mode and
+may use cargo. The product axes (modes and user commands, `termopack` after
+`vim.pack`, Neovim integration, sessions, agent awareness, sandboxed panes,
+recording, images, blocks) are in the intent; the plan phases them.

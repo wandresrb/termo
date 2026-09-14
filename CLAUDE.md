@@ -22,7 +22,8 @@ Non-trivial work follows `docs/sdlc/`: `intent/NNN-*.md` (what and why) → `spe
 meson setup build -Db_sanitize=address,undefined -Dbuildtype=debugoptimized
 ninja -C build
 ./build/termo -V
-just              # lists recipes: build, test, unit, lua, smoke, e2e, upstream-regress, image, ci-local
+just              # lists recipes: build, test, unit, lua, smoke, e2e, upstream-regress, image, ci-local, tidy, install
+just install      # release build into ~/.local (PREFIX=/opt/termo just install to override), build tree build-release/
 ```
 
 Compiler floor: GCC 14, Clang 20, Apple clang 21 (Xcode 26); `meson setup` probes `nullptr`, `constexpr`, fixed-type enums and `<stdckdint.h>` and stops with a message otherwise. Meson options (`meson_options.txt`): `utf8proc`, `luajit`, `systemd`, `e2e` (features, default `auto`), `sixel` (bool, default off, like upstream: it changes the DA reply upstream's regress checks), `fuzz` (feature, needs clang with libFuzzer). The build defines `-DDEBUG` unconditionally, defines `ASAN` when `b_sanitize` includes address (that is what enables the sanitizer option strings in `main.c`, logs go to `/tmp/termo-asan.*` and `/tmp/termo-ubsan.*`), and passes `warning_level=2`; CI adds `-Dwerror=true`, keep it warning-free.

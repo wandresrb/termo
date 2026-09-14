@@ -49,3 +49,10 @@ ci-local cc="gcc-14":
 # /work so the src regex matches; excludes src/compat/ (re-imported OpenBSD code).
 tidy:
     {{docker}} run --rm -v "$PWD":/work -w /work -e CC=clang-20 {{image}}:{{tag}} sh -ec 'rm -rf build-tidy; meson setup build-tidy >/dev/null; ninja -C build-tidy cmd-parse.c >/dev/null; run-clang-tidy-20 -p build-tidy -quiet -warnings-as-errors="*" "(src/(?!compat/)|tests/unit/).*\.c$"'
+
+# local install, XDG-friendly default prefix; override with `PREFIX=/opt/termo just install`
+install prefix=env_var_or_default("PREFIX", env_var("HOME") / ".local"):
+    meson setup build-release --buildtype=release --prefix="{{prefix}}" -Db_sanitize=none
+    ninja -C build-release
+    meson install -C build-release
+
