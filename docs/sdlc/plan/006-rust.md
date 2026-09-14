@@ -1,12 +1,14 @@
 # Plan 006: Rust where the bytes are untrusted, measured before moved
 
-- Status: Draft
+- Status: Approved 2026-09-14
 - Intent: [`intent/006-rust.md`](../intent/006-rust.md)
 - Spec: [`specs/006-rust.md`](../specs/006-rust.md)
 
-Steps on `refactor/to-termo`, one PR each unless noted, each green locally (`meson test`
-with and without `-Drust`, `just bench --compare` where the step touches a hot path) and on
-the gate before the next. Steps 1 to 3 are the prerequisites of everything; 4 to 9 are the
+Steps land as merges into `refactor/to-termo`, no pull requests: Track A works in the
+worktree `../termo-rust` on branch `rust/006`, Track B in `../termo-product` on
+`product/006`, each merged into `refactor/to-termo` when a step is green locally
+(`meson test` with and without `-Drust`, `just bench --compare` where the step touches a
+hot path) and rebased on it before starting the next; CI runs on the push. Steps 1 to 3 are the prerequisites of everything; 4 to 9 are the
 Rust modules in the order decided (`utf8/` → `grid/`); 10 to 17 are the product axes,
 Lua-first, and can interleave with 5 to 9 because they touch different files; 18 to 21 are
 the auxiliary executables, last. `input/` in Rust is not a step of this plan: it gets its
@@ -43,15 +45,15 @@ stage costs.
 The steps split by what they touch, so two people (or two instances) work in parallel
 without editing the same files.
 
-**Track A, Rust** (this tree, `refactor/to-termo`): 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 9,
+**Track A, Rust** (worktree `../termo-rust`, branch `rust/006`): 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 9,
 then 14 (needs `sys.rs` and the allowlist), 16 (needs 8's fuzzer pattern), 17 → 18 →
 19 → 20 (crates), 21. Files: `meson.build`, `meson_options.txt`, `tests/meson.build`,
 `ci/`, `.github/workflows/`, `src/rs/`, `subprojects/`, `src/utf8/`, `src/grid/`,
 `tests/fuzz/`, `tools/bench/`, `crates/`, plus the accessor rewrite of step 7 and the
 `input.c` changes of steps 2 and 6.
 
-**Track B, product** (a worktree cut from `refactor/to-termo`, branch `product/006`,
-merged into `refactor/to-termo` by PR after each step): 10 modes and user commands, 11
+**Track B, product** (worktree `../termo-product`, branch `product/006`, merged into
+`refactor/to-termo` after each step): 10 modes and user commands, 11
 copy-mode text objects and prompt jumps, 12 `termopack`, 13 agent-aware core, 15 health,
 Neovim, sessions, sessionizer. Files: `runtime/lua/termo/`, `tests/lua/`, `tests/e2e/`
 (new modules and fixtures), `docs/{plugins,api}.md`, `docs/man/termo.1`,
