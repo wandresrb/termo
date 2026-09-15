@@ -175,10 +175,12 @@ class Bench:
         }
 
 
-def measurements():
-    yield "detached", None
-    for size in SIZES:
-        yield f"attached-{size[0]}x{size[1]}", size
+def measurements(which: str):
+    if which != "attached":
+        yield "detached", None
+    if which != "detached":
+        for size in SIZES:
+            yield f"attached-{size[0]}x{size[1]}", size
 
 
 def run(args) -> Path:
@@ -204,20 +206,20 @@ def run(args) -> Path:
             entry = {}
             if "payload" in spec:
                 file = payload(spec["payload"], SCENARIOS[spec["payload"]]["bytes"], args.scale, cache)
-                for label, size in measurements():
+                for label, size in measurements(args.measure):
                     entry[label] = bench.resize_run(file, spec["widths"], args.runs, size or (80, 24),
                                                     attached=size is not None)
                     print(f"{name:8} {label:16} {entry[label]['median_s']:.3f} s "
                           f"({entry[label]['history']} lines, rss {entry[label]['rss_kb']} kB)")
             else:
                 file = payload(name, spec["bytes"], args.scale, cache)
-                for label, size in measurements():
+                for label, size in measurements(args.measure):
                     entry[label] = bench.payload_run(name, file, args.runs, size or (80, 24),
                                                      attached=size is not None)
                     print(f"{name:8} {label:16} {entry[label]['median_bps'] / 1e6:8.1f} MB/s "
                           f"(rss {entry[label]['rss_kb']} kB)")
             result["scenarios"][name] = entry
-    out = out_dir / f"{result['sha']}.json"
+    out = out_dir / f"{args.tag or result['sha']}.json"
     out.write_text(json.dumps(result, indent=1) + "\n")
     print(f"wrote {out}")
     return out
@@ -262,9 +264,11 @@ def main() -> int:
     p.add_argument("--runs", type=int, default=3)
     p.add_argument("--scale", type=float, default=1.0, help="payload size multiplier")
     p.add_argument("--history", type=int, default=50000)
+    p.add_argument("--measure", choices=["all", "detached", "attached"], default="all")
     p.add_argument("--out", default=str(ROOT / "build" / "bench"))
     p.add_argument("--compare", metavar="SHA", help="compare SHA.json against --against or HEAD")
     p.add_argument("--against", metavar="SHA")
+    p.add_argument("--tag", help="name of the output file instead of the git sha")
     args = p.parse_args()
     unknown = [s for s in args.scenario if s not in SCENARIOS]
     if unknown:
