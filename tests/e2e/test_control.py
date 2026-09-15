@@ -100,3 +100,14 @@ def test_empty_line_exits_and_kill_server_exits(server):
     server.cmd("kill-server")
     ctl2.expect("%exit")
     assert expect(lambda: ctl2.proc.poll() is not None or None, what="the client to exit")
+
+
+def test_line_over_64k_without_newline_disconnects(server):
+    server.start()
+    ctl = server.attach_control()
+    ctl.proc.stdin.write(b"x" * (128 * 1024))
+    ctl.proc.stdin.flush()
+    assert expect(lambda: ctl.proc.poll() is not None or None,
+                  what="the control client to be disconnected")
+    assert server.alive()
+    assert server.out("list-clients") == ""

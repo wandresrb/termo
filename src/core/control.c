@@ -132,6 +132,8 @@ struct control_state {
 /* Maximum age for clients that are not using pause mode. */
 #define CONTROL_MAXIMUM_AGE 300000
 
+static constexpr size_t CONTROL_LINE_MAX = 65536;
+
 /* Flags to ignore client. */
 #define CONTROL_IGNORE_FLAGS \
 	(CLIENT_CONTROL_NOOUTPUT| \
@@ -664,6 +666,12 @@ control_read_callback([[maybe_unused]] struct bufferevent *bufev, void *data)
 		cmdq_free_state(state);
 
 		free(line);
+	}
+	if (EVBUFFER_LENGTH(buffer) > CONTROL_LINE_MAX) {
+		log_debug("%s: %s: line over %zu bytes", __func__, c->name,
+		    CONTROL_LINE_MAX);
+		c->exit_message = xstrdup("control line too long");
+		c->flags |= CLIENT_EXIT;
 	}
 }
 
