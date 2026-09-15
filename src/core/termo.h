@@ -929,6 +929,7 @@ struct grid {
 	u_int			 scroll_generation;
 
 	struct grid_line	*linedata;
+	u_int			 lalloc;
 };
 
 /* Virtual cursor in a grid. */
