@@ -352,6 +352,23 @@ TEST(input, a_megabyte_of_garbage_does_not_break_the_parser)
 	close_pane();
 }
 
+TEST(input, pending_input_is_capped_at_the_buffer_size)
+{
+	char	*junk = xmalloc(4096);
+
+	memset(junk, ';', 4096);
+	open_pane(20, 5);
+	input_set_buffer_size(1024);
+	FEED("\033[1");
+	feed(junk, 4096);
+	CHECK_EQ(EVBUFFER_LENGTH(input_pending(wp->ictx)), 0u);
+	FEED("\033[2J\033[HOK");
+	EXPECT_ROW(0, "OK");
+	input_set_buffer_size(INPUT_BUF_DEFAULT_SIZE);
+	free(junk);
+	close_pane();
+}
+
 static struct grid_line *
 gridline(u_int y)
 {

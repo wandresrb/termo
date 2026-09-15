@@ -942,6 +942,7 @@ input_reset(struct input_ctx *ictx, int clear)
 	}
 
 	input_clear(ictx);
+	input_ground(ictx);
 
 	ictx->state = &input_state_ground;
 	ictx->flags = 0;
@@ -1019,8 +1020,15 @@ input_parse(struct input_ctx *ictx, const u_char *buf, size_t len)
 			input_set_state(ictx, itr);
 
 		/* If not in ground state, save input. */
-		if (ictx->state != &input_state_ground)
-			evbuffer_add(ictx->since_ground, &ictx->ch, 1);
+		if (ictx->state == &input_state_ground)
+			continue;
+		if (EVBUFFER_LENGTH(ictx->since_ground) >= input_buffer_size) {
+			log_debug("%s: %zu bytes pending, back to ground", __func__,
+			    input_buffer_size);
+			input_reset(ictx, 0);
+			continue;
+		}
+		evbuffer_add(ictx->since_ground, &ictx->ch, 1);
 	}
 }
 
