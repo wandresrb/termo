@@ -15,3 +15,6 @@ sit
 worktree/
 .pytest_cache/
 src/rs/target/
+subprojects/*
+!subprojects/*.wrap
+!subprojects/packagefiles/

@@ -10,6 +10,22 @@
 #![warn(clippy::pedantic)]
 #![allow(clippy::indexing_slicing)]
 
-pub mod ffi;
+#[allow(
+    unsafe_code,
+    non_camel_case_types,
+    non_upper_case_globals,
+    non_snake_case,
+    dead_code,
+    improper_ctypes,
+    clippy::all,
+    clippy::pedantic
+)]
+mod bindings {
+    #[cfg(termo_meson)]
+    include!("bindings/bindings.rs");
+    #[cfg(not(termo_meson))]
+    include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
+}
 
-pub const ABI: u32 = 1;
+pub mod ffi;
+pub mod sys;

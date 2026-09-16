@@ -73,9 +73,9 @@ jobs:
           run-clang-tidy-20 -p build -quiet -warnings-as-errors='*'
           '(src/(?!compat/)|tests/unit/).*\.c$'
       - name: rustfmt
-        run: cargo fmt --check --manifest-path src/rs/Cargo.toml
+        run: rustfmt --check --edition 2024 --config-path src/rs/rustfmt.toml src/rs/lib.rs src/rs/build.rs
       - name: clippy, zero warnings
-        run: cargo clippy --manifest-path src/rs/Cargo.toml --all-targets -- -D warnings
+        run: ninja -C build libtermo_rs.a clippy
 
   # One job per compiler: the stages are steps, so the image is pulled once and
   # the build tree never leaves the runner.
