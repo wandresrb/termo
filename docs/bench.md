@@ -82,6 +82,16 @@ detached and 1.6 s with a client.
 - The `since_ground` cap and the control-mode line cap are security fixes with no
   throughput effect; not measured.
 
+## CI
+
+The gate never runs the benchmark: a hosted runner is a fresh, noisy VM and a 10% rule
+on it would flap. The integration that fits `docs/ci.md` is a nightly `bench` job on the
+runner named by `TERMO_LINUX_RUNNER` (a persistent, self-hosted machine, so the numbers
+are comparable run to run), uploading `build/bench/<sha>.json` as an artifact kept for
+90 days and running `bench-compare` against the previous nightly's file as a warning in
+the job summary, never as a failure. It is scheduled after plan 006 step 3 lands the image
+with the toolchain, alongside `rust-verify`.
+
 ## Limits
 
 vtebench's own caveat applies: this measures the speed at which termo reads from the pty,
