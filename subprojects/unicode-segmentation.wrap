@@ -1,0 +1,9 @@
+[wrap-file]
+directory = unicode-segmentation-1.13.3
+source_url = https://crates.io/api/v1/crates/unicode-segmentation/1.13.3/download
+source_filename = unicode-segmentation-1.13.3.tar.gz
+source_hash = c6f5d3c3b1bf09027a88a6bc961fc00497d651009560b5463668dc81b0fa87a8
+patch_directory = unicode-segmentation
+
+[provide]
+dependency_names = unicode-segmentation

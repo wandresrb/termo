@@ -1,6 +1,6 @@
 # Spec 006: Rust where the bytes are untrusted, measured before moved
 
-- Status: Approved 2026-09-09
+- Status: Approved 2026-09-09; amended 2026-09-15 (facts, §8.1, §8.3, §8.6, §8.8 to §8.12, §11, Verification)
 - Intent: [`intent/006-rust.md`](../intent/006-rust.md)
 - Research: [`research/006-rust.md`](../research/006-rust.md)
 - Plan: [`plan/006-rust.md`](../plan/006-rust.md)
@@ -85,6 +85,34 @@ Measured in the tree on 2026-09-09 unless a source is named.
   the chunk under `setfenv` over a read-only `_G`. `require("ffi")` succeeds in the server.
   `src/core/fuzzy.c` is upstream's fzf-style matcher (`fuzzy_match`), used by
   `termo.api.fuzzy` and `window/switch.c`.
+- **Added 2026-09-15.** `default-client-command` (server option, default `new-session`) is
+  what a bare `termo` runs. Config runs on the global queue with no client and the first
+  client's command is blocked until `cfg_done` (`cfg.c`), so synchronous `cmd()` calls
+  from `init.lua` create sessions before that command runs; Lua's async work (`system`,
+  timers) runs after it. `server_send_exit` (`server.c`) flushes, marks clients for exit
+  and destroys sessions one by one; nothing fires before the destroy loop, and
+  `session-closed` arrives with the session already gone. `pane-command-started` and
+  `pane-command-finished` carry status and times, not the command text;
+  `#{pane_start_command}` is the pane's creation command (empty for a shell) and
+  `#{pane_current_command}` the foreground process name without arguments.
+  tmux-resurrect gets the argv with `ps -ao ppid,args` filtered by the pane pid, and
+  restores screen content by creating the pane with `cat file; exec $SHELL`.
+  `input_parse_buffer` is called only from the pty read path; `input_parse_screen` by
+  popups and copy mode. Floating panes are complete in C (`layout_floating_*`,
+  `new-pane`, `break-pane -W`, `join-pane`, `move-pane -P`, z-index, modal) with size and
+  position from per-command flags only (`layout_floating_args_parse` defaults to
+  `w->sx/2` by `w->sy/4`) and no option; `layout_dump` appends floats as `<...>` and
+  `layout_parse` then rejects the string, so a float layout does not round-trip; no
+  stacked layout exists; every `switch (lc->type)` (six in `layout.c`, five in
+  `custom.c`) assumes the three types. `status` is a session CHOICE option (`off`, `on`,
+  `2`..`5`), `status-format[]` a session array; the text of a row can be per client
+  (`#{client_key_table}`) but the row count cannot. An overlay's `overlay_key` returning
+  0 keeps it, 1 clears it, anything else clears it and processes the key, so a persistent
+  overlay cannot pass keys through. `spawn_pane` runs `default-shell` as a login shell
+  (`execl(shell, "-name")`) when the pane has no command and `$SHELL -c` otherwise;
+  Kitty and Ghostty provision their prompt hooks by environment at spawn (`ENV` plus
+  `--posix` for bash, `ZDOTDIR` for zsh, `XDG_DATA_DIRS` for fish) and both document that
+  their hooks are not applied inside tmux.
 - **Tests.** `tests/unit/test_utf8.c` has 17 cases over the decoder, packing, vis, widths
   and `combined.c`; `test_grid.c` 35 cases; `test_input.c` 38 including
   `osc133_marks_prompt_command_and_exit_status`; `tests/fuzz/input-fuzzer.c` feeds
@@ -463,6 +491,16 @@ fan-out to N clients already is.
   per-client state (count, pending operator) keyed by `ev.client`, reset on
   `client-key-table-changed`. A `modes` boolean user option (`@modes`, read by `mode.lua`)
   gates definition; `etc/termo.conf` leaves it off and `docs/example_init.lua` turns it on.
+  Amended 2026-09-15: every mode table binds `Any` to `switch-client -T` itself, so an
+  unbound key neither reaches the pane nor fires a root binding; the prefix key leaves a
+  mode (the dispatch forces the prefix table and resets to root afterwards) and
+  `mode.lua` treats that reset like `Escape`; locked mode is a session state, `set prefix
+  None` plus a root binding that restores it, so it needs no C; a `hints` user option
+  (`@hints`, `always` or `mode`, read by `mode.lua`) selects whether the second status row
+  stays while modes are on (showing the current mode's keys, or the prefix table's) or
+  appears only inside a mode. The example config's mode list (pane, window, session,
+  resize, locked) is an example, not a shipped set: the runtime ships insert, normal and
+  locked, and `termo.mode.define` builds the rest.
 - **User commands** (`runtime/lua/termo/command.lua`): `termo.command.define(name, fn(args),
   { nargs = "*", complete = fn(prefix) -> list, desc })`; registered as a
   `command-alias[N]` of `run-lua -r <ref>` with the argument string appended, so
@@ -485,22 +523,54 @@ prompt, through §4.3's accessors), and `goto-mark <id>`. Bindings live in
 output). `capture-pane` gains `-M <mark>` to capture one command's output. e2e:
 `test_screen.py` cases over a pane with OSC 133 emitted by a fixture shell script.
 
-### 8.3 `termopack` after `vim.pack` (intent axis 4)
+### 8.3 `termopack` after `vim.pack`, then lazy (intent axis 4)
 
-`runtime/lua/termo/pack.lua`: spec `{ src, name, version, data }` where `version` is a
-branch, tag, commit or `{ range = "2.x" }` resolved against `git tag` (semver compare in
-Lua); `termo-pack-lock.json` in `$XDG_CONFIG_HOME/termo/` with `{ name: { src, rev,
-version } }`, written after every install or update and read first on `setup` (a machine
-with the lockfile installs exactly those revs); `update()` fetches, lists the pending
-changes (`git log --oneline old..new` per plugin) in a `termo.ui.menu` and applies on
-confirm; `del(name)`; events `@pack-changed-pre` and `@pack-changed` with `{ name, kind =
-"install"|"update"|"delete", rev }` through `termo.emit`; every plugin is "opt": removing
-the line removes the plugin on the next `setup`. Manifest fields read: `name`, `main`,
-`version` (the plugin's own), `commands` (`{ name, desc, nargs }`, registered through
-§8.1's `termo.command` with the handler resolved from the module's return value), `keys`
-(`{ table, key, command, note }` defaults, applied unless the user's config overrides),
-`lib` (a `cdylib` path relative to the plugin dir, loaded with `ffi.load` and handed to the
-module as `plugin.lib`; §8.7). `install_dir` stays `~/.local/share/termo/pack/<name>`.
+Phase 1, `runtime/lua/termo/pack.lua`, `vim.pack` parity:
+
+- `termo.pack.setup(specs, opts)`. A spec is `"owner/repo"` or `{ src, name, version,
+  data, dependencies }`; `version` is a branch, tag, commit or `{ range = "1.x" }` resolved
+  against `git tag` with a semver compare in Lua; `opts.load` is `true` (default), `false`
+  (install and register only) or `function({ spec, path, manifest })`. `setup` is the one
+  declaration in `init.lua`; the name follows the runtime's `*.setup` convention.
+- Clone with `git clone --filter=blob:none` (history and tags present, blobs on demand);
+  `--depth 1` cannot resolve tags or list `old..new`.
+- Lockfile `termo-pack-lock.json` in `$XDG_CONFIG_HOME/termo/`, next to `init.lua`:
+  `{ name = { src, rev, version } }`, read before install, written after every change; with
+  a lockfile present `setup` installs the locked revs.
+- Install asks first: `termo.ui.confirm` on the client that starts the server; with no
+  client the plugins stay pending and are asked once, together, on the first
+  `client-attached`. `update(names, { force, offline })` fetches, resolves the target rev
+  per `version`, shows `git log --oneline old..new` per plugin in a `termo.ui.menu` and
+  applies on confirm. `del(names)` removes; `clean()` removes every installed plugin not
+  in the current list; a plugin dropped from the list is otherwise left on disk, inactive,
+  and `termo health` lists it. `get(names)` returns `{ spec, path, rev, active, load_ms }`.
+- `dependencies` (names or specs) in `termo.json` and in the user spec are installed and
+  loaded before the dependant; a cycle is an error.
+- Events `@pack-changed-pre` and `@pack-changed` with `{ name, kind = install|update|delete,
+  spec, path, rev }` through `termo.emit`.
+- Manifest fields read: `name`, `main`, `version`, `dependencies`, `lib` (a `cdylib` loaded
+  with `ffi.load`, §8.7), and the phase-2 declarations `commands`, `keys`, `formats`,
+  `events`, accepted by the parser from day one. `load_ms` is measured with `os.clock`
+  around `main` and is the number that says whether lazy pays for startup or only for
+  conditions. The chunk still runs under `setfenv` over a read-only `_G`.
+  `install_dir` stays `~/.local/share/termo/pack/<name>`.
+
+Phase 2, lazy as a layer over `load`:
+
+- The manager knows nothing about triggers. A spec with triggers is loaded with
+  `load = false`; stubs are registered; `termo.pack.load(name)` runs `main` on the first
+  trigger and is idempotent.
+- Triggers, in the user spec, with lazy.nvim's names where the analogue exists: `event`
+  (`termo.on`, one shot), `keys` (a stub bound with `keymap_set`), `cmd` (a stub in
+  `termo.command`, §8.1), `cond` (boolean or function; false keeps the plugin installed
+  and inactive), `lazy = true` (manual only); termo's own `mode` (load when a mode is
+  entered, from `client-key-table-changed`) and `format` (first evaluation of `#{name}`,
+  through `format_add`).
+- No key re-feed: the manifest declares `keys = { { table, key, command } }` and
+  `commands = { { name, desc, nargs } }` with their action, so a stub is "load, then run
+  the declared action". `send-keys -K` is not used: after a stub runs the client is back
+  in `root`, so a re-fed prefix-table key would not land in the same table.
+- A plugin is lazy iff it has triggers, in the manifest or in the spec; the spec wins.
 
 ### 8.4 Agent-aware core (intent axis 10)
 
@@ -542,10 +612,8 @@ variables matching `*_TOKEN|*_KEY|*_SECRET|AWS_*` from the child's environment.
   `termo.nvim` plugin (its own repository, Lua) uses `termo run-lua -j` and `--server` to
   open paths. Scrollback in nvim: `termo.scrollback.edit()` captures with
   `capture-pane -S - -e` to a file and opens it in a float with `nvim +$line`.
-- Sessions: `runtime/lua/termo/session.lua`: `save()` serialises sessions, windows,
-  `#{window_layout}`, pane cwd and command into `~/.local/share/termo/sessions/<name>.json`;
-  `restore(name)` replays with `new-session`, `select-layout` and `respawn-pane`;
-  autosave on a timer and on `session-closed`; `restore_all()` from `init.lua`.
+- Sessions: §8.8 (moved 2026-09-15). `termo health` also lists inactive plugins, the
+  `resurrect` mode and whether shell integration is active in the current pane.
 - Sessionizer: `termo.sessionizer.open({ dirs = {...}, depth = 2 })` lists directories
   with `termo.system("fd" or "find")`, ranks with `termo.fuzzy` (nucleo later), creates
   or switches.
@@ -557,6 +625,143 @@ Documented policy (intent decision 4): `runtime/lua/termo/pack.lua` loads `lib` 
 code aborts the server; the sandbox environment is not a security boundary. Nothing in the
 core changes; `docs/plugins.md` (new) describes the Neovim-style trust model and the
 `extern "C"` template for a Rust plugin.
+
+### 8.8 Resurrect (added 2026-09-15)
+
+- **C, two pieces.** Option `resurrect` in `options-table.c`: session scope, CHOICE
+  `off|layout|commands|screen`, default `off` (rule 3), `etc/termo.conf` sets `layout`;
+  `set -t work resurrect off` works like any session option. Event `server-exit` fired in
+  `server_send_exit` after `cmd_wait_for_flush` and before the `session_destroy` loop,
+  with a hook entry so `set-hook` and `termo.on` accept it; sinks run synchronously and
+  write with `io.open`. Nothing else in C: sessions are created with `new-session -d`,
+  `new-window`, `split-window` and `select-layout`; the foreground command comes from
+  `ps`, the screen from `capture-pane` and `cat`, as tmux-resurrect does. A parser-feed
+  command over `input_parse_buffer` and a per-platform argv in `osdep-*.c` were
+  considered and left out until a need for cursor, alternate-screen or mark fidelity
+  appears.
+- **Lua**, `runtime/lua/termo/session.lua`: `save(session)`, `save_all()`,
+  `restore(name)`, `restore_all()`, `list()`. Saving is event-driven with a debounce
+  (`window-*`, `pane-*`, `session-*`, `window-layout-changed`) plus `session-closed` and
+  `server-exit`; there is no interval. One JSON per session in
+  `~/.local/share/termo/sessions/<name>.json`. `restore_all()` runs from `init.lua` with
+  synchronous `cmd()`, so the sessions exist before the first client's command; `termo`
+  bare, `new -s` and `a -t` keep tmux's meaning.
+- **Format**, shared with §8.12:
+  `{ version = 1, name, cwd, env, options, windows = { { name, layout, active, zoomed,
+  panes = { { cwd, cmd, argv, screen } } } } }` where `layout` is the core's
+  `layout_dump` string; restore creates N panes then applies it (`layout_parse` closes
+  surplus cells, so the pane count must match). A parse error falls back to
+  `select-layout tiled`.
+- **Modes.** `layout`: sessions, windows, layouts, cwd, shell. `commands`: at save, one
+  `termo.system({ "ps", "-ao", "ppid,args" })` per save filtered by `#{pane_pid}` (POSIX,
+  every target); at restore, the command is sent with `send-keys` after
+  `pane-shell-prompt` when the shell emits OSC 133 (§8.11), else immediately (the pty
+  buffers it); filtered by option `resurrect-commands` (a string list, default
+  `vi vim view nvim emacs man less more tail top htop`). `screen`: `capture-pane -epJ -S -`
+  per pane into a file, and the pane is created with `cat file; exec <shell>` where
+  `<shell>` is `default-command` or `default-shell`.
+
+### 8.9 Floating pane options (added 2026-09-15)
+
+Window options in `options-table.c`: `float-width` and `float-height` (a number of cells
+or a percentage, the syntax of `display-popup -w`), `float-position` (CHOICE
+`centre|cursor|cascade`), `float-border-style` (STYLE), `float-border-lines` (CHOICE, the
+`popup-border-lines` list). `layout_floating_args_parse` reads them when the corresponding
+flag is absent; `new-pane -x/-y/-X/-Y/-B` keep precedence. The resize binding's
+`#{?floating_pane_flag}` in `key-bindings.c` is a wrong format name (always false) and is
+corrected to `pane_floating_flag`. Default keys go in `etc/termo.conf` (`prefix f` new
+float, `prefix F` toggle tiled/floating, `prefix C-f` front); `float.lua` keeps `setup{}`
+for the keys and `new(spec)` stops passing flags the options cover.
+
+### 8.10 Stacked panes (added 2026-09-15)
+
+A stack is a `LAYOUT_TOPBOTTOM` node with `LAYOUT_CELL_STACK` (`0x2`) whose children are
+leaves, exactly one of them without `LAYOUT_CELL_COLLAPSED` (`0x4`); a collapsed child has
+`g.sy == 1` and no separator row, so `stack.sy == (N-1) + expanded.sy`, and its single
+row is the pane's title drawn in border style. A flag rather than a new `layout_type`:
+every `switch (lc->type)` stays byte-identical (a new type means eleven new cases and an
+audit of every `if LEFTRIGHT else` chain) and only the arithmetic gets a special case,
+the `LAYOUT_CELL_FLOATING` precedent. Helpers `layout_cell_is_stack`,
+`layout_cell_is_collapsed`, `layout_stack_expanded(stack)`, `layout_stack_expand(w, wp)`.
+
+- `layout.c`: `layout_fix_offsets1` adds no `+1` between stack children;
+  `layout_fix_panes` copies offsets and `continue`s on collapsed cells (the pty keeps its
+  last size, as zoom does; `window_pane_is_visible` returns 0 for them, callers in
+  `redraw.c`, `window.c`, `select.c` audited); `layout_resize_adjust` gives all `change`
+  to the expanded child; `layout_set_size_check` and `layout_resize_child_cells` keep
+  collapsed at 1 and give the expanded `size-(N-1)`; `layout_resize_pane` on a stack
+  child resizes the stack against its neighbours; `layout_split_pane` treats a plain
+  split of a stack child as a split of the stack, and a new `SPAWN_STACK` inserts a leaf
+  into the stack (the new pane expanded) or wraps the cell in a stack node with
+  `layout_replace_with_node`; `layout_destroy_cell` gives one row to the expanded when a
+  collapsed child leaves, promotes the neighbour when the expanded leaves, and the
+  existing one-child collapse frees the node; `layout_spread_cell` returns 0 for a stack;
+  presets flatten stacks (`layout_free(w, 1)` clears the flags); zoom is unchanged, and
+  `window_set_active_pane` is where `layout_stack_expand` hooks, so selecting or zooming
+  a collapsed pane expands it; `window_pane_get_pane_status` returns `PANE_STATUS_TOP`
+  for a collapsed pane so the title machinery engages. Floats are TAILQ siblings, so a
+  float created from a stack child sits inside the node: the helpers skip floating
+  children.
+- `custom.c`: `(`...`)` for a stack node, children in order, collapsed at `sy 1`;
+  checksum unchanged; `layout_check` sums `sy` without `+1`, requires leaves and all but
+  one `sy == 1`; `layout_assign` sets `COLLAPSED` on the others. Upstream tmux rejects
+  `(` with "invalid layout", a clean failure recorded in `docs/SYNCING.md`. The `<...>`
+  float round-trip in `layout_parse` is fixed in the same change.
+- Drawing over pane-border-status: `redraw_mark_pane` marks the collapsed row as border
+  then status, `redraw_pane_status_line` returns `wp->yoff` for it, `pane-border-format`
+  with `#{pane_collapsed_flag}` renders the title, mouse control numbers come for free;
+  `window_get_active_at` gets a pass over collapsed rows so a click lands on the stack.
+- Commands: `split-window -S` and `new-pane -S` (`SPAWN_STACK`), `join-pane -S`,
+  `select-pane` expands (no flag), `select-pane -S` cycles within the stack,
+  `resize-pane` on a stack child resizes the stack, `swap-pane` keeps the expanded slot.
+  Formats `pane_stacked_flag`, `pane_collapsed_flag`, `pane_stack_index`,
+  `pane_stack_size`, `window_stacks`. No new option. Keys in `etc/termo.conf` (`M-s`
+  split into stack, `M-S` cycle) and a "Stack" entry in the pane menu.
+
+### 8.11 Shell integration (added 2026-09-15)
+
+termo provisions the OSC 133 hooks in the shells it spawns, the way Kitty and Ghostty do,
+because neither terminal's hooks survive into a pane (their scripts key on the
+terminal's `TERM` and both document that tmux gets nothing; nicm in tmux#5237 points at
+tmux's own builtin support as the path).
+
+- Scripts in `runtime/shell/`, installed with the runtime (`install_subdir('runtime')`
+  leaves the `luajit_dep.found()` block in `meson.build`). `bash/termo.bash`: guarded on
+  an interactive shell and `TERMO_SHELL_INTEGRATION`; when injected through `ENV` it
+  unsets the injection variables, restores `ENV`, leaves POSIX mode and re-sources the
+  normal startup files (login branch on `shopt -q login_shell`, Ghostty's order); bash
+  4.4 for `PS0`; `A`/`B` around `PS1`, `C` in `PS0`, `D;$?` in `PROMPT_COMMAND`.
+  `zsh/.zshenv` restores `ZDOTDIR` from `TERMO_ZSH_ZDOTDIR`, sources the user's `.zshenv`
+  and defers setup to the first `precmd` so it runs after `.zshrc`; `precmd` emits
+  `D;$?` and wraps `PS1` with `A`/`B`, `preexec` emits `C`.
+  `fish/vendor_conf.d/termo-shell-integration.fish` restores `XDG_DATA_DIRS` and hooks
+  `fish_prompt` (`A`), `fish_preexec` (`C`), `fish_postexec` (`D;$status`). Every script
+  returns early when `PS1` already contains `133;` or Kitty's or Ghostty's state
+  variables exist, so hand-sourced hooks are not doubled.
+- C: one static `spawn_shell_integration(new_wp, child)` in `src/core/spawn.c`, on the
+  path where the pane runs `default-shell` with no command: basename of `new_wp->shell`
+  in `{bash, zsh, fish}`, `/bin/bash` skipped on macOS (Apple's 3.2); sets
+  `TERMO_SHELL_INTEGRATION=1`, `TERMO_SHELL_DIR`, and per shell `ENV` (saving the old
+  one in `TERMO_BASH_ENV`, `TERMO_BASH_INJECT=1`, `--posix` added to the `execl`),
+  `ZDOTDIR` (old in `TERMO_ZSH_ZDOTDIR`) or `XDG_DATA_DIRS` (old in
+  `TERMO_FISH_XDG_DATA_DIR`), each only when the script is readable. `default-command`
+  and `split-window 'cmd'` are untouched. `termo_runtime_dir()` in `src/core/util.c`
+  replaces the static in `src/lua/runtime.c` so both the Lua runtime and the spawn path
+  resolve `TERMO_RUNTIME` or the installed `datadir` the same way.
+- Option `shell-integration`: session scope, CHOICE `off|detect|bash|zsh|fish`, default
+  `off` (rule 3); `etc/termo.conf` sets `detect`. Per pane or session escape hatch:
+  `TERMO_SHELL_INTEGRATION=0` in the environment (`set-environment`, `new-window -e`).
+- Forwarding: `input_osc_133` keeps swallowing the marks as tmux does; nothing reaches
+  the outer terminal in this item.
+
+### 8.12 Layouts as data and swap layouts (added 2026-09-15)
+
+`termo.layout.apply(table)` accepts, next to today's `{ dir, ... }` tree, a window entry
+of the §8.8 format (name, `layout` string, panes with `cwd` and `cmd`);
+`termo.layout.dump(window)` returns one. `termo.layout.save(name)` and `load(name)` keep
+them in `~/.config/termo/layouts/<name>.json`; `termo.layout.swap()` cycles through the
+saved layouts whose pane count matches the window, over `select-layout` with the stored
+string. No option: the directory is the list.
 
 ## 9. Auxiliary executables (out of process)
 
@@ -602,7 +807,9 @@ lands with its C twin still compiled and a fuzzer comparing them"), the `-Drust`
 ported-by-hand rule for `utf8/`, the grid accessor refactor, copy-mode additions.
 `docs/plugins.md`: manifest schema, lockfile, native plugins. `docs/man/termo.1`: `-S`,
 new `-X` commands, `capture-pane -M`, the new options (`unicode-width-cjk`,
-`agent-idle-time`, `sandbox-profile`), `client-key-table-changed`, mode 2027.
+`agent-idle-time`, `sandbox-profile`, `resurrect`, `resurrect-commands`,
+`shell-integration`, the `float-*` options), `client-key-table-changed`, `server-exit`,
+mode 2027, `split-window -S` and the other stack flags, the `(...)` layout string.
 `docs/api.md` regenerated for the new `termo.api` functions (`notify`, `sandbox`).
 
 ## Verification
@@ -630,3 +837,16 @@ new `-X` commands, `capture-pane -M`, the new options (`unicode-width-cjk`,
 - `clang-tidy` job renamed `lint` runs clang-tidy, `cargo fmt --check` and
   `cargo clippy -- -D warnings`; nightly `rust-verify` and the ASan-instrumented fuzz run
   are green on the first dispatch.
+- Added 2026-09-15: Lua specs for `pack` (range, lockfile round trip, confirm on install
+  and update, `del` and `clean`, a dependency loads first, events, every lazy trigger),
+  `session` (a two-window session with layouts and cwds round-trips; `server-exit` fires
+  on `kill-server` and the file is written), `layout` (dump/apply round trip equals
+  `#{window_layout}`; swap cycles two saved layouts); e2e: a server started with a fixture
+  `init.lua` restores a saved session before `attach` succeeds, `commands` mode re-sends
+  an allowlisted command, `screen` mode shows the captured text; a bash, zsh or fish
+  pane (each skipped when absent) sets `#{pane_last_prompt_time}` and reports the exit
+  status of `false` in `capture-pane -M`, `ZDOTDIR` is restored, the option off leaves
+  the environment untouched, a non-shell command is not injected; a float created
+  without flags gets the option sizes; the stack cases named in the plan's row 24; the
+  hint bar stays with `@hints=always` and disappears with `mode`; a `bind -n` root key
+  does not fire inside a mode.

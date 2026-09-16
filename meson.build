@@ -503,23 +503,53 @@ c_args += supported_c_args
 
 rs_link = []
 if have_rust
-  rs_args = ['--edition=2024', '-Cpanic=abort', '-Coverflow-checks=on']
+  rust = import('rust')
+  bindgen_c_args = c_args
+  if host_os == 'darwin'
+    sdk = run_command(find_program('xcrun'), '--show-sdk-path', check: true).stdout().strip()
+    bindgen_c_args += ['-isysroot', sdk]
+  endif
+  termo_bindings = rust.bindgen(
+    input: files('src/rs/bindings/wrapper.h'),
+    output: 'bindings.rs',
+    output_inline_wrapper: 'bindings_inline.c',
+    include_directories: inc_dirs,
+    dependencies: deps,
+    c_args: bindgen_c_args,
+    bindgen_version: ['>= 0.71'],
+    args: ['--allowlist-file', '.*termo[.]h', '--rust-edition', '2024',
+           '--rust-target', '1.85', '--use-core', '--no-layout-tests',
+           '--no-doc-comments',
+           '--rustified-enum', 'utf8_state|hanguljamo_state',
+           '--constified-enum-module', 'grid_attr|grid_flag|grid_line_flag|grid_string_flag'],
+  )
+  termo_bindings_glue = static_library('termo_bindings_glue', termo_bindings[1],
+    include_directories: inc_dirs,
+    dependencies: deps,
+    c_args: c_args + ['-Wno-missing-prototypes'],
+  )
+  rs_args = ['--edition=2024', '-Cpanic=abort', '-Coverflow-checks=on',
+             '--cfg', 'termo_meson', '--check-cfg', 'cfg(termo_meson)']
   termo_rs = static_library(
     'termo_rs',
-    files('src/rs/lib.rs'),
+    structured_sources(files('src/rs/lib.rs', 'src/rs/sys.rs'), {
+      'ffi': files('src/rs/ffi/mod.rs', 'src/rs/ffi/version.rs'),
+      'bindings': termo_bindings[0],
+    }),
     rust_abi: 'c',
     rust_args: rs_args,
+    dependencies: [dependency('unicode-width'), dependency('unicode-segmentation')],
   )
   cbindgen = find_program('cbindgen', required: true)
   termo_rs_h = custom_target('termo_rs.h',
-    input: files('src/rs/lib.rs'),
+    input: files('src/rs/ffi/mod.rs'),
     output: 'termo_rs.h',
-    depend_files: files('src/rs/ffi/mod.rs', 'src/rs/ffi/version.rs', 'src/rs/cbindgen.toml'),
+    depend_files: files('src/rs/ffi/version.rs', 'src/rs/cbindgen.toml'),
     command: [cbindgen, '--quiet', '--config', files('src/rs/cbindgen.toml'),
               '--output', '@OUTPUT@', '@INPUT@'],
   )
   sources += termo_rs_h
-  rs_link = [termo_rs]
+  rs_link = [termo_rs, termo_bindings_glue]
 endif
 
 # Everything except main() as a library: the binary, the unit tests and the

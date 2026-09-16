@@ -937,6 +937,13 @@ struct grid {
 };
 
 /* Virtual cursor in a grid. */
+static_assert(sizeof(struct utf8_data) == 35);
+static_assert(sizeof(struct grid_cell) == 56);
+static_assert(sizeof(struct grid_cell_entry) == 5);
+static_assert(sizeof(struct grid_extd_entry) == 23);
+static_assert(sizeof(struct grid_line) == 40);
+static_assert(sizeof(struct grid) == 56);
+
 struct grid_reader {
 	struct grid	*gd;
 	u_int		 cx;

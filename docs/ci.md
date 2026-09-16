@@ -41,8 +41,9 @@ image ─────────────────────┼─► g
   nightly toolchain with `miri` used only by `nightly.yml`; `RUSTUP_HOME`,
   `CARGO_HOME` and `MIRI_SYSROOT` live under `/usr/local` so the toolchain does not
   depend on `HOME`, which GitHub sets to `/github/home` inside a container. The gate
-  configures with `-Drust=enabled`; the `clang-tidy` job also runs `cargo fmt --check`
-  and `cargo clippy -- -D warnings` on `src/rs/`. Releases and the gate never use
+  configures with `-Drust=enabled`; the `clang-tidy` job also runs `rustfmt --check` and
+  Meson's `ninja clippy` target on `src/rs/`. `meson setup` downloads the vendored crates
+  (`subprojects/*.wrap`) from crates.io, so the gate needs network at configure time. Releases and the gate never use
   nightly.
 
 Nothing in the gate installs a toolchain on Linux: `ci/Dockerfile.ubuntu` is the
