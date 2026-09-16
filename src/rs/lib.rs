@@ -29,3 +29,4 @@ mod bindings {
 
 pub mod ffi;
 pub mod sys;
+pub mod utf8;

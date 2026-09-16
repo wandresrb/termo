@@ -507,7 +507,10 @@ if have_rust
     dependencies: deps,
     c_args: bindgen_c_args,
     bindgen_version: ['>= 0.71'],
-    args: ['--allowlist-file', '.*termo[.]h', '--rust-edition', '2024',
+    args: ['--allowlist-file', '.*termo[.]h', '--allowlist-file', '.*compat[.]h',
+           '--allowlist-file', '.*/vis[.]h', '--allowlist-var', 'VIS_.*',
+           '--allowlist-function', 'wcwidth|wctomb|mbtowc|malloc|free|vis',
+           '--rust-edition', '2024',
            '--rust-target', '1.85', '--use-core', '--no-layout-tests',
            '--no-doc-comments',
            '--rustified-enum', 'utf8_state|hanguljamo_state',
@@ -519,11 +522,13 @@ if have_rust
     c_args: c_args + ['-Wno-missing-prototypes'],
   )
   rs_args = ['--edition=2024', '-Cpanic=abort', '-Coverflow-checks=on',
-             '--cfg', 'termo_meson', '--check-cfg', 'cfg(termo_meson)']
+             '--cfg', 'termo_meson', '--check-cfg', 'cfg(test)',
+             '--check-cfg', 'cfg(termo_meson)']
   termo_rs = static_library(
     'termo_rs',
     structured_sources(files('src/rs/lib.rs', 'src/rs/sys.rs'), {
       'ffi': files('src/rs/ffi/mod.rs', 'src/rs/ffi/version.rs'),
+      'utf8': files('src/rs/utf8/mod.rs'),
       'bindings': termo_bindings[0],
     }),
     rust_abi: 'c',
