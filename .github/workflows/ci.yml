@@ -72,6 +72,10 @@ jobs:
         run: >
           run-clang-tidy-20 -p build -quiet -warnings-as-errors='*'
           '(src/(?!compat/)|tests/unit/).*\.c$'
+      - name: rustfmt
+        run: cargo fmt --check --manifest-path src/rs/Cargo.toml
+      - name: clippy, zero warnings
+        run: cargo clippy --manifest-path src/rs/Cargo.toml --all-targets -- -D warnings
 
   # One job per compiler: the stages are steps, so the image is pulled once and
   # the build tree never leaves the runner.
@@ -108,7 +112,7 @@ jobs:
       - name: configure
         run: >
           meson setup build -Db_sanitize=address,undefined -Dbuildtype=debugoptimized
-          -Dwerror=true -De2e=enabled
+          -Dwerror=true -De2e=enabled -Drust=enabled
       - name: build
         run: ninja -C build
       - name: ccache stats
@@ -149,7 +153,7 @@ jobs:
           persist-credentials: false
       - name: dependencies
         run: |
-          brew install meson ninja bison pkgconf ccache libevent ncurses utf8proc luajit
+          brew install meson ninja bison pkgconf ccache libevent ncurses utf8proc luajit rust cbindgen bindgen
           python3 -m venv .venv
           .venv/bin/pip install --quiet pytest
           echo "$PWD/.venv/bin" >> "$GITHUB_PATH"
@@ -161,7 +165,7 @@ jobs:
       - name: configure
         run: >
           meson setup build -Db_sanitize=address,undefined -Dbuildtype=debugoptimized
-          -Dwerror=true -De2e=enabled
+          -Dwerror=true -De2e=enabled -Drust=enabled
       - name: build
         run: ninja -C build
       - name: ccache stats

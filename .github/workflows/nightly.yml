@@ -80,6 +80,8 @@ jobs:
             opts: -Dluajit=disabled -Dutf8proc=disabled
           - name: sixel-release
             opts: -Dsixel=true -Dbuildtype=release
+          - name: no-rust
+            opts: -Drust=disabled
     env:
       CC: gcc-14
     steps:
@@ -95,6 +97,25 @@ jobs:
           name: logs-${{ matrix.name }}
           path: build/meson-logs/testlog.txt
           if-no-files-found: ignore
+
+  rust-verify:
+    name: miri on the Rust modules
+    needs: image
+    runs-on: ${{ vars.TERMO_LINUX_RUNNER || 'ubuntu-24.04' }}
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: read
+    container:
+      image: ghcr.io/${{ github.repository }}-ci-ubuntu:${{ needs.image.outputs.ubuntu }}
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - run: cargo +nightly miri test --manifest-path src/rs/Cargo.toml
 
   alpine:
     name: alpine musl gcc
@@ -134,8 +155,12 @@ jobs:
         with:
           usesh: true
           copyback: false
-          prepare: pkg install -y meson ninja bison pkgconf libevent utf8proc luajit python3 py311-pytest
+          prepare: |
+            pkg install -y meson ninja bison pkgconf libevent utf8proc luajit python3 py311-pytest curl
+            curl -fsSL https://sh.rustup.rs -o /tmp/rustup.sh
+            sh /tmp/rustup.sh -y --no-modify-path --profile minimal --default-toolchain 1.98.0
           run: |
+            export PATH=$HOME/.cargo/bin:$PATH
             meson setup build -Dwerror=true -De2e=enabled
             ninja -C build
             meson test -C build --print-errorlogs

@@ -36,6 +36,15 @@ image ─────────────────────┼─► g
   minutes on code that fails on Linux. It is the development platform, which is
   why it stays in the gate.
 
+- Rust: the Ubuntu image carries rustup with stable 1.98.0 (`clippy`, `rustfmt`,
+  `rust-src`), `bindgen-cli`, `cbindgen` and `libclang-20-dev` for the gate, plus a
+  nightly toolchain with `miri` used only by `nightly.yml`; `RUSTUP_HOME`,
+  `CARGO_HOME` and `MIRI_SYSROOT` live under `/usr/local` so the toolchain does not
+  depend on `HOME`, which GitHub sets to `/github/home` inside a container. The gate
+  configures with `-Drust=enabled`; the `clang-tidy` job also runs `cargo fmt --check`
+  and `cargo clippy -- -D warnings` on `src/rs/`. Releases and the gate never use
+  nightly.
+
 Nothing in the gate installs a toolchain on Linux: `ci/Dockerfile.ubuntu` is the
 toolchain, and a change to it is a new image tag. A pull request from a fork runs
 with a read-only token, so it can pull an existing image but not push a new one;
@@ -46,8 +55,10 @@ steps in the same image with Docker or Podman.
 ## Nightly: `nightly.yml`
 
 Cron and `workflow_dispatch`: fuzzing (10 min per target), build variants
-(`-Dluajit=disabled -Dutf8proc=disabled`, `-Dsixel=true` release), the Alpine musl build, FreeBSD in
-`vmactions/freebsd-vm`. The container jobs run on the runner named by the
+(`-Dluajit=disabled -Dutf8proc=disabled`, `-Dsixel=true` release, `-Drust=disabled`),
+`rust-verify` (`cargo +nightly miri test` on `src/rs/`), the Alpine musl build (rustup in
+the image, apk's Rust is 1.87), FreeBSD in `vmactions/freebsd-vm` (rustup installed in
+`prepare`, ports carry 1.94). The container jobs run on the runner named by the
 repository variable `TERMO_LINUX_RUNNER`; unset, that is `ubuntu-24.04`.
 
 ## Scanning

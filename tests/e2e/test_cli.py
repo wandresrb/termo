@@ -10,7 +10,7 @@ CONF = ROOT / "etc/termo.conf"
 
 def test_version_prints_project_version(termo_bin, project_version):
     r = subprocess.run([str(termo_bin), "-V"], capture_output=True, text=True, check=True)
-    assert r.stdout == f"termo {project_version}\n"
+    assert re.fullmatch(rf"termo {re.escape(project_version)}(\+rust)?\n", r.stdout)
 
 
 def test_termo_conf_defaults(server):

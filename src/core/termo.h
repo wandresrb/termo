@@ -30,6 +30,10 @@
 
 
 #include "compat.h"
+
+#ifdef HAVE_RUST
+#include "termo_rs.h"
+#endif
 #include "termo-protocol.h"
 #include "xmalloc.h"
 
