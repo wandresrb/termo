@@ -19,3 +19,5 @@ targets.sh upstream tightened relative window targets after termo's base (3.8); 
 tty-keys.sh upstream changed meta key decoding for ESC-prefixed punctuation after termo's base (3.8); lands with the next upstream sync
 window-ops.sh upstream changed new-window -S index reuse after termo's base (3.8); lands with the next upstream sync
 switch-mode.sh upstream added switch mode features after termo's base (3.8); lands with the next upstream sync
+hooks-notify.sh upstream changed the pane-exited payload after termo's base (3.8); lands with the next upstream sync
+format-variables.sh upstream checks #{version} against its own version string and then hangs; lands with the next upstream sync

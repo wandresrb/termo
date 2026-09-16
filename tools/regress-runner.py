@@ -38,14 +38,14 @@ def run_one(script, regress_dir, env, timeout):
     start = time.time()
     proc = subprocess.Popen(["sh", script], cwd=regress_dir, env=env,
                             stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                            text=True)
+                            text=True, start_new_session=True)
     try:
         out, _ = proc.communicate(timeout=timeout)
         rc = proc.returncode
     except subprocess.TimeoutExpired:
-        proc.kill()
+        os.killpg(proc.pid, signal.SIGKILL)
         out, _ = proc.communicate()
-        out += f"\n[runner] timeout after {timeout}s\n"
+        out += f"\n[runner] timeout after {timeout}s, process group killed\n"
         rc = "timeout"
     leaked = kill_leftovers(proc.pid)
     if leaked:
