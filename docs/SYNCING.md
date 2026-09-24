@@ -232,3 +232,36 @@ libutil changes and syncing those files into `compat/` as appropriate.
    Makefile. Commit it, and run `make` to replace `%%RELEASE%%`. Push the
    result out.
 7. Change version back to master in `configure.ac`.
+
+## termo divergences from upstream
+
+Recorded so an upstream cherry-pick that touches the same lines is ported, not merged.
+
+- `src/core/key-bindings.c`: the default `M-Up`, `M-Left`, `C-Up` and `C-Left` resize
+  bindings test `#{pane_floating_flag}`; upstream tests `#{?floating_pane_flag}`, a format
+  that does not exist, so its floating branch never ran.
+- `src/layout/layout.c` `layout_floating_args_parse`: reads the window options
+  `float-width`, `float-height` and `float-position` when `new-pane` is given no
+  `-x`, `-y`, `-X` or `-Y`.
+- `src/server/client.c` `server_client_set_key_table` fires `client-key-table-changed`
+  (hook, Lua event, `%client-key-table-changed` in control mode) when the table name
+  changes, and `src/cmd/session/switch.c` sets `switch-client -T` through it instead of
+  assigning `tc->keytable` directly, so every table change is observed.
+- `src/server/server.c` `server_send_exit` fires `server-exit` (a hook) before destroying
+  the sessions. `src/cmd/session/attach.c`: when `-t` names a session that does not exist,
+  `attach-session` asks Lua (`termo_lua_session_revive`) to restore it from its resurrect
+  file and queues itself again; otherwise the error is upstream's. `resurrect` and
+  `resurrect-commands` are session options read only by Lua.
+- Stacked panes (`stack-pane`, `src/cmd/pane/stack.c`, which reuses `cmd_split_window_exec`
+  and `cmd_join_pane_exec`, both made non-static, with `SPAWN_STACK`):
+  `LAYOUT_CELL_STACK` on a `LAYOUT_TOPBOTTOM` cell and `LAYOUT_CELL_COLLAPSED` on its
+  leaf children (`termo.h`); special cases in `layout_fix_offsets1`, `layout_fix_panes`,
+  `layout_resize_adjust`, `layout_set_size_check`, `layout_resize_child_cells`,
+  `layout_resize_pane`, `layout_split_pane` (plus `layout_split_stack`),
+  `layout_destroy_cell`, `layout_spread_cell`, `layout_free_cell`; the layout string
+  uses `(`...`)` for a stack node (`custom.c` dump, check, construct and assign), which
+  upstream rejects as "invalid layout"; `window_pane_is_visible` is false for a
+  collapsed pane, `window_set_active_pane` expands it, `window_get_active_at` hits its
+  title row, the neighbour searches skip it; `redraw.c` marks the collapsed row as a
+  border with the pane's status line. A cherry-pick into any of these ports around the
+  stack branches.

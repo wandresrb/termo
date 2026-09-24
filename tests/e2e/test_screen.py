@@ -52,7 +52,7 @@ def test_copy_mode_vi_word_motions_copy_selection(server):
 
 
 def test_copy_mode_vi_keys_through_client_table(server):
-    server.start(conf=ROOT / "etc/termo.conf", command=TWO_LINES)
+    server.start(conf=ROOT / "runtime/lua/termo/defaults.lua", command=TWO_LINES)
     expect_screen(server, None, ["A line of words", "second line here"])
     server.cmd("copy-mode")
     ctl = server.attach_control()

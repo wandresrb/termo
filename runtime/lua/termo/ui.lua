@@ -28,11 +28,10 @@ function M.prompt(label, fn, opts)
 	return api.prompt(label, fn, opts)
 end
 
--- confirm("question", fn(yes)): one key, y or n.
-function M.confirm(question, fn)
+function M.confirm(question, fn, opts)
 	return api.prompt(question .. " (y/n)", function(text)
 		fn(text ~= nil and text:lower() == "y")
-	end, { single = true })
+	end, { single = true, client = opts and opts.client })
 end
 
 return M

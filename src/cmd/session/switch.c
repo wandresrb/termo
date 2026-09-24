@@ -100,9 +100,7 @@ cmd_switch_client_exec(struct cmd *self, struct cmdq_item *item)
 			cmdq_error(item, "table %s doesn't exist", tablename);
 			return (CMD_RETURN_ERROR);
 		}
-		table->references++;
-		key_bindings_unref_table(tc->keytable);
-		tc->keytable = table;
+		server_client_set_key_table(tc, tablename);
 		return (CMD_RETURN_NORMAL);
 	}
 

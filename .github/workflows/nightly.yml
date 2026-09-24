@@ -40,7 +40,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - run: meson setup build -Dfuzz=enabled -Db_sanitize=address,undefined -Dluajit=disabled
+      - run: meson setup build -Dfuzz=enabled -Db_sanitize=address,undefined
       - run: ninja -C build
       - name: fuzz 10 minutes per target
         run: |
@@ -76,8 +76,8 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - name: no-luajit-no-utf8proc
-            opts: -Dluajit=disabled -Dutf8proc=disabled
+          - name: no-utf8proc
+            opts: -Dutf8proc=disabled
           - name: sixel-release
             opts: -Dsixel=true -Dbuildtype=release
     env:

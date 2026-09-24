@@ -11,7 +11,7 @@ end)
 describe("list", function()
 	it("documents every function", function()
 		local list = api.list()
-		eq(#list, 24)
+		eq(#list, 27)
 		for _, f in ipairs(list) do
 			eq(type(api[f.name]), "function")
 			eq(type(f.signature), "string")

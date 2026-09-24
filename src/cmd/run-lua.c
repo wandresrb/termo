@@ -19,8 +19,8 @@ const struct cmd_entry cmd_run_lua_entry = {
 	.name = "run-lua",
 	.alias = NULL,
 
-	.args = { "f:jr:", 0, 1, NULL },
-	.usage = "[-j] [-f path | -r ref] [code]",
+	.args = { "f:jr:", 0, -1, NULL },
+	.usage = "[-j] [-f path | -r ref [argument ...]] [code]",
 
 	.flags = CMD_AFTERHOOK,
 	.exec = cmd_run_lua_exec
@@ -40,7 +40,7 @@ cmd_run_lua_exec(struct cmd *self, struct cmdq_item *item)
 			cmdq_error(item, "ref is %s", errstr);
 			return (CMD_RETURN_ERROR);
 		}
-		if (termo_lua_keymap_run(item, ref) != 0)
+		if (termo_lua_keymap_run(item, ref, args) != 0)
 			return (CMD_RETURN_ERROR);
 		return (CMD_RETURN_NORMAL);
 	}

@@ -1607,6 +1607,8 @@ struct layout_cell {
 
 	int			 flags;
 #define LAYOUT_CELL_FLOATING 0x1
+#define LAYOUT_CELL_STACK 0x2
+#define LAYOUT_CELL_COLLAPSED 0x4
 
 	struct layout_cell	*parent;
 
@@ -2562,6 +2564,7 @@ struct spawn_context {
 #define SPAWN_SPLIT 0x400
 #define SPAWN_MODAL 0x800
 #define SPAWN_FLOATOVERZOOM 0x1000
+#define SPAWN_STACK 0x2000
 };
 
 /* Paste buffer. */
@@ -2652,6 +2655,7 @@ extern char **cfg_files;
 extern u_int cfg_nfiles;
 extern int cfg_quiet;
 void	start_cfg(void);
+void	cfg_select_files(void);
 int	load_cfg(const char *, struct client *, struct cmdq_item *,
             struct cmd_find_state *, int, struct cmdq_item **);
 int	load_cfg_from_buffer(const void *, size_t, const char *,
@@ -3201,6 +3205,9 @@ struct window_pane *cmd_mouse_pane(struct mouse_event *, struct session **,
 char		*cmd_template_replace(const char *, const char *, int);
 
 /* cmd-attach-session.c */
+extern const struct cmd_entry cmd_stack_pane_entry;
+enum cmd_retval	 cmd_split_window_exec(struct cmd *, struct cmdq_item *);
+enum cmd_retval	 cmd_join_pane_exec(struct cmd *, struct cmdq_item *);
 enum cmd_retval	 cmd_attach_session(struct cmdq_item *, const char *, int, int,
 		     int, const char *, int, const char *);
 
@@ -3815,6 +3822,8 @@ void		 window_pane_update_prompt(struct window_pane *, const char *,
 enum prompt_key_result window_pane_prompt_key(struct window_pane *,
 		     struct client *, key_code, struct mouse_event *);
 int		 window_pane_is_visible(struct window_pane *);
+int		 window_pane_is_collapsed(struct window_pane *);
+struct window_pane *window_pane_stack_next(struct window_pane *);
 int		 window_pane_exited(struct window_pane *);
 u_int		 window_pane_search(struct window_pane *, const char *, int,
 		     int);
@@ -3899,6 +3908,12 @@ void		 layout_make_leaf(struct layout_cell *, struct window_pane *);
 void		 layout_make_node(struct layout_cell *, enum layout_type);
 void		 layout_fix_zindexes(struct window *, struct layout_cell *);
 int		 layout_cell_is_tiled(struct layout_cell *);
+int		 layout_cell_is_stack(struct layout_cell *);
+int		 layout_cell_is_collapsed(struct layout_cell *);
+struct layout_cell *layout_stack_of(struct window_pane *);
+struct layout_cell *layout_stack_expanded(struct layout_cell *);
+u_int		 layout_stack_size(struct layout_cell *);
+void		 layout_stack_expand(struct window *, struct window_pane *);
 int		 layout_add_horizontal_border(struct layout_cell *,
 		     struct layout_cell *, int);
 void		 layout_fix_offsets(struct window *);

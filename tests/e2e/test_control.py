@@ -100,3 +100,15 @@ def test_empty_line_exits_and_kill_server_exits(server):
     server.cmd("kill-server")
     ctl2.expect("%exit")
     assert expect(lambda: ctl2.proc.poll() is not None or None, what="the client to exit")
+
+
+def test_client_key_table_changed_notification(server):
+    server.start()
+    ctl = server.attach_control()
+    server.cmd("switch-client", "-c", ctl.client_name(), "-T", "prefix")
+    note = ctl.expect("%client-key-table-changed")
+    assert note.args == [ctl.client_name(), "prefix"]
+    server.cmd("switch-client", "-c", ctl.client_name(), "-T", "prefix")
+    server.cmd("switch-client", "-c", ctl.client_name(), "-T", "root")
+    note = ctl.expect("%client-key-table-changed", lambda n: n.args[1] == "root")
+    assert note.args == [ctl.client_name(), "root"]

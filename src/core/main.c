@@ -321,6 +321,8 @@ main(int argc, char **argv)
 			usage(1);
 		}
 	}
+	if (!fflag)
+		cfg_select_files();
 	argc -= optind;
 	argv += optind;
 

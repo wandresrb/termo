@@ -2,8 +2,10 @@
 
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 #include "termo.h"
+#include "lua/runtime.h"
 #include "harness.h"
 #include "test.h"
 
@@ -20,15 +22,30 @@ load(const char *text)
 }
 
 static int
-load_termo_conf(void)
+load_termo_defaults(void)
 {
 	int	rc;
 
-	rc = load_cfg(TERMO_SOURCE_ROOT "/etc/termo.conf", nullptr, nullptr,
-	    nullptr, 0, nullptr);
-	while (cmdq_next(nullptr) != 0)
-		;
+	setenv("TERMO_RUNTIME", TERMO_SOURCE_ROOT "/runtime", 1);
+	termo_lua_init();
+	rc = load_cfg(TERMO_SOURCE_ROOT "/runtime/lua/termo/defaults.lua",
+	    nullptr, nullptr, nullptr, 0, nullptr);
+	termo_test_drain();
 	return (rc);
+}
+
+static char *
+write_conf(const char *text)
+{
+	char	*path = xstrdup("/tmp/termo-test-cfg-XXXXXX");
+	int	 fd = mkstemp(path);
+
+	if (fd != -1) {
+		if (write(fd, text, strlen(text)) != (ssize_t)strlen(text))
+			path[0] = '\0';
+		close(fd);
+	}
+	return (path);
 }
 
 TEST(cfg, parse_error_is_reported)
@@ -65,15 +82,16 @@ TEST(cfg, parseonly_does_not_execute)
 	CHECK_EQ(options_get_number(global_s_options, "base-index"), old);
 }
 
-TEST(cfg, termo_conf_loads_clean)
+TEST(cfg, termo_defaults_load_clean)
 {
 	u_int	before = cfg_ncauses;
 
-	CHECK_EQ(load_termo_conf(), 0);
+	CHECK_EQ(load_termo_defaults(), 0);
 	CHECK_EQ(cfg_ncauses, before);
+	termo_lua_free();
 }
 
-TEST(cfg, termo_conf_sets_every_promised_default)
+TEST(cfg, termo_defaults_set_every_promised_default)
 {
 	struct options_entry		*e;
 	struct options_array_item	*item;
@@ -83,7 +101,7 @@ TEST(cfg, termo_conf_sets_every_promised_default)
 	char				*s;
 	u_int				 n = 0;
 
-	REQUIRE_EQ(load_termo_conf(), 0);
+	REQUIRE_EQ(load_termo_defaults(), 0);
 
 	CHECK_EQ(options_get_number(global_s_options, "history-limit"), 50000);
 	CHECK_EQ(options_get_number(global_s_options, "renumber-windows"), 1);
@@ -120,13 +138,33 @@ TEST(cfg, termo_conf_sets_every_promised_default)
 	s = cmd_list_print(bd->cmdlist, 0);
 	CHECK_EQ(s, "send-keys -X copy-pipe-and-cancel");
 	free(s);
+
+	CHECK_EQ(options_get_number(global_s_options, "resurrect"), 1);
+	table = key_bindings_get_table("prefix", 0);
+	REQUIRE_NONNULL(table);
+	bd = key_bindings_get(table, 'f');
+	REQUIRE_NONNULL(bd);
+	s = cmd_list_print(bd->cmdlist, 0);
+	CHECK_EQ(s, "new-pane");
+	free(s);
+	bd = key_bindings_get(table, 's'|KEYC_META);
+	REQUIRE_NONNULL(bd);
+	s = cmd_list_print(bd->cmdlist, 0);
+	CHECK_EQ(s, "stack-pane");
+	free(s);
+	termo_lua_free();
 }
 
 TEST(cfg, source_file_nests_and_reports_missing)
 {
-	u_int	before = cfg_ncauses;
+	u_int	 before = cfg_ncauses;
+	char	*conf = write_conf("set -g history-limit 50000\n");
+	char	*line;
 
-	CHECK_EQ(load("source-file " TERMO_SOURCE_ROOT "/etc/termo.conf\n"), 0);
+	REQUIRE(conf[0] != '\0');
+	xasprintf(&line, "source-file %s\n", conf);
+	CHECK_EQ(load(line), 0);
+	free(line);
 	/*
 	 * file_read completes from an event_once callback, and the sourced
 	 * commands only run on the queue pass after it.
@@ -141,11 +179,14 @@ TEST(cfg, source_file_nests_and_reports_missing)
 
 	CHECK_EQ(load("source-file -q /nonexistent.conf\n"), 0);
 	CHECK_EQ(cfg_ncauses, before + 1);
+	unlink(conf);
+	free(conf);
 }
 
 TEST(cfg, load_cfg_missing_file_quiet_only_with_flag)
 {
-	u_int	before = cfg_ncauses;
+	u_int	 before = cfg_ncauses;
+	char	*conf;
 
 	CHECK_EQ(load_cfg("/nonexistent/termo.conf", nullptr, nullptr, nullptr,
 	    0, nullptr), -1);
@@ -154,11 +195,15 @@ TEST(cfg, load_cfg_missing_file_quiet_only_with_flag)
 	    CMD_PARSE_QUIET, nullptr), 0);
 	CHECK_EQ(cfg_ncauses, before + 1);
 
-	CHECK_EQ(load_cfg(TERMO_SOURCE_ROOT "/etc/termo.conf", nullptr, nullptr,
-	    nullptr, CMD_PARSE_PARSEONLY, nullptr), 0);
+	conf = write_conf("set -g history-limit 50000\n");
+	REQUIRE(conf[0] != '\0');
+	CHECK_EQ(load_cfg(conf, nullptr, nullptr, nullptr, CMD_PARSE_PARSEONLY,
+	    nullptr), 0);
 	termo_test_drain();
 	CHECK_EQ(options_get_number(global_s_options, "history-limit"), 2000);
 	CHECK_EQ(cfg_ncauses, before + 1);
+	unlink(conf);
+	free(conf);
 }
 
 TEST(cfg, add_cause_and_print_causes_drain)

@@ -502,6 +502,306 @@ TEST(layout, floating_args_parse_defaults_and_cascades)
 	drop_window(w);
 }
 
+TEST(layout, floating_args_parse_reads_the_float_options)
+{
+	struct window		*w = make_window(80, 24, 1);
+	struct args		*args = args_create();
+	struct layout_geometry	 lg = { UINT_MAX, UINT_MAX, INT_MAX, INT_MAX };
+	char			*cause = nullptr;
+
+	options_set_string(global_w_options, "float-width", 0, "%s", "60");
+	options_set_string(global_w_options, "float-height", 0, "%s", "50%");
+	options_set_number(global_w_options, "float-position", 1);
+
+	CHECK_EQ(layout_floating_args_parse(nullptr, args, PANE_LINES_SINGLE, w,
+	    &lg, &cause), 0);
+	CHECK_EQ(lg.sx, 58u);
+	CHECK_EQ(lg.sy, 10u);
+	CHECK_EQ(lg.xoff, 11);
+	CHECK_EQ(lg.yoff, 7);
+	CHECK_EQ(w->last_new_pane_x, 0u);
+	CHECK_NULL(cause);
+
+	options_set_string(global_w_options, "float-width", 0, "%s", "wide");
+	lg = (struct layout_geometry){ UINT_MAX, UINT_MAX, INT_MAX, INT_MAX };
+	CHECK_EQ(layout_floating_args_parse(nullptr, args, PANE_LINES_SINGLE, w,
+	    &lg, &cause), -1);
+	REQUIRE(cause != nullptr);
+	CHECK_EQ(strncmp(cause, "float-width", 11), 0);
+	free(cause);
+
+	options_set_string(global_w_options, "float-width", 0, "%s", "");
+	options_set_string(global_w_options, "float-height", 0, "%s", "");
+	options_set_number(global_w_options, "float-position", 0);
+	args_free(args);
+	drop_window(w);
+}
+
+static struct window_pane *
+stack_pane(struct window *w, struct window_pane *wp)
+{
+	struct layout_cell	*lc;
+	struct window_pane	*new;
+
+	lc = layout_split_pane(wp, LAYOUT_TOPBOTTOM, -1, SPAWN_STACK);
+	if (lc == nullptr)
+		return (nullptr);
+	new = window_add_pane(w, wp, 0, 0);
+	layout_assign_pane(lc, new, 0);
+	return (new);
+}
+
+static u_short
+test_layout_checksum(const char *layout)
+{
+	u_short	csum = 0;
+
+	for (; *layout != '\0'; layout++) {
+		csum = (csum >> 1) + ((csum & 1) << 15);
+		csum += *layout;
+	}
+	return (csum);
+}
+
+TEST(layout, stack_split_marks_one_expanded_and_collapsed_rows)
+{
+	struct window		*w = make_window(80, 24, 1);
+	struct window_pane	*a = w->active, *b, *c;
+
+	b = stack_pane(w, a);
+	REQUIRE_NONNULL(b);
+	REQUIRE_NONNULL(layout_stack_of(a));
+	CHECK(layout_stack_of(a) == layout_stack_of(b));
+	CHECK_EQ(layout_cell_is_collapsed(a->layout_cell), 1);
+	CHECK_EQ(layout_cell_is_collapsed(b->layout_cell), 0);
+	CHECK_EQ(a->layout_cell->g.sy, 1u);
+	CHECK_EQ(a->layout_cell->g.yoff, 0);
+	CHECK_EQ(b->layout_cell->g.sy, 23u);
+	CHECK_EQ(b->layout_cell->g.yoff, 1);
+	CHECK_EQ(b->sy, 23u);
+	CHECK_EQ(a->sy, 24u);
+	CHECK_EQ(window_pane_is_visible(a), 0);
+	CHECK_EQ(window_pane_is_visible(b), 1);
+
+	c = stack_pane(w, b);
+	REQUIRE_NONNULL(c);
+	CHECK_EQ(layout_stack_size(layout_stack_of(c)), 3u);
+	CHECK_EQ(layout_cell_is_collapsed(b->layout_cell), 1);
+	CHECK_EQ(b->layout_cell->g.sy, 1u);
+	CHECK_EQ(b->layout_cell->g.yoff, 1);
+	CHECK_EQ(c->layout_cell->g.sy, 22u);
+	CHECK_EQ(c->layout_cell->g.yoff, 2);
+	drop_window(w);
+}
+
+TEST(layout, stack_expand_swaps_and_keeps_the_stack_height)
+{
+	struct window		*w = make_window(80, 24, 1);
+	struct window_pane	*a = w->active, *b;
+
+	b = stack_pane(w, a);
+	REQUIRE_NONNULL(b);
+	layout_stack_expand(w, a);
+	CHECK_EQ(layout_cell_is_collapsed(a->layout_cell), 0);
+	CHECK_EQ(a->layout_cell->g.sy, 23u);
+	CHECK_EQ(a->layout_cell->g.yoff, 0);
+	CHECK_EQ(a->sy, 23u);
+	CHECK_EQ(layout_cell_is_collapsed(b->layout_cell), 1);
+	CHECK_EQ(b->layout_cell->g.yoff, 23);
+
+	window_set_active_pane(w, b, 0);
+	CHECK_EQ(layout_cell_is_collapsed(b->layout_cell), 0);
+	CHECK_EQ(b->layout_cell->g.sy, 23u);
+	CHECK_EQ(b->layout_cell->g.yoff, 1);
+	CHECK_EQ(layout_cell_is_collapsed(a->layout_cell), 1);
+	CHECK_EQ(a->layout_cell->g.yoff, 0);
+	drop_window(w);
+}
+
+TEST(layout, stack_window_resize_changes_the_expanded_only)
+{
+	struct window		*w = make_window(80, 24, 1);
+	struct window_pane	*a = w->active, *b;
+
+	b = stack_pane(w, a);
+	REQUIRE_NONNULL(b);
+	layout_resize(w, 60, 30);
+	CHECK_EQ(a->layout_cell->g.sy, 1u);
+	CHECK_EQ(a->layout_cell->g.sx, 60u);
+	CHECK_EQ(b->layout_cell->g.sy, 29u);
+	CHECK_EQ(b->layout_cell->g.sx, 60u);
+	CHECK_EQ(w->layout_root->g.sy, 30u);
+	drop_window(w);
+}
+
+TEST(layout, stack_resize_pane_on_a_collapsed_pane_resizes_the_stack)
+{
+	struct window		*w = make_window(80, 24, 2);
+	struct window_pane	*a = TAILQ_FIRST(&w->panes), *b;
+	struct window_pane	*c = TAILQ_LAST(&w->panes, window_panes);
+
+	b = stack_pane(w, a);
+	REQUIRE_NONNULL(b);
+	CHECK_EQ(a->layout_cell->g.sx, 40u);
+	layout_resize_pane(a, LAYOUT_LEFTRIGHT, 5, 0);
+	CHECK_EQ(a->layout_cell->g.sx, 45u);
+	CHECK_EQ(b->layout_cell->g.sx, 45u);
+	CHECK_EQ(layout_stack_of(a)->g.sx, 45u);
+	CHECK_EQ(c->layout_cell->g.sx, 34u);
+	CHECK_EQ(a->layout_cell->g.sy, 1u);
+	drop_window(w);
+}
+
+TEST(layout, stack_destroying_the_expanded_promotes_the_neighbour)
+{
+	struct window		*w = make_window(80, 24, 1);
+	struct window_pane	*a = w->active, *b;
+
+	b = stack_pane(w, a);
+	REQUIRE_NONNULL(b);
+	layout_close_pane(b);
+	CHECK(w->layout_root == a->layout_cell);
+	CHECK_EQ(w->layout_root->type, LAYOUT_WINDOWPANE);
+	CHECK_EQ(a->layout_cell->flags, 0);
+	CHECK_EQ(a->layout_cell->g.sy, 24u);
+	CHECK_EQ(a->sy, 24u);
+	drop_window(w);
+}
+
+TEST(layout, stack_destroying_a_collapsed_pane_gives_its_row_back)
+{
+	struct window		*w = make_window(80, 24, 1);
+	struct window_pane	*a = w->active, *b, *c;
+
+	b = stack_pane(w, a);
+	REQUIRE_NONNULL(b);
+	c = stack_pane(w, b);
+	REQUIRE_NONNULL(c);
+	layout_close_pane(a);
+	CHECK_EQ(layout_stack_size(layout_stack_of(c)), 2u);
+	CHECK_EQ(layout_cell_is_collapsed(b->layout_cell), 1);
+	CHECK_EQ(b->layout_cell->g.yoff, 0);
+	CHECK_EQ(c->layout_cell->g.sy, 23u);
+	CHECK_EQ(c->layout_cell->g.yoff, 1);
+	drop_window(w);
+}
+
+TEST(layout, stack_plain_split_treats_the_stack_as_one_tile)
+{
+	struct window		*w = make_window(80, 24, 1);
+	struct window_pane	*a = w->active, *b, *c, *d;
+	struct layout_cell	*lc, *stack;
+
+	b = stack_pane(w, a);
+	REQUIRE_NONNULL(b);
+	stack = layout_stack_of(b);
+	lc = layout_split_pane(b, LAYOUT_LEFTRIGHT, -1, 0);
+	REQUIRE_NONNULL(lc);
+	c = window_add_pane(w, b, 0, 0);
+	layout_assign_pane(lc, c, 0);
+	CHECK(layout_stack_of(b) == stack);
+	CHECK_EQ(stack->g.sx, 40u);
+	CHECK_EQ(a->layout_cell->g.sx, 40u);
+	CHECK_EQ(b->layout_cell->g.sx, 40u);
+	CHECK_EQ(b->layout_cell->g.sy, 23u);
+	CHECK_EQ(c->layout_cell->g.sx, 39u);
+	CHECK_EQ(c->layout_cell->g.xoff, 41);
+	CHECK_EQ(layout_cell_is_collapsed(a->layout_cell), 1);
+
+	lc = layout_split_pane(a, LAYOUT_TOPBOTTOM, -1, 0);
+	REQUIRE_NONNULL(lc);
+	d = window_add_pane(w, a, 0, 0);
+	layout_assign_pane(lc, d, 0);
+	CHECK_EQ(stack->g.sy, 12u);
+	CHECK_EQ(a->layout_cell->g.sy, 1u);
+	CHECK_EQ(b->layout_cell->g.sy, 11u);
+	CHECK_EQ(d->layout_cell->g.yoff, 13);
+	CHECK_EQ(d->layout_cell->g.sy, 11u);
+	drop_window(w);
+}
+
+TEST(layout, stack_dump_uses_parens_and_parses_back)
+{
+	struct window		*w = make_window(80, 24, 1);
+	struct window_pane	*a = w->active, *b;
+	char			*dump, *again, *cause = nullptr;
+
+	b = stack_pane(w, a);
+	REQUIRE_NONNULL(b);
+	dump = layout_dump(w, w->layout_root);
+	REQUIRE_NONNULL(dump);
+	CHECK_NONNULL(strstr(dump, "80x24,0,0(80x1,0,0,"));
+	CHECK_EQ(dump[strlen(dump) - 1], ')');
+
+	CHECK_EQ(layout_parse(w, dump, &cause), 0);
+	CHECK_NULL(cause);
+	CHECK_EQ(layout_cell_is_collapsed(a->layout_cell), 1);
+	CHECK_EQ(layout_cell_is_collapsed(b->layout_cell), 0);
+	CHECK_NONNULL(layout_stack_of(a));
+	again = layout_dump(w, w->layout_root);
+	CHECK_EQ(again, dump);
+	free(again);
+	free(dump);
+	drop_window(w);
+}
+
+TEST(layout, stack_parse_rejects_two_expanded_children)
+{
+	struct window	*w = make_window(80, 24, 2);
+	const char	*body = "80x24,0,0(80x12,0,0,80x12,0,12)";
+	char		*layout, *cause = nullptr;
+
+	xasprintf(&layout, "%04hx,%s", test_layout_checksum(body), body);
+	CHECK_EQ(layout_parse(w, layout, &cause), -1);
+	REQUIRE_NONNULL(cause);
+	free(cause);
+	free(layout);
+	drop_window(w);
+}
+
+TEST(layout, stack_presets_flatten_and_clear_collapsed)
+{
+	struct window		*w = make_window(80, 24, 1);
+	struct window_pane	*a = w->active, *b;
+
+	b = stack_pane(w, a);
+	REQUIRE_NONNULL(b);
+	layout_set_select(w, layout_set_lookup("even-horizontal"));
+	CHECK_NULL(layout_stack_of(a));
+	CHECK_NULL(layout_stack_of(b));
+	CHECK_EQ(layout_cell_is_collapsed(a->layout_cell), 0);
+	CHECK_EQ(a->layout_cell->g.sy, 24u);
+	drop_window(w);
+}
+
+TEST(layout, stack_spread_out_leaves_the_stack_alone)
+{
+	struct window		*w = make_window(80, 24, 1);
+	struct window_pane	*a = w->active, *b;
+
+	b = stack_pane(w, a);
+	REQUIRE_NONNULL(b);
+	layout_spread_out(a);
+	CHECK_EQ(a->layout_cell->g.sy, 1u);
+	CHECK_EQ(b->layout_cell->g.sy, 23u);
+	drop_window(w);
+}
+
+TEST(layout, stack_neighbour_search_skips_collapsed_panes)
+{
+	struct window		*w = make_window(80, 24, 2);
+	struct window_pane	*a = TAILQ_FIRST(&w->panes), *b;
+	struct window_pane	*c = TAILQ_LAST(&w->panes, window_panes);
+
+	b = stack_pane(w, a);
+	REQUIRE_NONNULL(b);
+	CHECK(window_pane_find_left(c) == b);
+	CHECK(window_pane_stack_next(b) == a);
+	CHECK(window_pane_stack_next(a) == b);
+	CHECK(window_pane_stack_next(c) == c);
+	drop_window(w);
+}
+
 TEST(layout, cell_get_neighbour_prefers_next_and_skips_floating)
 {
 	struct window		*w = make_window(80, 24, 3);

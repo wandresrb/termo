@@ -43,8 +43,8 @@ lua_cmd_start([[maybe_unused]] struct cmdq_item *item, void *data)
 static struct cmdq_item	*anchor_item;
 static struct cmdq_item	*anchor_last;
 
-static struct cmdq_item *
-lua_cmd_insert(struct cmdq_item *item, struct cmdq_item *first)
+struct cmdq_item *
+termo_lua_cmd_insert(struct cmdq_item *item, struct cmdq_item *first)
 {
 	struct cmdq_item	*after = item;
 
@@ -127,9 +127,9 @@ lua_cmd_queue(struct cmd_list *cmdlist, int ref)
 	first = cmdq_get_command(cmdlist, lc->state);
 	cb = cmdq_get_callback(lua_cmd_done, lc);
 	if (item != nullptr) {
-		lua_cmd_insert(item, start);
-		lua_cmd_insert(item, first);
-		lua_cmd_insert(item, cb);
+		termo_lua_cmd_insert(item, start);
+		termo_lua_cmd_insert(item, first);
+		termo_lua_cmd_insert(item, cb);
 	} else {
 		cmdq_append(c, start);
 		cmdq_append(c, first);
@@ -150,7 +150,7 @@ api_cmd(lua_State *L)
 
 	if (item != nullptr) {
 		new_item = cmdq_get_command(cmdlist, cmdq_get_state(item));
-		lua_cmd_insert(item, new_item);
+		termo_lua_cmd_insert(item, new_item);
 		cmd_list_free(cmdlist);
 		return (0);
 	}

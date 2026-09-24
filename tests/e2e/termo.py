@@ -103,6 +103,7 @@ class Server:
             "MallocNanoZone": "0",
             "TERMO_RUNTIME": os.environ.get("TERMO_RUNTIME", str(ROOT / "runtime")),
             "XDG_CONFIG_HOME": str(xdg),
+            "XDG_DATA_HOME": str(self.tmpdir / "xdg-data"),
         })
 
     def argv(self, *args: str) -> list[str]:

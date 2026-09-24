@@ -26,9 +26,12 @@ termo.keymap = require("termo.keymap")
 termo.opt = require("termo.opt")
 termo.ui = require("termo.ui")
 termo.layout = require("termo.layout")
+termo.mode = require("termo.mode")
 termo.hints = require("termo.hints")
 termo.palette = require("termo.palette")
 termo.float = require("termo.float")
+termo.command = require("termo.command")
 termo.pack = require("termo.pack")
+termo.session = require("termo.session")
 
 return termo

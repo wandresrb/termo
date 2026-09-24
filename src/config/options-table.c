@@ -81,6 +81,12 @@ static const char *options_table_pane_border_lines_list[] = {
 static const char *options_table_popup_border_lines_list[] = {
 	"single", "double", "heavy", "simple", "rounded", "padded", "none", NULL
 };
+static const char *options_table_resurrect_list[] = {
+	"off", "on", "layout", "commands", "screen", NULL
+};
+static const char *options_table_float_position_list[] = {
+	"cascade", "centre", NULL
+};
 static const char *options_table_set_clipboard_list[] = {
 	"off", "external", "on", NULL
 };
@@ -789,6 +795,26 @@ const struct options_table_entry options_table[] = {
 	  .default_str = "",
 	  .text = "Default command to run in new panes. If empty, a shell is "
 		  "started."
+	},
+
+	{ .name = "resurrect",
+	  .type = OPTIONS_TABLE_CHOICE,
+	  .scope = OPTIONS_TABLE_SESSION,
+	  .choices = options_table_resurrect_list,
+	  .default_num = 0,
+	  .text = "What the Lua session module saves and restores across a "
+		  "server restart: 'layout' saves windows, layouts and working "
+		  "directories, 'commands' also the command running in each pane "
+		  "if it is in resurrect-commands, 'screen' also the pane "
+		  "contents."
+	},
+
+	{ .name = "resurrect-commands",
+	  .type = OPTIONS_TABLE_STRING,
+	  .scope = OPTIONS_TABLE_SESSION,
+	  .default_str = "vi vim view nvim emacs man less more tail top htop",
+	  .text = "Space-separated program names that resurrect 'commands' "
+		  "mode runs again in a restored pane."
 	},
 
 	{ .name = "default-shell",
@@ -1691,6 +1717,34 @@ const struct options_table_entry options_table[] = {
 		  "these are only supported on terminals with UTF-8 support."
 	},
 
+	{ .name = "float-width",
+	  .type = OPTIONS_TABLE_STRING,
+	  .scope = OPTIONS_TABLE_WINDOW,
+	  .default_str = "",
+	  .text = "Width of a new floating pane when new-pane is given no -x, "
+		  "in columns or as a percentage of the window. Empty means half "
+		  "the window."
+	},
+
+	{ .name = "float-height",
+	  .type = OPTIONS_TABLE_STRING,
+	  .scope = OPTIONS_TABLE_WINDOW,
+	  .default_str = "",
+	  .text = "Height of a new floating pane when new-pane is given no -y, "
+		  "in lines or as a percentage of the window. Empty means a "
+		  "quarter of the window."
+	},
+
+	{ .name = "float-position",
+	  .type = OPTIONS_TABLE_CHOICE,
+	  .scope = OPTIONS_TABLE_WINDOW,
+	  .choices = options_table_float_position_list,
+	  .default_num = 0,
+	  .text = "Where a new floating pane goes when new-pane is given no -X "
+		  "or -Y: 'cascade' steps down and right from the last one, "
+		  "'centre' centres it in the window."
+	},
+
 	{ .name = "remain-on-exit",
 	  .type = OPTIONS_TABLE_CHOICE,
 	  .scope = OPTIONS_TABLE_WINDOW|OPTIONS_TABLE_PANE,
@@ -1973,6 +2027,11 @@ const struct options_table_entry options_table[] = {
 	    "Run when a client is closed."),
 	OPTIONS_TABLE_HOOK("client-detached", "",
 	    "Run when a client is detached."),
+	OPTIONS_TABLE_HOOK("server-exit", "",
+	    "Run when the server is about to exit, before its sessions are "
+	    "destroyed."),
+	OPTIONS_TABLE_HOOK("client-key-table-changed", "",
+	    "Run when a client's key table changes."),
 	OPTIONS_TABLE_HOOK("client-focus-in", "",
 	    "Run when focus enters a client."),
 	OPTIONS_TABLE_HOOK("client-focus-out", "",

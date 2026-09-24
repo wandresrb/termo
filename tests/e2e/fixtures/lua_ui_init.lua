@@ -68,3 +68,15 @@ termo.emit("@ui_ready")
 termo.keymap.set("F4", function()
 	api.cmd("set -g @from_cmd yes")
 end)
+
+termo.mode.setup{ hints = "mode" }
+termo.mode.define("spec", {
+	key = "M",
+	keys = {
+		h = { "set -g @mode_h hit", "left" },
+	},
+})
+termo.keymap.root("F3", "set -g @root_fired yes")
+termo.command.define("c2p", function(args)
+	api.set_option("@c2p", table.concat(args, ","))
+end, { nargs = 1 })

@@ -23,11 +23,8 @@ unit_sources = files(
 )
 unit_modules = ['compat', 'options', 'cfg', 'format', 'regsub', 'scan', 'utf8', 'grid',
                 'colour', 'style', 'key_string', 'arguments', 'layout',
-                'screen_write', 'input']
-if luajit_dep.found()
-  unit_sources += files('unit/test_lua.c')
-  unit_modules += 'lua'
-endif
+                'screen_write', 'input', 'lua']
+unit_sources += files('unit/test_lua.c')
 termo_test = executable('termo-test', unit_sources,
   include_directories: [inc_dirs, include_directories('unit')],
   dependencies: deps,
@@ -40,25 +37,22 @@ foreach m : unit_modules
 endforeach
 
 # Lua specs inside a real server (TAP relayed by run-lua)
-if luajit_dep.found()
-  test('lua', find_program('sh'), args: [files('lua/run.sh'), termo_exe],
-    suite: 'lua', protocol: 'tap', timeout: 60, priority: 50)
-endif
+test('lua', find_program('sh'), args: [files('lua/run.sh'), termo_exe],
+  suite: 'lua', protocol: 'tap', timeout: 60, priority: 50)
 
 # End-to-end: pytest drives the binary over its socket, control mode and a
 # pty. One test per module; every server has its own socket, so they run in
-# parallel. The Lua modules skip themselves on a build without LuaJIT.
+# parallel.
 py_e2e = pymod.find_installation('python3', modules: ['pytest'], required: get_option('e2e'))
 if py_e2e.found()
   e2e_env = {
     'TERMO_BIN': termo_exe.full_path(),
     'TERMO_RUNTIME': meson.project_source_root() / 'runtime',
-    'TERMO_HAS_LUA': luajit_dep.found() ? '1' : '0',
     'TERMO_E2E_TIMEOUT_SCALE': get_option('b_sanitize').contains('address') ? '3' : '1',
     'TERMO_E2E_UNDER_MESON': '1',
     'PYTHONDONTWRITEBYTECODE': '1',
   }
-  foreach m : ['cli', 'session', 'control', 'screen', 'layout', 'lua', 'lua_ui']
+  foreach m : ['cli', 'session', 'control', 'screen', 'layout', 'lua', 'lua_ui', 'resurrect']
     test('e2e-' + m, py_e2e,
       args: ['-m', 'pytest', '-q', '-p', 'no:cacheprovider',
              '--junitxml=' + meson.project_build_root() / 'meson-logs' / 'e2e-' + m + '.xml',

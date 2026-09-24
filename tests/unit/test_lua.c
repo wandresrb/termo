@@ -135,7 +135,7 @@ TEST(lua, api_version_and_list)
 {
 	start();
 	EXPECT("return termo.api.version()", getversion());
-	EXPECT("return #termo.api.list()", "24");
+	EXPECT("return #termo.api.list()", "27");
 	EXPECT("return termo.api.list()[1].name", "version");
 	EXPECT("return type(termo.api.list()[3].signature)", "string");
 	EXPECT("return termo.version()", getversion());

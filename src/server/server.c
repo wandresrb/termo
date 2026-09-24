@@ -34,9 +34,7 @@
 #include <unistd.h>
 
 #include "termo.h"
-#ifdef HAVE_LUAJIT
 #include "lua/runtime.h"
-#endif
 
 /*
  * Main server functions.
@@ -220,9 +218,7 @@ server_start(struct tmuxproc *client, uint64_t flags, struct event_base *base,
 	key_bindings_init();
 	control_build_events();
 	hooks_build_events();
-#ifdef HAVE_LUAJIT
 	termo_lua_init();
-#endif
 	TAILQ_INIT(&message_log);
 	gettimeofday(&start_time, NULL);
 
@@ -265,9 +261,7 @@ server_start(struct tmuxproc *client, uint64_t flags, struct event_base *base,
 
 	job_kill_all();
 	prompt_save_history();
-#ifdef HAVE_LUAJIT
 	termo_lua_free();
-#endif
 
 	exit(0);
 }
@@ -326,6 +320,7 @@ server_send_exit(void)
 	struct session	*s, *s1;
 
 	cmd_wait_for_flush();
+	events_fire("server-exit", event_payload_create());
 
 	TAILQ_FOREACH_SAFE(c, &clients, entry, c1) {
 		if (c->flags & CLIENT_SUSPENDED)

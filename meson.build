@@ -115,6 +115,7 @@ cmd_sources = files(
   'src/cmd/pane/resize.c',
   'src/cmd/pane/respawn.c',
   'src/cmd/pane/select.c',
+  'src/cmd/pane/stack.c',
   'src/cmd/pane/swap.c',
   # session
   'src/cmd/session/new.c',
@@ -278,32 +279,25 @@ if utf8proc_dep.found()
   deps += utf8proc_dep
 endif
 
-# Optional LuaJIT (Phase 2 foundation)
-luajit_opt = get_option('luajit')
-luajit_dep = dependency('luajit', version: '>=2.1', required: luajit_opt)
-if luajit_dep.found()
-  deps += luajit_dep
-  sources += files('src/lua/runtime.c', 'src/lua/api.c', 'src/lua/cmd.c',
-    'src/lua/events.c', 'src/lua/keymap.c', 'src/lua/timer.c',
-    'src/lua/format.c', 'src/lua/ui.c', 'src/cmd/run-lua.c')
-  install_subdir('runtime', install_dir: get_option('datadir') / 'termo')
-endif
+luajit_dep = dependency('luajit', version: '>=2.1')
+deps += luajit_dep
+sources += files('src/lua/runtime.c', 'src/lua/api.c', 'src/lua/cmd.c',
+  'src/lua/events.c', 'src/lua/keymap.c', 'src/lua/timer.c',
+  'src/lua/format.c', 'src/lua/ui.c', 'src/cmd/run-lua.c')
+install_subdir('runtime', install_dir: get_option('datadir') / 'termo')
 
 # Optional Sixel support
 if get_option('sixel')
   sources += files('src/image/image.c', 'src/image/sixel.c')
 endif
 
-sysconf_dir = get_option('prefix') / get_option('sysconfdir')
-install_data('etc/termo.conf', install_dir: sysconf_dir / 'termo')
 
 # Global C definitions & flags
 c_args = [
   '-DTERMO_VERSION="' + meson.project_version() + '"',
   '-DTMUX_VERSION="' + meson.project_version() + '"',
-  '-DTMUX_CONF="' + sysconf_dir / 'termo/termo.conf' +
-    ':~/.config/termo/termo.conf:~/.config/tmux/tmux.conf:~/.tmux.conf' +
-    ':~/.config/termo/init.lua"',
+  '-DTMUX_CONF="~/.config/termo/init.lua:~/.config/termo/termo.conf' +
+    ':~/.config/tmux/tmux.conf:~/.tmux.conf"',
   '-DTERMO_RUNTIME="' + get_option('prefix') / get_option('datadir') / 'termo/runtime"',
   '-DTMUX_LOCK_CMD="lock -np"',
   '-DTMUX_TERM="screen"',
@@ -325,10 +319,6 @@ endif
 
 if utf8proc_dep.found()
   c_args += '-DHAVE_UTF8PROC=1'
-endif
-
-if luajit_dep.found()
-  c_args += '-DHAVE_LUAJIT=1'
 endif
 
 # Always needed compatibility shims

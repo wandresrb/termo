@@ -137,12 +137,22 @@ may not be specified.
 Specify an alternative configuration file.
 By default,
 .Nm
-loads the system configuration file from
-.Pa @SYSCONFDIR@/tmux.conf ,
-if present, then looks for a user configuration file at
-.Pa \[ti]/.tmux.conf
-or
-.Pa $XDG_CONFIG_HOME/tmux/tmux.conf .
+loads its own defaults from
+.Pa lua/termo/defaults.lua
+in the runtime directory, then exactly one user configuration file, the first
+that exists of
+.Pa \[ti]/.config/termo/init.lua ,
+.Pa \[ti]/.config/termo/termo.conf ,
+.Pa \[ti]/.config/tmux/tmux.conf
+and
+.Pa \[ti]/.tmux.conf .
+If
+.Pa init.lua
+exists together with one of the others, it is loaded and the conflict is
+reported as E5422.
+With
+.Fl f ,
+only the files given are loaded, termo's defaults included only if named.
 .Pp
 The configuration file is a set of
 .Nm
@@ -1094,7 +1104,10 @@ attach to
 .Ar target\-session
 in the current terminal.
 .Ar target\-session
-must already exist - to create a new session, see the
+must already exist, unless it is a session saved by
+.Ic resurrect
+that is not running: then it is restored first and attached.
+To create a new session, see the
 .Ic new\-session
 command (with
 .Fl A
@@ -4036,6 +4049,8 @@ to
 .Ic swap\-pane
 and
 .Ic swap\-window .
+Selecting a collapsed pane in a stack expands it (see
+.Ic stack\-pane ) .
 .Tg selectw
 .It Xo Ic select\-window
 .Op Fl lnpT
@@ -4059,6 +4074,51 @@ If
 is given and the selected window is already the current window,
 the command behaves like
 .Ic last\-window .
+.Tg stackp
+.It Xo Ic stack\-pane
+.Op Fl nP
+.Op Fl c Ar start\-directory
+.Op Fl e Ar environment
+.Op Fl F Ar format
+.Op Fl s Ar src\-pane
+.Op Fl t Ar target\-pane
+.Op Ar shell\-command Op Ar argument ...
+.Xc
+.D1 Pq alias: Ic stackp
+Stack panes.
+The panes of a stack share one cell of the layout: one of them is expanded and
+the others collapse to a single row showing their title (the
+.Ic pane\-border\-format ) .
+Selecting a collapsed pane expands it and collapses the previous one; a stack
+appears in the layout string between parentheses, which tmux does not read.
+.Pp
+Without
+.Fl s
+or
+.Fl n ,
+a new pane running
+.Ar shell\-command
+is stacked on
+.Ar target\-pane ,
+which becomes a stack if it is not in one, and the new pane is expanded;
+.Fl c ,
+.Fl e ,
+.Fl P
+and
+.Fl F
+are as for
+.Ic split\-window .
+With
+.Fl s ,
+.Ar src\-pane
+is moved into the stack of
+.Ar target\-pane
+instead.
+With
+.Fl n ,
+the next pane in the stack of
+.Ar target\-pane
+is expanded and selected.
 .Tg splitw
 .It Xo Ic split\-window
 .Op Fl bdefhIkPvZ
@@ -5746,6 +5806,62 @@ set, and once for areas outside the window with
 .Ql is_outside
 set.
 .Pp
+.It Xo Ic resurrect
+.Op Ic off | on | layout | commands | screen
+.Xc
+What the Lua session module saves for this session.
+Nothing is restored when the server starts: a saved session that is not running
+is restored by
+.Ic attach\-session
+with its name, by
+.Ql termo.session.revive(name)
+or from the palette entry
+.Ql Saved sessions .
+.Ic layout ,
+or
+.Ic on ,
+saves windows, their layouts and each pane's working directory;
+.Ic commands
+also types again at the prompt, without running it, the program each pane was
+running when its name is in
+.Ic resurrect\-commands ;
+.Ic screen
+also restores the pane contents.
+A session is written 30 seconds after a structural change, only when it
+changed, and when the server exits; each write replaces the file atomically and
+synchronises it to disk.
+A session that is killed stays saved until
+.Ql termo.session.del(name)
+or
+.Ql termo.session.clean() .
+.It Ic resurrect\-commands Ar programs
+Space-separated program names that
+.Ic resurrect
+.Ic commands
+runs again.
+.It Ic float\-width Ar width
+.It Ic float\-height Ar height
+Set the size of a floating pane created by
+.Ic new\-pane
+when it is given no
+.Fl x
+or
+.Fl y ,
+as a number of columns or lines or as a percentage of the window.
+Empty means half the window's width and a quarter of its height.
+.It Xo Ic float\-position
+.Op Ic cascade | centre
+.Xc
+Where
+.Ic new\-pane
+puts a floating pane when it is given no
+.Fl X
+or
+.Fl Y :
+.Ic cascade
+steps each new pane down and right from the previous one,
+.Ic centre
+centres it in the window.
 .It Ic main\-pane\-height Ar height
 .It Ic main\-pane\-width Ar width
 Set the width or height of the main (left or top) pane in the
@@ -6459,6 +6575,9 @@ Run when a client is closed.
 Run when a client is created.
 .It client\-detached
 Run when a client is detached.
+.It client\-key\-table\-changed
+Run when a client's key table changes, for example on entering the prefix
+table or a mode, and when the client returns to the root table.
 .It client\-focus\-in
 Run when focus enters a client.
 .It client\-focus\-out
@@ -6521,6 +6640,8 @@ escape sequence.
 Run when an OSC 133 shell prompt starts in a pane.
 .It pane\-title\-changed
 Run when a pane title is changed.
+.It server\-exit
+Run when the server is about to exit, before its sessions are destroyed.
 .It session\-closed
 Run when a session is closed.
 .It session\-created
@@ -7396,6 +7517,7 @@ The following variables are available, where appropriate:
 .It Li "pane_command_running" Ta "" Ta "1 if an OSC 133 command is running"
 .It Li "pane_command_start_time" Ta "" Ta "Time current or most recent OSC 133 command started"
 .It Li "pane_command_status" Ta "" Ta "Exit status from most recent OSC 133 command"
+.It Li "pane_collapsed_flag" Ta "" Ta "1 if pane is collapsed in a stack"
 .It Li "pane_current_command" Ta "" Ta "Current command if available"
 .It Li "pane_current_path" Ta "" Ta "Current path if available"
 .It Li "pane_dead" Ta "" Ta "1 if pane is dead"
@@ -7430,6 +7552,9 @@ The following variables are available, where appropriate:
 .It Li "pane_pb_progress" Ta "" Ta "Pane progress bar progress percentage (can be set by application)"
 .It Li "pane_right" Ta "" Ta "Right of pane"
 .It Li "pane_search_string" Ta "" Ta "Last search string in copy mode"
+.It Li "pane_stack_index" Ta "" Ta "Position of pane in its stack"
+.It Li "pane_stack_size" Ta "" Ta "Number of panes in the stack"
+.It Li "pane_stacked_flag" Ta "" Ta "1 if pane is in a stack"
 .It Li "pane_start_command" Ta "" Ta "Command pane started with"
 .It Li "pane_start_command_list" Ta "" Ta "Command pane started with, quoted"
 .It Li "pane_start_path" Ta "" Ta "Path pane started with"
@@ -7531,6 +7656,7 @@ The following variables are available, where appropriate:
 .It Li "window_raw_flags" Ta "" Ta "Window flags with nothing escaped"
 .It Li "window_silence_flag" Ta "" Ta "1 if window has silence alert"
 .It Li "window_stack_index" Ta "" Ta "Index in session most recent stack"
+.It Li "window_stacks" Ta "" Ta "Number of pane stacks in window"
 .It Li "window_start_flag" Ta "" Ta "1 if window has the lowest index"
 .It Li "window_visible_layout" Ta "" Ta "Window layout description, respecting zoomed window panes"
 .It Li "window_width" Ta "" Ta "Width of window"
@@ -8807,7 +8933,7 @@ If the command fails, the exit status is also displayed.
 .Tg wait
 .It Xo Ic run\-lua
 .Op Fl j
-.Op Fl f Ar path | Fl r Ar ref
+.Op Fl f Ar path | Fl r Ar ref Op Ar argument ...
 .Op Ar code
 .Xc
 Run Lua inside the server.
@@ -8830,6 +8956,18 @@ runs the function a key was bound to with
 and is what
 .Ic list-keys
 shows for such bindings; it is not meant to be typed.
+The same form backs the commands defined with
+.Ic termo.command.define ,
+which are
+.Ic command\-alias
+entries of
+.Ql run-lua -r
+keyed by the command's name, so
+.Ql name arguments
+works from the
+.Ic command\-prompt ,
+.Ic bind\-key ,
+control mode and the command line, and the arguments reach the function.
 The
 .Ic termo.api
 table holds the functions available to Lua;
@@ -9113,6 +9251,9 @@ The following notifications are defined:
 .Bl -tag -width Ds
 .It Ic %client\-detached Ar client
 The client has detached.
+.It Ic %client\-key\-table\-changed Ar client table
+The client's key table is now
+.Ar table .
 .It Ic %client\-session\-changed Ar client session\-id name
 The client is now attached to the session with ID
 .Ar session\-id ,
@@ -9338,14 +9479,13 @@ options.
 .El
 .Sh FILES
 .Bl -tag -width "@SYSCONFDIR@/tmux.confXXX" -compact
-.It Pa \[ti]/.tmux.conf
-.It Pa $XDG_CONFIG_HOME/tmux/tmux.conf
+.It Pa \[ti]/.config/termo/init.lua
+.It Pa \[ti]/.config/termo/termo.conf
 .It Pa \[ti]/.config/tmux/tmux.conf
-Default
-.Nm
-configuration file.
-.It Pa @SYSCONFDIR@/tmux.conf
-System-wide configuration file.
+.It Pa \[ti]/.tmux.conf
+User configuration file; the first that exists is loaded.
+.It Pa $TERMO_RUNTIME/lua/termo/defaults.lua
+termo's defaults, loaded before the user configuration file.
 .El
 .Sh EXAMPLES
 To create a new

@@ -8,6 +8,7 @@ struct cmdq_item;
 
 /* One state, owned by the server. */
 void		 termo_lua_init(void);
+const char	*termo_lua_runtime_dir(void);
 void		 termo_lua_free(void);
 lua_State	*termo_lua_state(void);
 
@@ -23,6 +24,8 @@ int		 termo_lua_call(lua_State *, int, int, u_int, struct cmdq_item *);
 int		 termo_lua_load_file(const char *, struct cmdq_item *, char **,
 		     bool);
 int		 termo_lua_eval(const char *, struct cmdq_item *, char **, bool);
+bool		 termo_lua_session_revive(struct cmdq_item *, const char *,
+		     struct cmd_list *);
 
 /* api.c */
 void		 termo_lua_api_register(lua_State *);

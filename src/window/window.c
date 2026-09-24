@@ -730,6 +730,8 @@ window_set_active_pane(struct window *w, struct window_pane *wp, int notify)
 		return (0);
 	if ((w->flags & WINDOW_ZOOMED) && !window_pane_is_visible(wp))
 		window_unzoom(w, 1);
+	if (window_pane_is_collapsed(wp))
+		layout_stack_expand(w, wp);
 	lastwp = w->active;
 
 	window_pane_stack_remove(&w->last_panes, wp);
@@ -815,6 +817,7 @@ struct window_pane *
 window_get_active_at(struct window *w, u_int x, u_int y)
 {
 	struct window_pane	*wp;
+	struct layout_cell	*lc;
 	int			 pane_status, xoff, yoff;
 	u_int			 sx, sy;
 
@@ -824,6 +827,17 @@ window_get_active_at(struct window *w, u_int x, u_int y)
 		if (window_pane_contains(w->modal, x, y))
 			return (w->modal);
 		return (NULL);
+	}
+
+	if (~w->flags & WINDOW_ZOOMED) {
+		TAILQ_FOREACH(wp, &w->panes, entry) {
+			if (!window_pane_is_collapsed(wp))
+				continue;
+			lc = wp->layout_cell;
+			if ((int)y == lc->g.yoff && (int)x >= lc->g.xoff - 1 &&
+			    (int)x <= lc->g.xoff + (int)lc->g.sx)
+				return (wp);
+		}
 	}
 
 	if (pane_status == PANE_STATUS_TOP) {
@@ -2046,8 +2060,30 @@ int
 window_pane_is_visible(struct window_pane *wp)
 {
 	if (~wp->window->flags & WINDOW_ZOOMED)
-		return (1);
+		return (!window_pane_is_collapsed(wp));
 	return (wp->layout_cell != NULL);
+}
+
+int
+window_pane_is_collapsed(struct window_pane *wp)
+{
+	return (layout_cell_is_collapsed(wp->layout_cell));
+}
+
+struct window_pane *
+window_pane_stack_next(struct window_pane *wp)
+{
+	struct layout_cell	*stack = layout_stack_of(wp), *lc;
+
+	if (stack == NULL)
+		return (wp);
+	lc = wp->layout_cell;
+	do {
+		lc = TAILQ_NEXT(lc, entry);
+		if (lc == NULL)
+			lc = TAILQ_FIRST(&stack->cells);
+	} while (!layout_cell_is_tiled(lc));
+	return (lc->wp);
 }
 
 int
@@ -2189,7 +2225,7 @@ window_pane_find_up(struct window_pane *wp)
 
 	TAILQ_FOREACH(next, &w->panes, entry) {
 		window_pane_full_size_offset(next, &xoff, &yoff, &sx, &sy);
-		if (next == wp)
+		if (next == wp || !window_pane_is_visible(next))
 			continue;
 		if (yoff + (int)sy + 1 != edge)
 			continue;
@@ -2250,7 +2286,7 @@ window_pane_find_down(struct window_pane *wp)
 
 	TAILQ_FOREACH(next, &w->panes, entry) {
 		window_pane_full_size_offset(next, &xoff, &yoff, &sx, &sy);
-		if (next == wp)
+		if (next == wp || !window_pane_is_visible(next))
 			continue;
 		if (yoff != edge)
 			continue;
@@ -2302,7 +2338,7 @@ window_pane_find_left(struct window_pane *wp)
 
 	TAILQ_FOREACH(next, &w->panes, entry) {
 		window_pane_full_size_offset(next, &xoff, &yoff, &sx, &sy);
-		if (next == wp)
+		if (next == wp || !window_pane_is_visible(next))
 			continue;
 		if (xoff + (int)sx + 1 != edge)
 			continue;
@@ -2354,7 +2390,7 @@ window_pane_find_right(struct window_pane *wp)
 
 	TAILQ_FOREACH(next, &w->panes, entry) {
 		window_pane_full_size_offset(next, &xoff, &yoff, &sx, &sy);
-		if (next == wp)
+		if (next == wp || !window_pane_is_visible(next))
 			continue;
 		if (xoff != edge)
 			continue;
@@ -2875,6 +2911,8 @@ window_pane_get_pane_status(struct window_pane *wp)
 	    (wp->flags & PANE_ZOOMED))
 		return (PANE_STATUS_OFF);
 
+	if (window_pane_is_collapsed(wp))
+		return (PANE_STATUS_TOP);
 	if (!window_pane_is_floating(wp))
 		return (window_get_pane_status(wp->window));
 	if (window_pane_get_pane_lines(wp) == PANE_LINES_NONE)

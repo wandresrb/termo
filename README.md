@@ -23,7 +23,7 @@
 
 ## Sane Defaults Out-of-the-Box
 
-The binary's compiled-in defaults are tmux's; what makes termo feel different ships in [`etc/termo.conf`](etc/termo.conf), installed as the system config and loaded before your own. Override any of it in `~/.config/termo/termo.conf`.
+The binary's compiled-in defaults are tmux's; what makes termo feel different ships in [`runtime/lua/termo/defaults.lua`](runtime/lua/termo/defaults.lua), loaded before your own config. Override any of it in `~/.config/termo/init.lua` (or your `.conf`).
 
 `termo` works out-of-the-box with zero configuration required:
 
@@ -136,11 +136,14 @@ From outside the server any language gets the same API as JSON:
 
 ## Configuration & Environment
 
-- **Configuration Files** (in load order):
-  - `<sysconfdir>/termo/termo.conf` (termo's defaults, `/usr/local/etc/termo/termo.conf` by default)
-  - `~/.config/termo/termo.conf`
+- **Configuration Files**: termo's defaults (`runtime/lua/termo/defaults.lua`), then one user
+  config, the first found of:
   - `~/.config/termo/init.lua` (Lua, see below)
-  - Legacy fallback: `~/.tmux.conf`
+  - `~/.config/termo/termo.conf`
+  - `~/.config/tmux/tmux.conf`
+  - `~/.tmux.conf`
+
+  As in Neovim, `init.lua` and a `.conf` together is an error (`E5422`): `init.lua` is loaded.
 - **Socket Directory**:
   - `/tmp/termo-<uid>/default` (controlled via `TERMO_TMPDIR`)
 - **Environment Variables Exported to Panes**:

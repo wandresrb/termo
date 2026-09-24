@@ -134,7 +134,7 @@ TEST(options, table_entries_are_well_formed)
 	CHECK(1);
 }
 
-/* Compiled-in defaults are tmux's; termo's live in etc/termo.conf. */
+/* Compiled-in defaults are tmux's; termo's live in runtime/lua/termo/defaults.lua. */
 TEST(options, table_defaults_are_upstream)
 {
 	CHECK_EQ(options_get_number(global_s_options, "history-limit"), 2000);

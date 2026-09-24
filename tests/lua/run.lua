@@ -152,6 +152,11 @@ for _, spec in ipairs({
 	"format_spec",
 	"ui_spec",
 	"runtime_spec",
+	"pack_spec",
+	"layout_spec",
+	"mode_spec",
+	"command_spec",
+	"session_spec",
 }) do
 	dofile(dir .. "/" .. spec .. ".lua")
 end

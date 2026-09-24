@@ -231,14 +231,28 @@ server_client_check_nested(struct client *c)
 void
 server_client_set_key_table(struct client *c, const char *name)
 {
+	struct event_payload	*ep;
+	struct cmd_find_state	 fs;
+	bool			 changed;
+
 	if (name == NULL)
 		name = server_client_get_key_table(c);
+	changed = strcmp(c->keytable->name, name) != 0;
 
 	key_bindings_unref_table(c->keytable);
 	c->keytable = key_bindings_get_table(name, 1);
 	c->keytable->references++;
 	if (gettimeofday(&c->keytable->activity_time, NULL) != 0)
 		fatal("gettimeofday failed");
+
+	if (!changed || c->session == NULL)
+		return;
+	ep = event_payload_create();
+	cmd_find_from_client(&fs, c, 0);
+	event_payload_set_target(ep, &fs);
+	event_payload_set_client(ep, "client", c);
+	event_payload_set_string(ep, "key_table", "%s", name);
+	events_fire("client-key-table-changed", ep);
 }
 
 static uint64_t

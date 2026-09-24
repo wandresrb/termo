@@ -1,5 +1,9 @@
 import re
 
+from termo import ROOT, expect_fmt, expect_screen
+
+FIXTURES = ROOT / "tests/e2e/fixtures"
+
 GEOM = "#{pane_left},#{pane_top},#{pane_width},#{pane_height}"
 FLOAT = "#{pane_width} #{pane_height} #{pane_left} #{pane_top}"
 
@@ -100,3 +104,124 @@ def test_tiled_resize_skips_floating_cells(server):
     assert geometry(server) == ["%0 0,0,80,12", "%2 0,13,80,11", "%1 41,13,38,10"]
     server.cmd("resize-pane", "-t", "%2", "-U", "5")
     assert geometry(server) == ["%0 0,0,80,7", "%2 0,8,80,16", "%1 41,13,38,10"]
+
+
+def test_float_options_size_and_centre_a_new_pane(server):
+    server.start()
+    server.cmd("set", "-w", "float-width", "60")
+    server.cmd("set", "-w", "float-height", "50%")
+    server.cmd("set", "-w", "float-position", "centre")
+    fid = float_pane(server)
+    assert server.fmt(FLOAT, fid) == "58 10 11 7"
+    fid = float_pane(server, "-x", "20", "-X", "0")
+    assert server.fmt(FLOAT, fid) == "18 10 1 7"
+    r = server.cmd("set", "-w", "float-position", "middle", check=False)
+    assert r.returncode != 0
+
+
+def test_default_resize_keys_route_to_the_float(server):
+    server.start()
+    ctl = server.attach_control()
+    fid = float_pane(server, "-x", "20", "-y", "6", "-X", "8", "-Y", "3")
+    server.cmd("select-pane", "-t", fid)
+    server.cmd("send-keys", "-K", "-c", ctl.client_name(), "C-b", "C-Up")
+    assert server.fmt(FLOAT, fid) == "18 3 9 4"
+    server.cmd("send-keys", "-K", "-c", ctl.client_name(), "C-b", "M-Left")
+    assert server.fmt(FLOAT, fid) == "13 3 9 4"
+
+
+STACK = "#{pane_id} #{pane_collapsed_flag} #{pane_top} #{pane_height} #{pane_stack_index}/#{pane_stack_size}"
+
+
+def stack_geometry(server):
+    return server.out("list-panes", "-F", STACK).split("\n")
+
+
+def test_split_into_stack_geometry_and_layout_string(server):
+    server.start()
+    server.cmd("stack-pane")
+    assert stack_geometry(server) == ["%0 1 0 24 1/2", "%1 0 1 23 2/2"]
+    assert server.fmt("#{pane_id}") == "%1"
+    assert "(" in server.fmt("#{window_layout}")
+    assert server.fmt("#{window_stacks}") == "1"
+    assert server.fmt("#{pane_stacked_flag}", "%0") == "1"
+    server.cmd("stack-pane")
+    assert stack_geometry(server) == ["%0 1 0 24 1/3", "%1 1 1 23 2/3", "%2 0 2 22 3/3"]
+
+
+def test_select_pane_expands_a_collapsed_pane_and_cycles(server):
+    server.start()
+    server.cmd("stack-pane")
+    server.cmd("select-pane", "-t", "%0")
+    assert stack_geometry(server) == ["%0 0 0 23 1/2", "%1 1 23 23 2/2"]
+    server.cmd("stack-pane", "-n")
+    assert server.fmt("#{pane_id}") == "%1"
+    assert stack_geometry(server) == ["%0 1 0 23 1/2", "%1 0 1 23 2/2"]
+
+
+def test_only_the_expanded_pane_grows_on_window_resize(server):
+    server.start()
+    server.cmd("stack-pane")
+    server.cmd("resize-window", "-y", "30")
+    assert stack_geometry(server) == ["%0 1 0 24 1/2", "%1 0 1 29 2/2"]
+
+
+def test_zoom_and_unzoom_restore_the_stack(server):
+    server.start()
+    server.cmd("stack-pane")
+    server.cmd("resize-pane", "-Z")
+    assert server.fmt("#{window_zoomed_flag}") == "1"
+    server.cmd("resize-pane", "-Z")
+    assert stack_geometry(server) == ["%0 1 0 24 1/2", "%1 0 1 23 2/2"]
+    server.cmd("resize-pane", "-Z", "-t", "%0")
+    assert server.fmt("#{pane_id}") == "%0"
+    server.cmd("resize-pane", "-Z")
+    assert stack_geometry(server) == ["%0 0 0 23 1/2", "%1 1 23 23 2/2"]
+
+
+def test_float_over_a_stack_is_unaffected(server):
+    server.start()
+    server.cmd("stack-pane")
+    fid = float_pane(server, "-x", "20", "-y", "6", "-X", "8", "-Y", "3")
+    assert server.fmt(FLOAT, fid) == "18 4 9 4"
+    assert stack_geometry(server)[:2] == ["%0 1 0 24 1/2", "%1 0 1 23 2/2"]
+
+
+def test_collapsed_row_shows_the_pane_title(make_server):
+    inner = make_server()
+    conf = inner.tmpdir / "stack.conf"
+    conf.write_text("set -g status off\n")
+    inner.start("-n", "win", conf=conf, command="sleep 100")
+    inner.cmd("stack-pane", "sleep 100")
+    inner.cmd("select-pane", "-T", "collapsed-title", "-t", "%0")
+    outer = make_server()
+    pane = outer.nest(inner)
+    expect_screen(outer, pane, [r"{MATCH:.*collapsed-title.*}"] + [r"{MATCH:.*}"] * 23)
+
+
+def test_click_on_a_collapsed_row_expands_it(server):
+    server.start(conf=FIXTURES / "pty.conf")
+    server.cmd("set", "-g", "mouse", "on")
+    pty = server.attach_pty()
+    expect_fmt(server, "#{window_height}", "23")
+    server.cmd("stack-pane")
+    assert stack_geometry(server) == ["%0 1 0 23 1/2", "%1 0 1 22 2/2"]
+    pty.send_text("\x1b[<0;5;1M\x1b[<0;5;1m")
+    expect_fmt(server, "#{pane_collapsed_flag}", "0", target="%0")
+    assert stack_geometry(server) == ["%0 0 0 22 1/2", "%1 1 22 22 2/2"]
+    pty.close()
+
+
+def test_stack_pane_moves_an_existing_pane_into_a_stack(server):
+    server.start()
+    server.cmd("split-window", "-h", "-d")
+    assert server.out("list-panes", "-F", "#{pane_id}").split() == ["%0", "%1"]
+    server.cmd("stack-pane", "-s", "%1", "-t", "%0")
+    assert stack_geometry(server) == ["%0 1 0 24 1/2", "%1 0 1 23 2/2"]
+    assert "(" in server.fmt("#{window_layout}")
+
+
+def test_new_pane_modal_flag_is_back(server):
+    server.start()
+    fid = float_pane(server, "-O")
+    assert server.fmt("#{pane_modal_flag}", fid) == "1"

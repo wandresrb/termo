@@ -26,9 +26,7 @@
 #include <unistd.h>
 
 #include "termo.h"
-#ifdef HAVE_LUAJIT
 #include "lua/runtime.h"
-#endif
 
 struct client		 *cfg_client;
 int			  cfg_finished;
@@ -65,6 +63,40 @@ cfg_done([[maybe_unused]] struct cmdq_item *item, [[maybe_unused]] void *data)
 	return (CMD_RETURN_NORMAL);
 }
 
+static int	cfg_is_lua(const char *);
+
+static bool
+cfg_exists(const char *path)
+{
+	return (access(path, R_OK) == 0);
+}
+
+void
+cfg_select_files(void)
+{
+	char	**user = cfg_files, *chosen = nullptr;
+	u_int	  nuser = cfg_nfiles, i;
+
+	for (i = 0; i < nuser; i++) {
+		if (chosen == nullptr && cfg_exists(user[i]))
+			chosen = user[i];
+		else if (chosen != nullptr && cfg_is_lua(chosen) &&
+		    cfg_exists(user[i]))
+			cfg_add_cause("E5422: Conflicting configs: \"%s\" \"%s\"",
+			    chosen, user[i]);
+	}
+
+	cfg_files = xreallocarray(nullptr, 2, sizeof *cfg_files);
+	cfg_nfiles = 0;
+	xasprintf(&cfg_files[cfg_nfiles++], "%s/lua/termo/defaults.lua",
+	    termo_lua_runtime_dir());
+	if (chosen != nullptr)
+		cfg_files[cfg_nfiles++] = xstrdup(chosen);
+	for (i = 0; i < nuser; i++)
+		free(user[i]);
+	free(user);
+}
+
 void
 start_cfg(void)
 {
@@ -96,7 +128,6 @@ start_cfg(void)
 	cmdq_append(NULL, cmdq_get_callback(cfg_done, NULL));
 }
 
-#ifdef HAVE_LUAJIT
 static int
 cfg_is_lua(const char *path)
 {
@@ -137,7 +168,6 @@ load_cfg_lua(const char *path, struct cmdq_item *item, int flags,
 		*new_item = new_item0;
 	return (0);
 }
-#endif
 
 int
 load_cfg(const char *path, struct client *c, struct cmdq_item *item,
@@ -153,10 +183,8 @@ load_cfg(const char *path, struct client *c, struct cmdq_item *item,
 		*new_item = NULL;
 
 	log_debug("loading %s", path);
-#ifdef HAVE_LUAJIT
 	if (cfg_is_lua(path))
 		return (load_cfg_lua(path, item, flags, new_item));
-#endif
 	if ((f = fopen(path, "rb")) == NULL) {
 		if (errno == ENOENT && (flags & CMD_PARSE_QUIET))
 			return (0);

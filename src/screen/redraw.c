@@ -768,6 +768,26 @@ redraw_mark_pane_borders(struct redraw_build_ctx *bctx, struct window_pane *wp,
 	redraw_mark_border_arrows(bctx, wp, left, right, top, bottom);
 }
 
+static void
+redraw_mark_collapsed_row(struct redraw_build_ctx *bctx, struct window_pane *wp)
+{
+	struct layout_cell	*lc = wp->layout_cell;
+	enum pane_lines		 pane_lines = window_pane_get_pane_lines(wp);
+	int			 left = lc->g.xoff - 1, right = lc->g.xoff + lc->g.sx;
+	int			 wy = lc->g.yoff, wx, mask;
+
+	for (wx = left; wx <= right; wx++) {
+		mask = 0;
+		if (wx > left)
+			mask |= REDRAW_BORDER_L;
+		if (wx < right)
+			mask |= REDRAW_BORDER_R;
+		redraw_mark_border_cell(bctx, wx, wy, wp, 1, 1, mask, pane_lines,
+		    0);
+	}
+	redraw_mark_border_status(bctx, wp, left, right, wy, wy);
+}
+
 /*
  * Mark an entire pane in the build grid. Floating panes overwrite anything
  * already below them.
@@ -957,6 +977,10 @@ redraw_build_cells(struct redraw_build_ctx *bctx)
 
 	TAILQ_FOREACH_REVERSE(wp, &w->z_index, window_panes_zindex, zentry)
 		redraw_mark_pane(bctx, wp);
+	TAILQ_FOREACH(wp, &w->panes, entry) {
+		if (window_pane_is_collapsed(wp))
+			redraw_mark_collapsed_row(bctx, wp);
+	}
 	redraw_mark_two_pane_colours(bctx);
 	redraw_mark_menu(bctx);
 }
@@ -1557,7 +1581,9 @@ redraw_pane_status_line(struct redraw_draw_ctx *dctx,
 	if (pane_status == PANE_STATUS_OFF)
 		return (0);
 
-	if (pane_status == PANE_STATUS_TOP)
+	if (window_pane_is_collapsed(wp))
+		wy = (int)wp->yoff;
+	else if (pane_status == PANE_STATUS_TOP)
 		wy = (int)wp->yoff - 1;
 	else
 		wy = (int)wp->yoff + wp->sy;

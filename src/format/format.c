@@ -33,9 +33,7 @@
 #include <unistd.h>
 
 #include "termo.h"
-#ifdef HAVE_LUAJIT
 #include "lua/runtime.h"
-#endif
 
 /*
  * Build a list of key-value pairs and use them to expand #{key} entries in a
@@ -1083,6 +1081,73 @@ format_cb_pane_flags(struct format_tree *ft)
 	if (ft->wp != NULL)
 		return (xstrdup(window_pane_printable_flags(ft->wp)));
 	return (NULL);
+}
+
+/* Callback for pane_stacked_flag. */
+static void *
+format_cb_pane_stacked_flag(struct format_tree *ft)
+{
+	if (ft->wp == NULL)
+		return (NULL);
+	return (xstrdup(layout_stack_of(ft->wp) != NULL ? "1" : "0"));
+}
+
+/* Callback for pane_collapsed_flag. */
+static void *
+format_cb_pane_collapsed_flag(struct format_tree *ft)
+{
+	if (ft->wp == NULL)
+		return (NULL);
+	return (xstrdup(window_pane_is_collapsed(ft->wp) ? "1" : "0"));
+}
+
+/* Callback for pane_stack_index. */
+static void *
+format_cb_pane_stack_index(struct format_tree *ft)
+{
+	struct layout_cell	*stack, *lc;
+	u_int			 n = 0;
+
+	if (ft->wp == NULL || (stack = layout_stack_of(ft->wp)) == NULL)
+		return (NULL);
+	TAILQ_FOREACH(lc, &stack->cells, entry) {
+		if (layout_cell_is_tiled(lc))
+			n++;
+		if (lc == ft->wp->layout_cell)
+			break;
+	}
+	return (format_printf("%u", n));
+}
+
+/* Callback for pane_stack_size. */
+static void *
+format_cb_pane_stack_size(struct format_tree *ft)
+{
+	struct layout_cell	*stack;
+
+	if (ft->wp == NULL || (stack = layout_stack_of(ft->wp)) == NULL)
+		return (NULL);
+	return (format_printf("%u", layout_stack_size(stack)));
+}
+
+/* Callback for window_stacks. */
+static void *
+format_cb_window_stacks(struct format_tree *ft)
+{
+	struct window_pane	*wp;
+	struct layout_cell	*stack, *last = NULL;
+	u_int			 n = 0;
+
+	if (ft->w == NULL)
+		return (NULL);
+	TAILQ_FOREACH(wp, &ft->w->panes, entry) {
+		stack = layout_stack_of(wp);
+		if (stack != NULL && stack != last) {
+			n++;
+			last = stack;
+		}
+	}
+	return (format_printf("%u", n));
 }
 
 /* Callback for pane_floating_flag. */
@@ -3820,6 +3885,9 @@ static const struct format_table_entry format_table[] = {
 	{ "pane_bottom", FORMAT_TABLE_STRING,
 	  format_cb_pane_bottom
 	},
+	{ "pane_collapsed_flag", FORMAT_TABLE_STRING,
+	  format_cb_pane_collapsed_flag
+	},
 	{ "pane_command_duration", FORMAT_TABLE_STRING,
 	  format_cb_pane_command_duration
 	},
@@ -3936,6 +4004,15 @@ static const struct format_table_entry format_table[] = {
 	},
 	{ "pane_search_string", FORMAT_TABLE_STRING,
 	  format_cb_pane_search_string
+	},
+	{ "pane_stack_index", FORMAT_TABLE_STRING,
+	  format_cb_pane_stack_index
+	},
+	{ "pane_stack_size", FORMAT_TABLE_STRING,
+	  format_cb_pane_stack_size
+	},
+	{ "pane_stacked_flag", FORMAT_TABLE_STRING,
+	  format_cb_pane_stacked_flag
 	},
 	{ "pane_start_command", FORMAT_TABLE_STRING,
 	  format_cb_start_command
@@ -4198,6 +4275,9 @@ static const struct format_table_entry format_table[] = {
 	{ "window_stack_index", FORMAT_TABLE_STRING,
 	  format_cb_window_stack_index
 	},
+	{ "window_stacks", FORMAT_TABLE_STRING,
+	  format_cb_window_stacks
+	},
 	{ "window_start_flag", FORMAT_TABLE_STRING,
 	  format_cb_window_start_flag
 	},
@@ -4283,9 +4363,7 @@ format_create(struct client *c, struct cmdq_item *item, int tag, int flags)
 
 	if (item != NULL)
 		format_create_add_item(ft, item);
-#ifdef HAVE_LUAJIT
 	termo_lua_format_register(ft);
-#endif
 
 	return (ft);
 }

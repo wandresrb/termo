@@ -110,6 +110,14 @@ cmd_async(string, fn(output, error))
 
 Run commands and call fn with their captured output when done.
 
+### `termo.api.write_file`
+
+```lua
+write_file(path, data) -> true or nil, error
+```
+
+Replace a file atomically and durably: missing directories are created 0700, data goes to path.tmp, is fsynced and renamed over path, and the directory is fsynced.
+
 ## Events
 
 ### `termo.api.on`
@@ -153,6 +161,22 @@ keymap_del(table, key)
 ```
 
 Remove a binding.
+
+### `termo.api.command_set`
+
+```lua
+command_set(name, fn(event))
+```
+
+Define a command run from the : prompt, bind-key, control mode or the CLI as `name [argument ...]`; fn gets {client, args}.
+
+### `termo.api.command_del`
+
+```lua
+command_del(name) -> removed
+```
+
+Remove a command defined with command_set.
 
 ## Time and processes
 
@@ -233,10 +257,12 @@ Ask for input in the status line; fn gets nil when cancelled, done is true on en
 - `termo.ui.menu`, `popup`, `message(fmt, ...)`, `prompt`, `confirm(question, fn)`;
 - `termo.format.add(name, fn)` and `del(name)`;
 - `termo.json.encode` and `decode`;
-- `termo.layout.apply(spec, {target, done})` for declarative splits;
-- `termo.hints.mode(name, spec)` and `setup()` for modal key tables with a hint bar;
+- `termo.layout.apply(spec, {target, done})` for declarative splits from a tree or a saved window entry; `dump(window)`, `save(name)`, `load(name)`, `list(fn)`, `swap()` keep layouts as JSON under `~/.config/termo/layouts/` and cycle the ones whose pane count fits;
+- `termo.mode.define(name, {key, table, keys, leave, on_enter, on_leave})`, `enter`, `leave`, `current`, `line`, `setup{hints = "mode"|"always"}`, `lock(unlock_key)`, `unlock()` for sticky modal key tables with a hint bar (`termo.hints` is the old name);
+- `termo.command.define(name, fn(args, event), {nargs, desc})`, `del`, `list` for commands with arguments typed at the `:` prompt;
+- `termo.session.revive(name)`, `list()`, `del(name)`, `clean()`, `menu()`, `save_all()` behind the `resurrect` option: a JSON file per session under `~/.local/share/termo/sessions/`, written 30 s after a change and on `server-exit`; nothing is restored at start, `attach-session -t name` revives a saved session;
 - `termo.palette.add`, `open`, `setup{key}` for a fuzzy command palette;
 - `termo.float.new`, `toggle`, `move`, `setup{keys}` for floating panes;
-- `termo.pack.setup{...}`, `load(dir)`, `update()`, `list()` for plugins with a `termo.json` manifest.
+- `termo.pack.setup(specs, {load, confirm, done})`, `load(name|dir)`, `update(names, {force, offline, done})`, `del(names)`, `clean()`, `get(names)`, `list()` for plugins with a `termo.json` manifest (`docs/plugins.md`).
 
 `run-lua -j 'return termo.api.list_panes()'` prints JSON, which is how other languages use the same API from outside the server.

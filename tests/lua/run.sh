@@ -8,9 +8,10 @@ DIR=$(cd "$(dirname "$0")" && pwd)
 SOCK=lua$$
 
 TERMO_RUNTIME="$DIR/../../runtime"
-export TERMO_RUNTIME
+XDG_DATA_HOME=$(mktemp -d)
+export TERMO_RUNTIME XDG_DATA_HOME
 
-trap '"$TERMO" -L$SOCK kill-server 2>/dev/null' 0 1 15
+trap '"$TERMO" -L$SOCK kill-server 2>/dev/null; rm -rf "$XDG_DATA_HOME"' 0 1 15
 "$TERMO" -L$SOCK -f/dev/null new-session -d -x 80 -y 24 || exit 1
 "$TERMO" -L$SOCK run-lua -f "$DIR/run.lua" || exit 1
 "$TERMO" -L$SOCK wait-for lua-specs || exit 1

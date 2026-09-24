@@ -46,7 +46,7 @@ steps in the same image with Docker or Podman.
 ## Nightly: `nightly.yml`
 
 Cron and `workflow_dispatch`: fuzzing (10 min per target), build variants
-(`-Dluajit=disabled -Dutf8proc=disabled`, `-Dsixel=true` release), the Alpine musl build, FreeBSD in
+(`-Dutf8proc=disabled`, `-Dsixel=true` release), the Alpine musl build, FreeBSD in
 `vmactions/freebsd-vm`. The container jobs run on the runner named by the
 repository variable `TERMO_LINUX_RUNNER`; unset, that is `ubuntu-24.04`.
 

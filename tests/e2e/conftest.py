@@ -24,36 +24,6 @@ def pytest_configure(config):
     if not os.access(config.termo_bin, os.X_OK):
         raise pytest.UsageError(f"not executable: {config.termo_bin}")
     config.termo_keep = config.getoption("--keep") or bool(os.environ.get("TERMO_E2E_KEEP"))
-    config.termo_has_lua = None
-
-
-def has_lua(config) -> bool:
-    if config.termo_has_lua is None:
-        env = os.environ.get("TERMO_HAS_LUA")
-        if env is not None:
-            config.termo_has_lua = env == "1"
-        else:
-            name = f"e2e-probe-{os.getpid()}"
-            s = Server(config.termo_bin, name, tmpdir=Path(config.rootpath) / ".probe")
-            try:
-                s.start()
-                config.termo_has_lua = s.cmd("list-commands", "run-lua",
-                                             check=False).stdout.startswith("run-lua")
-            finally:
-                s.kill()
-    return config.termo_has_lua
-
-
-def pytest_collection_modifyitems(config, items):
-    lua = None
-    for item in items:
-        if item.get_closest_marker("lua") or item.get_closest_marker("nolua"):
-            if lua is None:
-                lua = has_lua(config)
-            if item.get_closest_marker("lua") and not lua:
-                item.add_marker(pytest.mark.skip(reason="binary built without LuaJIT"))
-            if item.get_closest_marker("nolua") and lua:
-                item.add_marker(pytest.mark.skip(reason="binary built with LuaJIT"))
 
 
 @pytest.fixture(scope="session")

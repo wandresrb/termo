@@ -71,6 +71,7 @@
 	" '#{?#{!:#{pane_floating_flag}},Float,}' 'f' { break-pane -W }" \
 	" '#{?#{!:#{pane_floating_flag}},Horizontal Split,}' 'h' {split-window -h}" \
 	" '#{?#{!:#{pane_floating_flag}},Vertical Split,}' 'v' {split-window -v}" \
+	" '#{?#{!:#{pane_floating_flag}},Stack,}' 'S' {stack-pane}" \
 	" ''" \
 	" '#{?#{&&:#{!:#{pane_floating_flag}},#{>:#{window_panes},1}},Swap Up,}' 'u' {swap-pane -U}" \
 	" '#{?#{&&:#{!:#{pane_floating_flag}},#{>:#{window_panes},1}},Swap Down,}' 'd' {swap-pane -D}" \
@@ -466,13 +467,13 @@ key_bindings_init(void)
 		"bind -N 'Move the visible part of the window left' -r S-Left { refresh-client -L 10 }",
 		"bind -N 'Move the visible part of the window right' -r S-Right { refresh-client -R 10 }",
 		"bind -N 'Reset so the visible part of the window follows the cursor' -r DC { refresh-client -c }",
-		"bind -N 'Resize the pane up by 5' -r M-Up if -F '#{?floating_pane_flag}' { resizep -D-5 } { resize-pane -U 5 }",
+		"bind -N 'Resize the pane up by 5' -r M-Up if -F '#{pane_floating_flag}' { resizep -D-5 } { resize-pane -U 5 }",
 		"bind -N 'Resize the pane down by 5' -r M-Down { resize-pane -D 5 }",
-		"bind -N 'Resize the pane left by 5' -r M-Left if -F '#{?floating_pane_flag}' { resizep -R-5 } { resize-pane -L 5 }",
+		"bind -N 'Resize the pane left by 5' -r M-Left if -F '#{pane_floating_flag}' { resizep -R-5 } { resize-pane -L 5 }",
 		"bind -N 'Resize the pane right by 5' -r M-Right resize-pane -R 5",
-		"bind -N 'Resize the pane up' -r C-Up if -F '#{?floating_pane_flag}' { resizep -D-1 } { resize-pane -U }",
+		"bind -N 'Resize the pane up' -r C-Up if -F '#{pane_floating_flag}' { resizep -D-1 } { resize-pane -U }",
 		"bind -N 'Resize the pane down' -r C-Down { resize-pane -D }",
-		"bind -N 'Resize the pane left' -r C-Left if -F '#{?floating_pane_flag}' { resizep -R-1 } { resize-pane -L }",
+		"bind -N 'Resize the pane left' -r C-Left if -F '#{pane_floating_flag}' { resizep -R-1 } { resize-pane -L }",
 		"bind -N 'Resize the pane right' -r C-Right { resize-pane -R }",
 
 		/* Floating pane movement. */

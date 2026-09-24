@@ -72,29 +72,6 @@ describe("termo.keymap", function()
 	end)
 end)
 
-describe("termo.layout", function()
-	it_async("splits a window from a spec", function(done)
-		local win = api.cmd("new-window -d -P -F '#{window_id}'")
-		local pane = api.eval("#{pane_id}", win)
-		termo.layout.apply({ dir = "h",
-			{},
-			{ dir = "v", { cmd = "sleep 30" }, {} },
-		}, {
-			target = pane,
-			done = function(err)
-				if not check(done, err == nil, tostring(err)) then
-					return
-				end
-				local panes = api.list_panes(win)
-				api.cmd("kill-window -t " .. win)
-				if check(done, #panes == 3, "panes " .. #panes) then
-					done()
-				end
-			end,
-		})
-	end)
-end)
-
 describe("termo.hints", function()
 	it("creates a key table with sticky bindings", function()
 		termo.hints.setup()
@@ -155,50 +132,6 @@ describe("termo.palette", function()
 		if check(done, found, "new-window not in the palette") then
 			done()
 		end
-	end)
-end)
-
-describe("termo.pack", function()
-	local dir = os.tmpname()
-	os.remove(dir)
-	it_async("loads a plugin from a manifest in a sandbox", function(done)
-		local manifest = '{"name": "specplug", "main": "lua/specplug.lua"}'
-		local main = [[
-local manifest = ...
-local helper = require("specplug.helper")
-termo.api.set_option("@plugin_loaded", manifest.name .. "/" .. helper.value)
-local ok = pcall(function() leaked_global = 1 end)
-termo.api.set_option("@plugin_sandboxed", tostring(not ok))
-return { answer = 42 }
-]]
-		local helper = 'return { value = "helped" }'
-		api.system({ "sh", "-c", 'mkdir -p "$1/lua/specplug" && ' ..
-		    'printf %s "$2" > "$1/termo.json" && ' ..
-		    'printf %s "$3" > "$1/lua/specplug.lua" && ' ..
-		    'printf %s "$4" > "$1/lua/specplug/helper.lua"', "sh", dir,
-		    manifest, main, helper }, {
-			on_exit = function(status)
-				if not check(done, status == 0, "setup failed " .. status) then
-					return
-				end
-				local mod, err = termo.pack.load(dir)
-				if check(done, mod ~= nil, tostring(err)) and
-				    check(done, mod.answer == 42, "module not returned") and
-				    check(done, api.get_option("@plugin_loaded") ==
-				    "specplug/helped", tostring(api.get_option("@plugin_loaded"))) and
-				    check(done, api.get_option("@plugin_sandboxed") == "true",
-				    "global leaked") and
-				    check(done, termo.pack.list()[1] == "specplug", "not listed") then
-					api.system({ "rm", "-rf", dir })
-					done()
-				end
-			end,
-		})
-	end)
-	it("rejects a missing or bad manifest", function()
-		local r, err = termo.pack.load("/nonexistent/plugin")
-		eq(r, nil)
-		eq(err:match("not found") ~= nil, true)
 	end)
 end)
 

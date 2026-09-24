@@ -55,8 +55,8 @@ termo.keymap.set("g", function()
 end)
 
 -- A modal key table with a hint bar, and a command palette.
-termo.hints.setup()
-termo.hints.mode("resize", {
+termo.mode.setup{ hints = "mode" }
+termo.mode.define("resize", {
 	key = "R",
 	keys = {
 		h = { "resize-pane -L 5", "left" },
@@ -66,6 +66,11 @@ termo.hints.mode("resize", {
 	},
 })
 termo.palette.setup{ key = "p" }
+
+-- Saved layouts: save the current window's, then cycle the ones that fit.
+termo.keymap.set("L", function()
+	termo.layout.swap()
+end)
 termo.palette.add("Rename window", "command-prompt -I '#W' 'rename-window %%'")
 
 -- A process, without blocking the server.

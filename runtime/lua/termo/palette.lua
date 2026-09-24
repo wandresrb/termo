@@ -65,10 +65,12 @@ local function run(match)
 end
 
 local function close()
+	M.is_open = false
 	api.cmd("set -g status " .. M.saved_status)
 end
 
 function M.open()
+	M.is_open = true
 	M.matches = M.rank("")
 	M.selected = 1
 	M.saved_status = tostring(api.get_option("status"))
@@ -114,8 +116,10 @@ end
 -- setup{key = "p", commands = true}
 function M.setup(opts)
 	opts = opts or {}
-	api.format_add("palette", M.line)
-	api.cmd("set -g 'status-format[1]' '#[align=centre]#{palette}'")
+	api.format_add("palette", function()
+		return M.is_open and M.line() or ""
+	end)
+	api.cmd("set -g 'status-format[1]' '#[align=centre]#{palette}#{hints}'")
 	if opts.commands ~= false then
 		add_commands()
 	end

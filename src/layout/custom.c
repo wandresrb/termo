@@ -31,6 +31,7 @@ static int			 layout_construct(struct layout_cell *,
 				     const char **, struct layout_cell **);
 static void			 layout_assign(struct window_pane **,
 				     struct layout_cell *, int);
+static struct layout_cell	*layout_stack_pick(struct layout_cell *);
 
 /* Find the bottom-right cell. */
 static struct layout_cell *
@@ -116,6 +117,8 @@ layout_append(struct layout_cell *lc, char *buf, size_t len)
 		brackets = "}{";
 		[[fallthrough]];
 	case LAYOUT_TOPBOTTOM:
+		if (lc->flags & LAYOUT_CELL_STACK)
+			brackets = ")(";
 		if (strlcat(buf, &brackets[1], len) >= len)
 			return (-1);
 		TAILQ_FOREACH(lcchild, &lc->cells, entry) {
@@ -133,12 +136,31 @@ layout_append(struct layout_cell *lc, char *buf, size_t len)
 	return (0);
 }
 
+/* The expanded child of a stack read from a layout string. */
+static struct layout_cell *
+layout_stack_pick(struct layout_cell *lc)
+{
+	struct layout_cell	*lcchild, *tall = NULL;
+
+	TAILQ_FOREACH(lcchild, &lc->cells, entry) {
+		if (lcchild->g.sy == 1)
+			continue;
+		if (tall != NULL)
+			return (NULL);
+		tall = lcchild;
+	}
+	if (tall == NULL)
+		tall = TAILQ_FIRST(&lc->cells);
+	return (tall);
+}
+
 /* Check layout sizes fit. */
 static int
 layout_check(struct layout_cell *lc)
 {
 	struct layout_cell	*lcchild;
 	u_int			 n = 0;
+	int			 stack = lc->flags & LAYOUT_CELL_STACK;
 
 	switch (lc->type) {
 	case LAYOUT_WINDOWPANE:
@@ -158,11 +180,15 @@ layout_check(struct layout_cell *lc)
 		TAILQ_FOREACH(lcchild, &lc->cells, entry) {
 			if (lcchild->g.sx != lc->g.sx)
 				return (0);
+			if (stack && lcchild->type != LAYOUT_WINDOWPANE)
+				return (0);
 			if (!layout_check(lcchild))
 				return (0);
-			n += lcchild->g.sy + 1;
+			n += lcchild->g.sy + !stack;
 		}
-		if (n - 1 != lc->g.sy)
+		if (stack && (n != lc->g.sy || layout_stack_pick(lc) == NULL))
+			return (0);
+		if (!stack && n - 1 != lc->g.sy)
 			return (0);
 		break;
 	}
@@ -243,6 +269,8 @@ layout_parse(struct window *w, const char *layout, char **cause)
 			sx = lcchild->g.sx + 1;
 			sy += lcchild->g.sy + 1;
 		}
+		if (tiled_lc->flags & LAYOUT_CELL_STACK)
+			sy = sy + 1 - layout_stack_size(tiled_lc);
 		break;
 	}
 	if (tiled_lc->type != LAYOUT_WINDOWPANE &&
@@ -296,7 +324,7 @@ fail:
 static void
 layout_assign(struct window_pane **wp, struct layout_cell *lc, int flags)
 {
-	struct layout_cell	*lcchild;
+	struct layout_cell	*lcchild, *lcexpanded;
 
 	if (lc == NULL)
 		return;
@@ -309,6 +337,14 @@ layout_assign(struct window_pane **wp, struct layout_cell *lc, int flags)
 		return;
 	case LAYOUT_LEFTRIGHT:
 	case LAYOUT_TOPBOTTOM:
+		if (lc->flags & LAYOUT_CELL_STACK) {
+			lcexpanded = layout_stack_pick(lc);
+			TAILQ_FOREACH(lcchild, &lc->cells, entry) {
+				layout_assign(wp, lcchild, lcchild == lcexpanded ?
+				    flags : flags | LAYOUT_CELL_COLLAPSED);
+			}
+			return;
+		}
 		TAILQ_FOREACH(lcchild, &lc->cells, entry)
 			layout_assign(wp, lcchild, flags);
 		return;
@@ -366,6 +402,7 @@ layout_construct(struct layout_cell *lcparent, const char **layout,
 	case ',':
 	case '}':
 	case ']':
+	case ')':
 	case '>':
 	case '\0':
 		return (0);
@@ -374,6 +411,10 @@ layout_construct(struct layout_cell *lcparent, const char **layout,
 		break;
 	case '[':
 		(*lc)->type = LAYOUT_TOPBOTTOM;
+		break;
+	case '(':
+		(*lc)->type = LAYOUT_TOPBOTTOM;
+		(*lc)->flags |= LAYOUT_CELL_STACK;
 		break;
 	default:
 		goto fail;
@@ -392,7 +433,7 @@ layout_construct(struct layout_cell *lcparent, const char **layout,
 			goto fail;
 		break;
 	case LAYOUT_TOPBOTTOM:
-		if (**layout != ']')
+		if (**layout != (((*lc)->flags & LAYOUT_CELL_STACK) ? ')' : ']'))
 			goto fail;
 		break;
 	default:

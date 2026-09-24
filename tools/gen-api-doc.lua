@@ -9,9 +9,9 @@ local api = termo.api
 local groups = {
 	{ "Reading state", { "version", "list", "eval", "list_sessions",
 	    "list_windows", "list_panes", "get_option", "fuzzy" } },
-	{ "Changing state", { "set_option", "cmd", "cmd_async" } },
+	{ "Changing state", { "set_option", "cmd", "cmd_async", "write_file" } },
 	{ "Events", { "on", "off", "emit" } },
-	{ "Keys", { "keymap_set", "keymap_del" } },
+	{ "Keys", { "keymap_set", "keymap_del", "command_set", "command_del" } },
 	{ "Time and processes", { "defer", "timer", "system" } },
 	{ "Status line", { "format_add" } },
 	{ "UI", { "menu", "popup", "message", "prompt" } },
@@ -103,13 +103,25 @@ w("- `termo.ui.menu`, `popup`, `message(fmt, ...)`, `prompt`, " ..
     "`confirm(question, fn)`;")
 w("- `termo.format.add(name, fn)` and `del(name)`;")
 w("- `termo.json.encode` and `decode`;")
-w("- `termo.layout.apply(spec, {target, done})` for declarative splits;")
-w("- `termo.hints.mode(name, spec)` and `setup()` for modal key tables " ..
-    "with a hint bar;")
+w("- `termo.layout.apply(spec, {target, done})` for declarative splits from a tree or a " ..
+    "saved window entry; `dump(window)`, `save(name)`, `load(name)`, `list(fn)`, `swap()` " ..
+    "keep layouts as JSON under `~/.config/termo/layouts/` and cycle the ones whose pane " ..
+    "count fits;")
+w("- `termo.mode.define(name, {key, table, keys, leave, on_enter, on_leave})`, " ..
+    "`enter`, `leave`, `current`, `line`, `setup{hints = \"mode\"|\"always\"}`, " ..
+    "`lock(unlock_key)`, `unlock()` for sticky modal key tables with a hint bar " ..
+    "(`termo.hints` is the old name);")
+w("- `termo.command.define(name, fn(args, event), {nargs, desc})`, `del`, `list` for " ..
+    "commands with arguments typed at the `:` prompt;")
+w("- `termo.session.revive(name)`, `list()`, `del(name)`, `clean()`, `menu()`, " ..
+    "`save_all()` behind the `resurrect` option: a JSON file per session under " ..
+    "`~/.local/share/termo/sessions/`, written 30 s after a change and on `server-exit`; " ..
+    "nothing is restored at start, `attach-session -t name` revives a saved session;")
 w("- `termo.palette.add`, `open`, `setup{key}` for a fuzzy command palette;")
 w("- `termo.float.new`, `toggle`, `move`, `setup{keys}` for floating panes;")
-w("- `termo.pack.setup{...}`, `load(dir)`, `update()`, `list()` for plugins " ..
-    "with a `termo.json` manifest.")
+w("- `termo.pack.setup(specs, {load, confirm, done})`, `load(name|dir)`, " ..
+    "`update(names, {force, offline, done})`, `del(names)`, `clean()`, `get(names)`, " ..
+    "`list()` for plugins with a `termo.json` manifest (`docs/plugins.md`).")
 w("")
 w("`run-lua -j 'return termo.api.list_panes()'` prints JSON, which is how " ..
     "other languages use the same API from outside the server.")

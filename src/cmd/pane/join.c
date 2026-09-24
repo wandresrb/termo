@@ -29,7 +29,6 @@
  * Join or move a pane into another (like split/swap/kill).
  */
 
-static enum cmd_retval	cmd_join_pane_exec(struct cmd *, struct cmdq_item *);
 static enum cmd_retval	cmd_join_pane_mouse_update(struct cmdq_item *);
 static void		cmd_join_pane_mouse_move(struct client *,
 			    struct mouse_event *);
@@ -406,7 +405,7 @@ cmd_join_pane_tile(struct cmdq_item *item, struct args *args, struct window *w,
 	return (CMD_RETURN_NORMAL);
 }
 
-static enum cmd_retval
+enum cmd_retval
 cmd_join_pane_exec(struct cmd *self, struct cmdq_item *item)
 {
 	struct args		*args = cmd_get_args(self);
@@ -477,6 +476,8 @@ cmd_join_pane_exec(struct cmd *self, struct cmdq_item *item)
 		flags |= SPAWN_BEFORE;
 	if (args_has(args, 'f'))
 		flags |= SPAWN_FULLSIZE;
+	if (cmd_get_entry(self) == &cmd_stack_pane_entry)
+		flags |= SPAWN_STACK;
 
 	lc = layout_get_tiled_cell(item, args, dst_w, dst_wp, flags, &cause);
 	if (cause != NULL) {

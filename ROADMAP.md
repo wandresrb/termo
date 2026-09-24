@@ -15,8 +15,9 @@ map.
 2. Every build in CI runs under ASAN and UBSAN and is warning-free with
    `-Dwerror=true`.
 3. Compiled-in defaults are tmux's. termo's opinionated defaults live in
-   `etc/termo.conf`, installed as the system config, so the upstream tests keep
-   their meaning and a user can see exactly what termo changes.
+   `runtime/lua/termo/defaults.lua`, loaded before the user config and skipped
+   with `-f`, so the upstream tests keep their meaning and a user can see exactly
+   what termo changes.
 4. Hot paths (VT parsing, grid, redraw) never regress in throughput.
 5. Extensibility is LuaJIT in-process or control mode out-of-process. No
    WebAssembly runtime, ever.

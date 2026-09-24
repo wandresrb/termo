@@ -32,7 +32,6 @@
 
 #define SPLIT_WINDOW_TEMPLATE "#{session_name}:#{window_index}.#{pane_index}"
 
-static enum cmd_retval	cmd_split_window_exec(struct cmd *, struct cmdq_item *);
 static void		cmd_split_window_mouse_resize(struct client *,
 			    struct mouse_event *);
 
@@ -72,7 +71,7 @@ const struct cmd_entry cmd_split_window_entry = {
 	.exec = cmd_split_window_exec
 };
 
-static enum cmd_retval
+enum cmd_retval
 cmd_split_window_exec(struct cmd *self, struct cmdq_item *item)
 {
 	struct args		*args = cmd_get_args(self);
@@ -133,9 +132,11 @@ cmd_split_window_exec(struct cmd *self, struct cmdq_item *item)
 		flags |= SPAWN_HORIZONTAL;
 	if (args_has(args, 'b'))
 		flags |= SPAWN_BEFORE;
+	if (cmd_get_entry(self) == &cmd_stack_pane_entry)
+		flags |= SPAWN_STACK;
 	if (args_has(args, 'f'))
 		flags |= SPAWN_FULLSIZE;
-	if (args_has(args, 'd'))
+	if (args_has(args, 'd') && (~flags & SPAWN_STACK))
 		flags |= SPAWN_DETACHED;
 	if (args_has(args, 'Z'))
 		flags |= SPAWN_ZOOM;

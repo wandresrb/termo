@@ -6,10 +6,14 @@
  */
 
 #include <sys/types.h>
+#include <sys/stat.h>
 #include <sys/time.h>
 
+#include <errno.h>
+#include <fcntl.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 #include <lauxlib.h>
 
@@ -439,6 +443,92 @@ api_fuzzy(lua_State *L)
 	return (1);
 }
 
+static int
+make_parents(char *dir)
+{
+	char	*p;
+
+	for (p = dir + 1; *p != '\0'; p++) {
+		if (*p != '/')
+			continue;
+		*p = '\0';
+		if (mkdir(dir, 0700) != 0 && errno != EEXIST) {
+			*p = '/';
+			return (-1);
+		}
+		*p = '/';
+	}
+	if (mkdir(dir, 0700) != 0 && errno != EEXIST)
+		return (-1);
+	return (0);
+}
+
+static int
+write_all(int fd, const char *data, size_t len)
+{
+	ssize_t	n;
+
+	while (len > 0) {
+		n = write(fd, data, len);
+		if (n < 0 && errno == EINTR)
+			continue;
+		if (n <= 0)
+			return (-1);
+		data += n;
+		len -= (size_t)n;
+	}
+	return (0);
+}
+
+static int
+api_write_file(lua_State *L)
+{
+	const char	*path = luaL_checkstring(L, 1), *data;
+	char		*dir = xstrdup(path), *slash, *tmp, *what;
+	size_t		 len;
+	int		 fd = -1, dfd, saved;
+
+	data = luaL_checklstring(L, 2, &len);
+	xasprintf(&tmp, "%s.tmp", path);
+	slash = strrchr(dir, '/');
+	if (slash != nullptr && slash != dir) {
+		*slash = '\0';
+		if (make_parents(dir) != 0) {
+			what = dir;
+			goto fail;
+		}
+	}
+	what = tmp;
+	fd = open(tmp, O_WRONLY|O_CREAT|O_TRUNC|O_CLOEXEC, 0600);
+	if (fd == -1 || write_all(fd, data, len) != 0 || fsync(fd) != 0)
+		goto fail;
+	close(fd);
+	fd = -1;
+	what = (char *)path;
+	if (rename(tmp, path) != 0)
+		goto fail;
+	if (slash != nullptr && slash != dir &&
+	    (dfd = open(dir, O_RDONLY|O_DIRECTORY|O_CLOEXEC)) != -1) {
+		fsync(dfd);
+		close(dfd);
+	}
+	free(tmp);
+	free(dir);
+	lua_pushboolean(L, 1);
+	return (1);
+
+fail:
+	saved = errno;
+	if (fd != -1)
+		close(fd);
+	unlink(tmp);
+	lua_pushnil(L);
+	lua_pushfstring(L, "%s: %s", what, strerror(saved));
+	free(tmp);
+	free(dir);
+	return (2);
+}
+
 static int api_list(lua_State *);
 
 const struct api_fn termo_api_core[] = {
@@ -464,6 +554,11 @@ const struct api_fn termo_api_core[] = {
 	  "list_panes([window]) -> {{id, index, active, width, height, "
 	  "floating}}",
 	  "panes of a window, default the current" },
+	{ "write_file", api_write_file,
+	  "write_file(path, data) -> true or nil, error",
+	  "replace a file atomically and durably: missing directories are "
+	  "created 0700, data goes to path.tmp, is fsynced and renamed over "
+	  "path, and the directory is fsynced" },
 	{ "fuzzy", api_fuzzy, "fuzzy(pattern, text) -> score or nil",
 	  "fzf-style match score, higher is better; nil when it does not "
 	  "match" },

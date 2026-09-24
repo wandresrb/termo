@@ -25,6 +25,7 @@
 #include <unistd.h>
 
 #include "termo.h"
+#include "lua/runtime.h"
 
 /*
  * Attach existing session to the current terminal.
@@ -177,6 +178,22 @@ static enum cmd_retval
 cmd_attach_session_exec(struct cmd *self, struct cmdq_item *item)
 {
 	struct args	*args = cmd_get_args(self);
+	const char		*tflag = args_get(args, 't'), *name;
+	struct cmd_find_state	 fs;
+	struct cmd_list		*again;
+	bool			 revived;
+
+	if (tflag != nullptr && tflag[strcspn(tflag, ":.")] == '\0' &&
+	    cmd_find_target(&fs, item, tflag, CMD_FIND_SESSION,
+	    CMD_FIND_QUIET) != 0) {
+		name = (*tflag == '=') ? tflag + 1 : tflag;
+		again = cmd_list_new();
+		cmd_list_append(again, cmd_copy(self, 0, nullptr));
+		revived = termo_lua_session_revive(item, name, again);
+		cmd_list_free(again);
+		if (revived)
+			return (CMD_RETURN_NORMAL);
+	}
 
 	return (cmd_attach_session(item, args_get(args, 't'),
 	    args_has(args, 'd'), args_has(args, 'x'), args_has(args, 'r'),

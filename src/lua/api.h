@@ -46,7 +46,8 @@ struct client *api_held_client(void);
 void	 termo_lua_events_free(void);
 
 /* keymap.c */
-int	 termo_lua_keymap_run(struct cmdq_item *, int);
+int	 termo_lua_keymap_run(struct cmdq_item *, int, struct args *);
+struct cmdq_item *termo_lua_cmd_insert(struct cmdq_item *, struct cmdq_item *);
 
 /* format.c */
 void	 termo_lua_format_free(void);

@@ -239,6 +239,25 @@ control_client_detached_cb([[maybe_unused]] const char *name, struct event_paylo
 	}
 }
 
+/* Notify control clients that a client changed key table. */
+static void
+control_client_key_table_changed_cb([[maybe_unused]] const char *name,
+    struct event_payload *ep, [[maybe_unused]] void *sink_data)
+{
+	struct client	*cc = event_payload_get_client(ep, "client");
+	const char	*table = event_payload_get_string(ep, "key_table");
+	struct client	*c;
+
+	if (cc == nullptr || table == nullptr)
+		return;
+	TAILQ_FOREACH(c, &clients, entry) {
+		if (!CONTROL_SHOULD_NOTIFY_CLIENT(c))
+			continue;
+		control_notify_write(c, "%%client-key-table-changed %s %s",
+		    cc->name, table);
+	}
+}
+
 /* Notify control clients that a session was renamed. */
 static void
 control_session_renamed_cb([[maybe_unused]] const char *name, struct event_payload *ep,
@@ -360,6 +379,8 @@ control_build_events(void)
 		{ "window-renamed", control_window_renamed_cb },
 		{ "client-session-changed", control_client_session_changed_cb },
 		{ "client-detached", control_client_detached_cb },
+		{ "client-key-table-changed",
+		  control_client_key_table_changed_cb },
 		{ "session-renamed", control_session_renamed_cb },
 		{ "session-created", control_session_created_cb },
 		{ "session-closed", control_session_closed_cb },

@@ -184,6 +184,40 @@ termo_lua_load_file(const char *path, struct cmdq_item *item, char **result,
 	return (run_chunk(L, item, result, json));
 }
 
+bool
+termo_lua_session_revive(struct cmdq_item *item, const char *name,
+    struct cmd_list *again)
+{
+	lua_State	*L = state;
+	bool		 revived;
+
+	if (L == nullptr)
+		return (false);
+	lua_getglobal(L, "termo");
+	if (lua_istable(L, -1))
+		lua_getfield(L, -1, "session");
+	else
+		lua_pushnil(L);
+	if (lua_istable(L, -1))
+		lua_getfield(L, -1, "revive");
+	else
+		lua_pushnil(L);
+	lua_replace(L, -3);
+	lua_pop(L, 1);
+	if (!lua_isfunction(L, -1)) {
+		lua_pop(L, 1);
+		return (false);
+	}
+	lua_pushstring(L, name);
+	if (termo_lua_call(L, 1, 1, TERMO_LUA_BUDGET_MS, item) != 0)
+		return (false);
+	revived = lua_isstring(L, -1);
+	lua_pop(L, 1);
+	if (revived)
+		termo_lua_cmd_insert(item, cmdq_get_command(again, nullptr));
+	return (revived);
+}
+
 int
 termo_lua_eval(const char *code, struct cmdq_item *item, char **result,
     bool json)
@@ -200,8 +234,8 @@ termo_lua_eval(const char *code, struct cmdq_item *item, char **result,
 	return (run_chunk(L, item, result, json));
 }
 
-static const char *
-runtime_dir(void)
+const char *
+termo_lua_runtime_dir(void)
 {
 	const char	*dir = getenv("TERMO_RUNTIME");
 
@@ -214,7 +248,7 @@ static void
 set_package_path(lua_State *L)
 {
 	const char	*home = find_home(), *xdg = getenv("XDG_CONFIG_HOME");
-	const char	*rt = runtime_dir(), *old;
+	const char	*rt = termo_lua_runtime_dir(), *old;
 	char		*config, *path;
 
 	if (xdg != nullptr && *xdg != '\0')
