@@ -137,3 +137,15 @@ QUIC attach, streaming, web bridge) live out of process over control mode and
 may use cargo. The product axes (modes and user commands, `termopack` after
 `vim.pack`, Neovim integration, sessions, agent awareness, sandboxed panes,
 recording, images, blocks) are in the intent; the plan phases them.
+
+## Phase 6: a host-neutral core and the website (intent `docs/sdlc/intent/007-embed.md`, draft 2026-09-24)
+
+Where termo ends and its host begins, stated once: `src/host/host.h` is what a host
+gives termo (an event base, a pty, a process name and cwd, a terminal's
+capabilities), `host-posix.c` answers with what exists, and `src/host/embed.c` runs
+termo in process over a tty fd, tested natively under ASan on every commit. The
+first foreign host is wasm32 through Emscripten, devices in place of ptys, PUC Lua
+5.1 in place of LuaJIT, for the website's playground (item 008: Astro under `web/`,
+lessons that ask termo whether the goal was reached). Rule 5 is untouched: this is
+termo compiled to wasm32 as an artifact of the site, not a WebAssembly runtime
+inside termo.
