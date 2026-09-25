@@ -82,6 +82,25 @@ detached and 1.6 s with a client.
 - The `since_ground` cap and the control-mode line cap are security fixes with no
   throughput effect; not measured.
 
+## What the bench says about plan 006 step 5 (`utf8/` in Rust)
+
+Measured back to back on the same idle machine, release builds, detached, 3 runs each:
+`-Drust=disabled` (the C module) against `-Drust=enabled` (the Rust module behind the same
+ABI), then two variants of the Rust module's global state.
+
+| Variant | utf8 | resize (46k lines) | ascii | scroll |
+|---|---|---|---|---|
+| C module | 11.6 MB/s | 0.463 s | 51.0 | 40.5 |
+| Rust, `Mutex` on the width cache and the interning table (spec §3.4, landed) | 11.1 | 0.501 | 50.0 | 42.5 |
+| Rust, thread-local state (experiment, not landed) | 11.6 | 0.489 | | |
+
+Within the 10% gate. The 4% on `utf8` is the uncontended `Mutex` taken once per
+decoded character in `utf8_append` (and per interned character in `utf8_from_data` /
+`utf8_to_data`); a range pre-check that skips the `HashMap` for codepoints outside the
+cache made no difference, so the hash is not the cost. `ascii` and `scroll` never enter the
+width path (`utf8_set` is the only call per character) and move within run-to-run noise.
+Whether the lock stays is a design choice recorded in the step 5 report, not a tuning knob.
+
 ## CI
 
 The gate never runs the benchmark: a hosted runner is a fresh, noisy VM and a 10% rule

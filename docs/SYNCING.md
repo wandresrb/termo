@@ -1,3 +1,26 @@
+# termo: parts that are no longer C
+
+`src/utf8/` has a Rust twin (`src/rs/utf8/`, exported to C by `src/rs/ffi/utf8.rs`;
+plan `docs/sdlc/plan/006-rust.md` step 5). With `-Drust` enabled the C files compile only
+into `libtermo_c_utf8`, the reference half of `tests/fuzz/utf8-fuzzer.c`; with it disabled
+they are the module. Until the C files are removed (spec 006 §3.5), an upstream change to
+`utf8.c` or `utf8-combined.c` is applied to both implementations and the fuzzer decides
+whether they still agree. Where the Rust module differs from upstream on purpose:
+
+- `utf8_append` returns `UTF8_ERROR` instead of `fatalx` on its two internal overflow
+  checks, and `utf8_from_data` returns `UTF8_ERROR` for a width above 2 instead of
+  aborting the server.
+- Widths come from the `codepoint-widths` cache, then tmux's 160-entry table, then the
+  `unicode-width` crate (Unicode 17); C1 controls are 0, controls the crate declines are
+  1, and a width above 2 is stored as 2. `docs/width-delta.md`, written by
+  `tools/width-delta.py`, lists every codepoint where that differs from the C module's
+  `utf8proc_wcwidth`/`wcwidth`.
+- `utf8_strvis` with `VIS_DQ` puts a backslash before `$` only when an ASCII letter, `_`
+  or `{` follows; the C module asks `isalpha()`, whose answer for a stray byte above 0x7f
+  depends on the host's ctype tables.
+- `utf8_sanitize` of a string starting with a zero-width character returns the sanitized
+  string; the C module calls `xreallocarray(NULL, 0, 1)` there and aborts.
+
 # Preamble
 
 tmux portable is maintained from two repositories:

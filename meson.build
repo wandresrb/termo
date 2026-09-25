@@ -242,8 +242,10 @@ utf8_sources = files(
 
 sources = core_sources + cmd_sources + window_sources + layout_sources + \
           screen_sources + grid_sources + tty_sources + server_sources + \
-          client_sources + config_sources + input_sources + format_sources + \
-          utf8_sources
+          client_sources + config_sources + input_sources + format_sources
+if not have_rust
+  sources += utf8_sources
+endif
 
 # Bison generator for cmd-parse.y
 bison = find_program('bison', required: true)
@@ -527,8 +529,10 @@ if have_rust
   termo_rs = static_library(
     'termo_rs',
     structured_sources(files('src/rs/lib.rs', 'src/rs/sys.rs'), {
-      'ffi': files('src/rs/ffi/mod.rs', 'src/rs/ffi/version.rs'),
-      'utf8': files('src/rs/utf8/mod.rs'),
+      'ffi': files('src/rs/ffi/mod.rs', 'src/rs/ffi/utf8.rs', 'src/rs/ffi/version.rs'),
+      'utf8': files('src/rs/utf8/mod.rs', 'src/rs/utf8/combined.rs', 'src/rs/utf8/cstr.rs',
+                    'src/rs/utf8/decode.rs', 'src/rs/utf8/pack.rs', 'src/rs/utf8/vis.rs',
+                    'src/rs/utf8/width.rs'),
       'bindings': termo_bindings[0],
     }),
     rust_abi: 'c',
@@ -539,7 +543,7 @@ if have_rust
   termo_rs_h = custom_target('termo_rs.h',
     input: files('src/rs/ffi/mod.rs'),
     output: 'termo_rs.h',
-    depend_files: files('src/rs/ffi/version.rs', 'src/rs/cbindgen.toml'),
+    depend_files: files('src/rs/ffi/utf8.rs', 'src/rs/ffi/version.rs', 'src/rs/cbindgen.toml'),
     command: [cbindgen, '--quiet', '--config', files('src/rs/cbindgen.toml'),
               '--output', '@OUTPUT@', '@INPUT@'],
   )

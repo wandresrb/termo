@@ -8,7 +8,13 @@
     clippy::cast_sign_loss
 )]
 #![warn(clippy::pedantic)]
-#![allow(clippy::indexing_slicing)]
+#![allow(
+    clippy::indexing_slicing,
+    clippy::missing_errors_doc,
+    clippy::missing_panics_doc,
+    clippy::missing_safety_doc,
+    clippy::must_use_candidate
+)]
 
 #[allow(
     unsafe_code,
