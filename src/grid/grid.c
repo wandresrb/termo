@@ -253,11 +253,28 @@ grid_line_set_time(struct grid_line *gl)
 		gl->time = current_time - start_time.tv_sec + 1;
 }
 
+/* Make room for at least n lines, doubling so scrolling does not realloc per line. */
+static void
+grid_reserve_lines(struct grid *gd, u_int n)
+{
+	u_int	want;
+
+	if (n <= gd->lalloc)
+		return;
+	if (ckd_mul(&want, gd->lalloc, 2))
+		want = n;
+	if (want < n)
+		want = n;
+	gd->linedata = xreallocarray(gd->linedata, want, sizeof *gd->linedata);
+	gd->lalloc = want;
+}
+
 /* Adjust number of lines. */
 void
 grid_adjust_lines(struct grid *gd, u_int lines)
 {
 	gd->linedata = xreallocarray(gd->linedata, lines, sizeof *gd->linedata);
+	gd->lalloc = lines;
 }
 
 /* Copy default into a cell. */
@@ -385,6 +402,7 @@ grid_create(u_int sx, u_int sy, u_int hlimit)
 
 	if (gd->sy != 0)
 		gd->linedata = xcalloc(gd->sy, sizeof *gd->linedata);
+	gd->lalloc = gd->sy;
 
 #ifdef __APPLE__
 	assert(gd->hsize == 0);
@@ -501,7 +519,7 @@ grid_scroll_history(struct grid *gd, u_int bg)
 
 	if (ckd_add(&yy, gd->hsize, gd->sy) || ckd_add(&n, yy, 1))
 		fatalx("too many lines");
-	gd->linedata = xreallocarray(gd->linedata, n, sizeof *gd->linedata);
+	grid_reserve_lines(gd, n);
 	grid_empty_line(gd, yy, bg);
 
 	gd->hscrolled++;
@@ -523,6 +541,7 @@ grid_clear_history(struct grid *gd)
 
 	gd->linedata = xreallocarray(gd->linedata, gd->sy,
 	    sizeof *gd->linedata);
+	gd->lalloc = gd->sy;
 }
 
 /* Scroll a region up, moving the top line into the history. */
@@ -535,7 +554,7 @@ grid_scroll_history_region(struct grid *gd, u_int upper, u_int lower, u_int bg)
 	/* Create a space for a new line. */
 	if (ckd_add(&yy, gd->hsize, gd->sy) || ckd_add(&n, yy, 1))
 		fatalx("too many lines");
-	gd->linedata = xreallocarray(gd->linedata, n, sizeof *gd->linedata);
+	grid_reserve_lines(gd, n);
 
 	/* Move the entire screen down to free a space for this line. */
 	gl_history = &gd->linedata[gd->hsize];
@@ -1340,7 +1359,7 @@ grid_reflow_add(struct grid *gd, u_int n)
 
 	if (ckd_add(&sy, gd->sy, n))
 		fatalx("too many lines");
-	gd->linedata = xreallocarray(gd->linedata, sy, sizeof *gd->linedata);
+	grid_reserve_lines(gd, sy);
 	gl = &gd->linedata[gd->sy];
 	memset(gl, 0, n * (sizeof *gl));
 	gd->sy = sy;
@@ -1617,6 +1636,7 @@ grid_reflow(struct grid *gd, u_int sx)
 		gd->hscrolled = gd->hsize;
 	free(gd->linedata);
 	gd->linedata = target->linedata;
+	gd->lalloc = target->lalloc;
 	free(target);
 	gd->scroll_generation++;
 }

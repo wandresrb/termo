@@ -112,3 +112,14 @@ def test_client_key_table_changed_notification(server):
     server.cmd("switch-client", "-c", ctl.client_name(), "-T", "root")
     note = ctl.expect("%client-key-table-changed", lambda n: n.args[1] == "root")
     assert note.args == [ctl.client_name(), "root"]
+
+
+def test_line_over_64k_without_newline_disconnects(server):
+    server.start()
+    ctl = server.attach_control()
+    ctl.proc.stdin.write(b"x" * (128 * 1024))
+    ctl.proc.stdin.flush()
+    assert expect(lambda: ctl.proc.poll() is not None or None,
+                  what="the control client to be disconnected")
+    assert server.alive()
+    assert server.out("list-clients") == ""

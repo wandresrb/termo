@@ -38,14 +38,14 @@ def run_one(script, regress_dir, env, timeout):
     start = time.time()
     proc = subprocess.Popen(["sh", script], cwd=regress_dir, env=env,
                             stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                            text=True)
+                            text=True, start_new_session=True)
     try:
         out, _ = proc.communicate(timeout=timeout)
         rc = proc.returncode
     except subprocess.TimeoutExpired:
-        proc.kill()
+        os.killpg(proc.pid, signal.SIGKILL)
         out, _ = proc.communicate()
-        out += f"\n[runner] timeout after {timeout}s\n"
+        out += f"\n[runner] timeout after {timeout}s, process group killed\n"
         rc = "timeout"
     leaked = kill_leftovers(proc.pid)
     if leaked:
@@ -107,25 +107,33 @@ def main():
     for old in log_dir.glob("*.log"):
         old.unlink()
 
-    print(f"running {len(scripts)} regression tests, -j{args.jobs}, {termo}")
+    fixed_socket = re.compile(r"-Ltest(?![AB])")
+    serial = [s for s in scripts if fixed_socket.search((regress_dir / s).read_text())]
+    parallel = [s for s in scripts if s not in serial]
+    print(f"running {len(scripts)} regression tests, -j{args.jobs} "
+          f"({len(serial)} with a fixed socket run one at a time), {termo}")
     failed = []
-    with ThreadPoolExecutor(max_workers=args.jobs) as pool:
-        for script, rc, out, elapsed in pool.map(
-                lambda s: run_one(s, regress_dir, env, args.timeout), scripts):
-            if rc == 0:
-                tag = "XPASS" if script in xfail else "ok"
-                note = "  leaked a server" if "[runner] killed" in out else ""
-                print(f"  {tag:<7} {script:<40} {elapsed:6.2f}s{note}")
-                continue
-            status = "timeout" if rc == "timeout" else f"exit {rc}"
-            if script in xfail:
-                print(f"  xfail   {script:<40} {elapsed:6.2f}s  {xfail[script]}")
-                continue
-            print(f"  FAIL    {script:<40} {elapsed:6.2f}s  {status}")
-            (log_dir / f"{script}.log").write_text(out)
-            failed.append((script, out))
-            if args.verbose:
-                print(out[-2000:])
+
+    def report(script, rc, out, elapsed):
+        if rc == 0:
+            tag = "XPASS" if script in xfail else "ok"
+            note = "  leaked a server" if "[runner] killed" in out else ""
+            print(f"  {tag:<7} {script:<40} {elapsed:6.2f}s{note}")
+            return
+        status = "timeout" if rc == "timeout" else f"exit {rc}"
+        if script in xfail:
+            print(f"  xfail   {script:<40} {elapsed:6.2f}s  {xfail[script]}")
+            return
+        print(f"  FAIL    {script:<40} {elapsed:6.2f}s  {status}")
+        (log_dir / f"{script}.log").write_text(out)
+        failed.append((script, out))
+        if args.verbose:
+            print(out[-2000:])
+
+    for batch, jobs in ((parallel, args.jobs), (serial, 1)):
+        with ThreadPoolExecutor(max_workers=jobs) as pool:
+            for result in pool.map(lambda s: run_one(s, regress_dir, env, args.timeout), batch):
+                report(*result)
 
     print(f"\n{len(scripts) - len(failed)} passed, {len(failed)} failed")
     for script, out in failed:

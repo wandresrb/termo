@@ -68,6 +68,30 @@ fast path and becomes an extended cell), the client redraw costs 20% on `ascii` 
 40% on `utf8` at 200x60, and reflowing 46k lines of mixed-width text ten times takes 0.4 s
 detached and 1.6 s with a client.
 
+## What the bench decided in plan 006 step 2
+
+- Pane read size (`bufferevent_set_max_single_read`, default 4096): swept at 4K, 16K,
+  64K and 256K on `ascii`, `scroll` and `utf8` detached, 5 runs each. 4K and 256K are
+  equal (51.1 / 40.3 / 11.8 MB/s); 16K and 64K are 8 to 12% slower on `ascii`. The read
+  size is not where the time goes, so the tree keeps libevent's default and the
+  per-iteration parse budget the spec proposed is not needed: one read per pane per loop
+  iteration already bounds it.
+- `linedata` geometric growth (`grid.lalloc`): `scroll` 40.3 → 46.2 MB/s detached
+  (+15%), `ascii` and `utf8` unchanged, `resize` and RSS within run-to-run noise
+  (0.43 to 0.46 s, 343 to 368 MB either way). Landed.
+- The `since_ground` cap and the control-mode line cap are security fixes with no
+  throughput effect; not measured.
+
+## CI
+
+The gate never runs the benchmark: a hosted runner is a fresh, noisy VM and a 10% rule
+on it would flap. The integration that fits `docs/ci.md` is a nightly `bench` job on the
+runner named by `TERMO_LINUX_RUNNER` (a persistent, self-hosted machine, so the numbers
+are comparable run to run), uploading `build/bench/<sha>.json` as an artifact kept for
+90 days and running `bench-compare` against the previous nightly's file as a warning in
+the job summary, never as a failure. It is scheduled after plan 006 step 3 lands the image
+with the toolchain, alongside `rust-verify`.
+
 ## Limits
 
 vtebench's own caveat applies: this measures the speed at which termo reads from the pty,

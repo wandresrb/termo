@@ -1,21 +1,29 @@
-# termo CI builder: glibc, gcc-14 and clang-20, Meson from PyPI. The image tag
+# termo CI builder: glibc, gcc-14 and clang-20, Meson from PyPI, Rust from rustup. The image tag
 # is the first 16 hex digits of this file's sha256, so any edit (including
 # bumping REFRESH to pick up base-image updates) produces a new image.
 FROM ubuntu:24.04
 
 # GHCR reads these: the package page links here and shows this description.
 LABEL org.opencontainers.image.source=https://github.com/wandresrb/termo \
-      org.opencontainers.image.description="termo CI builder: Ubuntu 24.04, gcc-14, clang-20, Meson, LuaJIT, pytest" \
+      org.opencontainers.image.description="termo CI builder: Ubuntu 24.04, gcc-14, clang-20, Rust 1.98, Meson, LuaJIT, pytest" \
       org.opencontainers.image.licenses=ISC
 
 ARG LLVM=20
 ARG MESON=1.12.0
-ARG REFRESH=2026-09-08
+ARG RUST=1.98.0
+ARG BINDGEN=0.73.2
+ARG CBINDGEN=0.29.4
+ARG REFRESH=2026-09-15
 
 ENV DEBIAN_FRONTEND=noninteractive \
     LANG=C.UTF-8 \
     LC_ALL=C.UTF-8 \
-    CC=gcc-14
+    CC=gcc-14 \
+    RUSTUP_HOME=/usr/local/rustup \
+    CARGO_HOME=/usr/local/cargo \
+    MIRI_SYSROOT=/usr/local/miri-sysroot \
+    LIBCLANG_PATH=/usr/lib/llvm-20/lib \
+    PATH=/usr/local/cargo/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 
 RUN apt-get update \
  && apt-get install -y --no-install-recommends \
@@ -31,7 +39,14 @@ RUN apt-get update \
       > /etc/apt/sources.list.d/llvm.list \
  && apt-get update \
  && apt-get install -y --no-install-recommends \
-      clang-${LLVM} clang-tidy-${LLVM} llvm-${LLVM} libclang-rt-${LLVM}-dev \
+      clang-${LLVM} clang-tidy-${LLVM} llvm-${LLVM} libclang-rt-${LLVM}-dev libclang-${LLVM}-dev \
  && ln -s /usr/bin/llvm-symbolizer-${LLVM} /usr/local/bin/llvm-symbolizer \
  && pip install --no-cache-dir --break-system-packages meson==${MESON} \
+ && curl -fsSL https://sh.rustup.rs -o /tmp/rustup.sh \
+ && sh /tmp/rustup.sh -y --no-modify-path --profile minimal --default-toolchain ${RUST} \
+      -c clippy -c rustfmt -c rust-src \
+ && rustup toolchain install nightly --profile minimal -c miri -c rust-src \
+ && cargo +nightly miri setup \
+ && cargo install --locked bindgen-cli@${BINDGEN} cbindgen@${CBINDGEN} \
+ && rm -rf /tmp/rustup.sh ${CARGO_HOME}/registry ${CARGO_HOME}/git \
  && rm -rf /var/lib/apt/lists/*

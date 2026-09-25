@@ -1,6 +1,6 @@
 # Intent 006: Rust where the bytes are untrusted, measured before moved
 
-- Status: Approved 2026-09-09
+- Status: Approved 2026-09-09; amended 2026-09-15 (axes 4 and 9, product table)
 - Author: wandresrb
 - Research: `docs/sdlc/research/006-rust.md`
 
@@ -63,13 +63,26 @@ clients) is accepted as serial.
 Open: whether the parser worker is per pane or a pool; how the budget for Lua callbacks
 interacts with a worker's wakeups.
 
-### 4. `termopack` takes `vim.pack`'s design
+### 4. `termopack` takes `vim.pack`'s design, with a lazy layer over its `load` seam
 
-Enters: a `version` field (branch, tag, commit, semver range), a lockfile that reproduces
-a machine and reverts an update, `pack-changed` events on the event bus, a confirmation
-step before `update()`, every plugin "opt" so removing a line removes it, Git only.
-Does not enter: a registry, non-Git sources, lazy-loading machinery beyond `defer`.
-Open: lockfile location and name; whether `update()` shows a menu or a popup.
+Enters: a `version` field (branch, tag, commit, semver range), a lockfile in the config
+directory that reproduces a machine and reverts an update, `@pack-changed` events on the
+event bus, a confirmation step before install and before `update()`, a plugin removed from
+the list stays on disk inactive until `del()` or `clean()`, a `dependencies` field, Git
+only; and, as a second phase, lazy loading as a layer over `setup`'s `load` option
+(`vim.pack`'s own seam: `load` is `true`, `false` or a function): triggers `event`, `keys`,
+`cmd`, `cond`, `lazy`, plus termo's own `mode` and `format`, with the actions declared in
+the manifest so a stub loads the plugin and runs the declared action instead of re-feeding
+a key.
+Does not enter: a registry, non-Git sources, TPM plugins (`*.tmux` scripts without a
+manifest), a startup-time argument for lazy: the server starts once, so the value of lazy
+is conditions and isolation, and `load_ms` per plugin is measured from day one to keep
+that honest.
+Decided (2026-09-15): the entry point stays `termo.pack.setup`, the runtime's convention
+for a one-time declaration (`hints.setup`, `palette.setup`, `float.setup`) and TPM's
+mental model of a list in the config; `add` was rejected because it implies incremental
+calls from anywhere. Lockfile `termo-pack-lock.json` next to `init.lua`. Install asks on
+the client that starts the server, or on the first attach when none is present.
 
 ### 5. Native plugins through LuaJIT `ffi`, with a stated policy
 
@@ -152,7 +165,13 @@ Decisions:
   plugin; the mechanism is the existing sticky tables plus `#{client_key_table}`; one C
   addition of three lines, a `client-key-table-changed` notification in
   `server_client_set_key_table`, so Lua sees the silent resets. Nothing in the dispatch
-  is touched.
+  is touched. Amended 2026-09-15: the hint bar is an option, `hints`, with `always` (a
+  second status row while modes are on, showing the current mode's keys or the prefix
+  table's) and `mode` (the row appears only inside a mode); every mode table binds `Any`
+  to itself so a root binding does not fire inside a mode (nicm's answer in tmux
+  discussion #4679, WezTerm's `prevent_fallback`); the prefix key leaves a mode, as the
+  dispatch forces the prefix table and returns to root afterwards; locked mode is session
+  scope (`prefix None` plus a root binding to unlock), no C.
 - Enters, **user commands**: commands defined from Lua with arguments and completion,
   reachable from the `:` prompt and the palette, declarable by plugins in `termo.json`
   (the `nvim_create_user_command` shape; `command-alias` is a macro and cannot take
@@ -163,10 +182,14 @@ Decisions:
   asking; the objects and verbs are few, the count pays in two or three cases, and
   destructive verbs would need Kakoune's highlighted selection first. It is a candidate to
   prototype in Lua on top of modes at zero core cost, and to design only if it gets used.
+- Resolved (2026-09-15): a Lua format callback does know the client it renders for
+  (`api_eval` without a target expands the tree being drawn, which carries the client, so
+  `#{client_key_table}` inside the callback is per client). What is not per client is the
+  number of status lines, a session option; that is why the hint bar is a status row and
+  not a per-client overlay (an overlay that passes a key through is destroyed by the
+  pass-through, `server/client.c` overlay key handling).
 - Open: the leader default (`C-a` increments in Neovim, `C-b` pages, `C-space` is free);
-  whether `Esc` or `i` leaves normal; whether a Lua format callback can tell which client
-  it renders for (needed for per-client mode state in the status bar with several clients
-  attached).
+  whether `Esc` or `i` leaves normal.
 
 ### 10. Features reachable only with a Rust leaf (all entered 2026-09-09; research §12)
 
@@ -201,17 +224,19 @@ program controls.
 
 | Feature | Who has it | Value | Layer | Status |
 |---|---|---|---|---|
-| Modal UI: named modes (pane, tab, resize, scroll, search, session, locked) with a hint bar, entered by a leader, left with `Esc` | Zellij; WezTerm key tables; Neovim modes | the first thing a Neovim user expects; Zellij's is the reference and its complaint is discoverability and lag | Lua (`hints.lua` over key tables); a per-mode `termo.ui` status segment is the only core touch | enters |
+| Modal UI: named modes (pane, tab, resize, scroll, search, session, locked) with a hint bar, entered by a leader, left with `Esc` | Zellij; WezTerm key tables; Neovim modes | the first thing a Neovim user expects; Zellij's is the reference and its complaint is discoverability and lag | Lua (`mode.lua` over key tables); the hint bar is a status row gated by the `hints` option; the only core touch is the `client-key-table-changed` notification | enters |
 | Vim motions in copy mode: `w b e f t % ( )`, text objects (`iw aw i" a( ip`), visual line/block, marks, `n N`, `[[ ]]` to prompts | Neovim; WezTerm copy mode (partial); Kitty pager | copy mode today has word/line jumps and search, no text objects, no prompt jumps | C23 in `window/copy.c` (new `-X` commands: text objects, prompt jump) driven by Lua keymaps; prompt marks come from OSC 133 already parsed | enters |
 | Quick select / hints: two-key labels over URLs, paths, hashes, IPs, then yank, open, or paste | Kitty hints kitten; WezTerm quick select; tmux-fingers/thumbs | the most used plugin class in tmux, done out of process with a popup | a screen-reading overlay primitive (`termo.ui.overlay` on a pane's grid, C23) plus Lua matchers; Rust if matching moves to the grid module | enters |
-| Shell integration (OSC 133): jump between prompts, select last command output, mark failed commands in the scrollbar, `cwd` per prompt | Kitty, Ghostty, WezTerm, iTerm2; tmux 3.6 parses OSC 133 | turns scrollback into a navigable structure | parser (C23 now, Rust with axis 1) records marks; navigation is copy-mode C plus Lua keymaps | enters |
+| Shell integration (OSC 133): jump between prompts, select last command output, mark failed commands in the scrollbar, `cwd` per prompt | Kitty, Ghostty, WezTerm, iTerm2; tmux 3.6 parses OSC 133 | turns scrollback into a navigable structure | parser (C23 now, Rust with axis 1) records marks; navigation is copy-mode C plus Lua keymaps; termo provisions the shell hooks for bash, zsh and fish at pane spawn, as Kitty and Ghostty do, behind the `shell-integration` option (2026-09-15: the outer terminal's hooks never reach a pane, so without this the marks exist only for users who configured their shell by hand) | enters |
 | Scrollback in the editor: open the pane history in Neovim in a float, at the current line, with prompt marks as folds | Zellij (`EditScrollback`), Kitty | replaces a pager with the editor the user already knows | Lua (`capture-pane -S -` into a file, `termo.float` with `nvim`) | enters |
 | Neovim navigation and sync: `C-h/j/k/l` across nvim splits and termo panes, resize likewise, shared clipboard, open a path from termo in the running nvim (`--server`) | vim-tmux-navigator, smart-splits, nvr | the single most installed tmux+nvim pair of plugins | Lua on the termo side (detect nvim in the pane via `pane_current_command` or an OSC handshake) and a small `termo.nvim` plugin; no C | enters |
-| Session persistence: serialize sessions, windows, layouts and cwds; restore on server start; periodic autosave | Zellij session serialization; tmux-resurrect/continuum | the second most installed tmux plugin, fragile as a shell script | Lua (`termo.json` layout format already exists) plus one hook on server start; pane content restore stays out | enters |
+| Session persistence: serialize sessions, windows, layouts and cwds; restore on server start; save on structural events and on server exit; modes `layout`, `commands` (the foreground command from `ps -ao ppid,args`, behind an allowlist), `screen` (`capture-pane -e` replayed by `cat` before the shell starts, tmux-resurrect's method) | Zellij session serialization; tmux-resurrect/continuum | the second most installed tmux plugin, fragile as a shell script over the CLI | C: the `resurrect` option (session scope, `off|layout|commands|screen`) and a `server-exit` event; Lua: `session.lua` over `list_*`, `#{window_layout}`, `new-session -d`, `select-layout`, `send-keys`. Corrected 2026-09-15: no layout file format exists in the tree; `session.lua` defines one that `termo.layout` also applies | enters |
 | Sessionizer: fuzzy pick a project directory, create or switch to its session | tmux-sessionizer, Zellij session manager | daily workflow for developers | Lua on the palette (`termo.fuzzy`, `termo.system("fd")`) | enters |
 | Image protocols: Kitty graphics and iTerm2 inline images through the multiplexer, not only sixel | WezTerm mux; Kitty; Ghostty | tmux is the reason images "don't work in tmux"; passthrough with placement tracking is the hard part | parser and tty (C23 now; Rust when `input/` moves); placement state in the grid module | open: passthrough first, placement later |
 | Modern terminal protocols: synchronized output (DEC 2026), Kitty keyboard protocol, theme mode 2031, pixel-size queries, OSC 8 hyperlinks, OSC 52, undercurl | all four terminals; tmux 3.4–3.6 has most | tearing-free redraws and correct keys are table stakes | C23 `tty/` and `input/`, cherry-picked from upstream where it exists | enters via upstream sync |
-| Layouts as data with swap layouts and stacked panes | Zellij (KDL, swap layouts, stacked/pinned panes) | termo has declarative layouts from Lua; stacked panes and swap layouts do not exist | Lua for swap layouts over `select-layout`; stacked panes need C23 in `layout/` | open |
+| Layouts as data with swap layouts | Zellij (KDL, swap layouts) | termo has declarative layouts from Lua; swap layouts do not exist | Lua: the session format of the persistence row saved per name under `~/.config/termo/layouts/`, `termo.layout.swap()` over `select-layout` | enters |
+| Stacked panes: tiled panes sharing one cell, one expanded, the others collapsed to a title row | Zellij (stacked panes) | Zellij's most visible layout feature after floats; nothing tmux-based has it | C23 in `layout/`: a flag on a `LAYOUT_TOPBOTTOM` node (the `LAYOUT_CELL_FLOATING` precedent), `(...)` in the layout string, drawing over pane-border-status; recorded in `docs/SYNCING.md` | enters |
+| Floating panes with defaults: size, position and border as options, default keys | Zellij (floating panes) | the core has floats (z-order, modal, `move-pane -P`) but size and border are per-command flags only and there are no default keys | C23: window options `float-width`, `float-height`, `float-position`, `float-border-style`, `float-border-lines` read by `layout_floating_args_parse`; keys in `etc/termo.conf`; `float.lua` | enters |
 | Command palette with plugin-declared commands and arguments | Zellij plugins, VS Code, Raycast | exists; manifests do not declare commands yet | Lua (`termo.json` fields, `palette.lua`) | enters |
 | Health check, first-run and welcome screen | Neovim `:checkhealth`; Zellij welcome screen | onboarding and support | Lua | enters |
 | Web client: attach to a session from a browser over WebSocket | Zellij web client (0.43); ttyd, gotty | remote access without SSH, pairing, demos | Rust greenfield, out of process: a `termo-web` bridge over control mode with an xterm.js front end; no core change | open, later |

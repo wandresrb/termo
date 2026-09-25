@@ -136,6 +136,32 @@ TEST(grid, wide_cell_with_padding)
 	grid_destroy(gd);
 }
 
+TEST(grid, scroll_history_grows_capacity_geometrically)
+{
+	struct grid	*gd = grid_create(5, 2, 100000);
+	char		 buf[8];
+	u_int		 i;
+
+	CHECK_EQ(gd->lalloc, 2u);
+	for (i = 0; i < 5000; i++) {
+		snprintf(buf, sizeof buf, "l%u", i % 1000);
+		put(gd, 0, gd->hsize, buf);
+		grid_scroll_history(gd, 8);
+	}
+	CHECK_EQ(gd->hsize, 5000u);
+	CHECK(gd->lalloc >= 5002u);
+	CHECK(gd->lalloc <= 2u * 5002u);
+	EXPECT_LINE(gd, 0, "l0");
+	EXPECT_LINE(gd, 4999, "l999");
+
+	grid_clear_history(gd);
+	CHECK_EQ(gd->lalloc, 2u);
+	grid_scroll_history(gd, 8);
+	CHECK_EQ(gd->hsize, 1u);
+	CHECK(gd->lalloc >= 3u);
+	grid_destroy(gd);
+}
+
 TEST(grid, scroll_history_moves_top_line_and_collects)
 {
 	struct grid	*gd = grid_create(5, 2, 3);

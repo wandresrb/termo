@@ -190,5 +190,9 @@ find_home(void)
 const char *
 getversion(void)
 {
+#ifdef HAVE_RUST
+	if (termo_rs_abi() == TERMO_RS_ABI)
+		return (TMUX_VERSION "+rust");
+#endif
 	return (TMUX_VERSION);
 }

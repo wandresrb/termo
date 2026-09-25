@@ -50,6 +50,11 @@ ci-local cc="gcc-14":
 tidy:
     {{docker}} run --rm -v "$PWD":/work -w /work -e CC=clang-20 {{image}}:{{tag}} sh -ec 'rm -rf build-tidy; meson setup build-tidy >/dev/null; ninja -C build-tidy cmd-parse.c >/dev/null; run-clang-tidy-20 -p build-tidy -quiet -warnings-as-errors="*" "(src/(?!compat/)|tests/unit/).*\.c$"'
 
+# rustfmt and clippy on src/rs through Meson, the same commands as the clang-tidy gate job
+rs-lint: build
+    rustfmt --check --edition 2024 --config-path src/rs/rustfmt.toml src/rs/lib.rs src/rs/build.rs
+    ninja -C build clippy
+
 # local install, XDG-friendly default prefix; override with `PREFIX=/opt/termo just install`
 install prefix=env_var_or_default("PREFIX", env_var("HOME") / ".local"):
     meson setup build-release --buildtype=release --prefix="{{prefix}}" -Db_sanitize=none
