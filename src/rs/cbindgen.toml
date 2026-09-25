@@ -1,0 +1,15 @@
+language = "C"
+include_guard = "TERMO_RS_H"
+sys_includes = ["stdbool.h", "stddef.h", "stdint.h"]
+no_includes = true
+cpp_compat = false
+style = "type"
+usize_is_size_t = true
+
+[export]
+prefix = "TERMO_RS_"
+exclude = []
+
+
+[const]
+allow_static_const = true

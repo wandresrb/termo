@@ -1,0 +1,25 @@
+[package]
+name = "termo-rs"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.98"
+publish = false
+
+build = "build.rs"
+
+[lib]
+path = "lib.rs"
+crate-type = ["rlib"]
+
+[dependencies]
+unicode-width = { path = "../../subprojects/unicode-width-0.2.2", default-features = true }
+unicode-segmentation = { path = "../../subprojects/unicode-segmentation-1.13.3" }
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(termo_meson)'] }
+
+[profile.release]
+panic = "abort"
+overflow-checks = true
+lto = "fat"
+codegen-units = 1

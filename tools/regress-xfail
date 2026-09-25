@@ -1,0 +1,23 @@
+# <script> <reason>. Scripts expected to fail; the runner reports them but does not count them.
+copy-mode-unicode-whitespace.sh upstream test (77309c07) for NBSP word motion whose code is not in tmux master yet
+capture-pane-time.sh upstream added capture-pane -I after termo's base (3.8); lands with the next upstream sync
+control-client-new-layouts.sh upstream changed control-mode layout notifications after termo's base (3.8); lands with the next upstream sync
+control-client-run-shell-exit.sh upstream changed control-mode exit handling after termo's base (3.8); lands with the next upstream sync
+copy-mode-selection-mode.sh upstream changed line-mode selection after termo's base (3.8); lands with the next upstream sync
+floating-pane-geometry.sh upstream changed floating pane placement after termo's base (3.8); lands with the next upstream sync
+json.sh upstream added display-message -j after termo's base (3.8); lands with the next upstream sync
+layout-custom.sh upstream moved window layouts to JSON after termo's base (3.8); lands with the next upstream sync
+layout-nesting-limit.sh upstream added a layout nesting limit after termo's base (3.8); lands with the next upstream sync
+modal-pane.sh upstream added new-pane -D after termo's base (3.8); lands with the next upstream sync
+options-values.sh upstream added pane-border-lines rounded after termo's base (3.8); lands with the next upstream sync
+prompt-keys.sh upstream fixed the prompt crash on an invalid UTF-8 append (prompt.c) after termo's base (3.8); cherry-pick pending
+screen-redraw-floating.sh upstream added pane-border-lines rounded after termo's base (3.8); lands with the next upstream sync
+screen-redraw-outside.sh upstream changed the outside-status redraw scene after termo's base (3.8); lands with the next upstream sync
+sync-output-cursor.sh upstream changed cursor handling under synchronized output after termo's base (3.8); lands with the next upstream sync
+targets-panes.sh upstream tightened relative pane targets after termo's base (3.8); lands with the next upstream sync
+targets.sh upstream tightened relative window targets after termo's base (3.8); lands with the next upstream sync
+tty-keys.sh upstream changed meta key decoding for ESC-prefixed punctuation after termo's base (3.8); lands with the next upstream sync
+window-ops.sh upstream changed new-window -S index reuse after termo's base (3.8); lands with the next upstream sync
+switch-mode.sh upstream added switch mode features after termo's base (3.8); lands with the next upstream sync
+hooks-notify.sh upstream changed the pane-exited payload after termo's base (3.8); lands with the next upstream sync
+format-variables.sh upstream checks #{version} against its own version string and then hangs; lands with the next upstream sync

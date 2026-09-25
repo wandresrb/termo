@@ -1,0 +1,4 @@
+new-window -n foo "ls -la"
+split-window -h
+set -g status on
+bind -T root C-a send-prefix

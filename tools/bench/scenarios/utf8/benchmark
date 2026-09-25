@@ -1,0 +1,29 @@
+#!/usr/bin/env python3
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from gen import args, emit, rng
+
+a = args()
+r = rng(a.seed)
+
+WORDS = ["terminal", "multiplexer", "café", "naïve", "Zürich", "日本語", "한국어",
+         "русский", "ελληνικά", "é", "ä", "🧑‍🌾", "👨‍👩‍👧", "🏳️‍🌈", "🇦🇷", "👍🏽",
+         "中文字符", "文字", "😀", "✓", "→", "ℕ"]
+WIDTHS = {w: sum(2 if ord(c) > 0x2E7F and c not in "‍️" else (0 if c in "́̈‍️" else 1) for c in w) for w in WORDS}
+
+
+def lines():
+    while True:
+        cols, parts = 0, []
+        while True:
+            w = r.choice(WORDS)
+            if cols + WIDTHS[w] + 1 > 78:
+                break
+            parts.append(w)
+            cols += WIDTHS[w] + 1
+        yield (" ".join(parts) + "\n").encode()
+
+
+emit(lines(), a.bytes)

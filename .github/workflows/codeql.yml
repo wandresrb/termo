@@ -1,0 +1,65 @@
+name: codeql
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    paths:
+      - 'src/**'
+      - meson.build
+      - meson_options.txt
+      - .github/workflows/codeql.yml
+      - .github/workflows/image.yml
+  schedule:
+    - cron: '41 5 * * 1'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: codeql-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  image:
+    uses: $/.github/workflows/image.yml
+    permissions:
+      contents: read
+      packages: write
+
+  analyze:
+    name: codeql c-cpp
+    needs: image
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    permissions:
+      contents: read
+      packages: read
+      actions: read
+      security-events: write
+    container:
+      image: ghcr.io/${{ github.repository }}-ci-ubuntu:${{ needs.image.outputs.ubuntu }}
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    env:
+      CC: gcc-14
+      # Meson wraps the compiler in ccache when it finds one; a cache hit is a
+      # compilation the CodeQL tracer never sees.
+      CCACHE_DISABLE: '1'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: github/codeql-action/init@cdf488f595d80d6e07e03d4674febd5ab45fa938 # v4.37.9
+        with:
+          languages: c-cpp
+          build-mode: manual
+          queries: security-extended
+      - name: build under the tracer
+        run: |
+          meson setup build-codeql -Dbuildtype=debug
+          ninja -C build-codeql
+      - uses: github/codeql-action/analyze@cdf488f595d80d6e07e03d4674febd5ab45fa938 # v4.37.9
+        with:
+          category: c-cpp
