@@ -5091,6 +5091,16 @@ disallowedWindowOps: 20,21,SetXprop
 Or changing this property from the
 .Xr xterm 1
 interactive menu when required.
+.It Ic sticky\-key\-tables[] Ar table
+Key tables that keep the client after each key.
+While a client is in one of them, a bound key that does not repeat does not
+return the client to the root table, a mouse event with no binding in the
+table uses the bindings of the root table and the client stays, and any other
+key with no binding is discarded.
+The prefix key still switches to the
+.Ic prefix
+table.
+Empty by default.
 .It Ic terminal\-features[] Ar string
 Set terminal features for terminal types read from
 .Xr terminfo 5 .

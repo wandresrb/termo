@@ -88,14 +88,16 @@ describe("termo.hints", function()
 		eq(line:match("left") ~= nil, true)
 		eq(termo.hints.line("root"), "")
 	end)
-	it_async("and the bindings return to the table", function(done)
+	it_async("and the table is sticky", function(done)
 		local h = api.cmd("list-keys -T mode-spec h") or ""
 		local x = api.cmd("list-keys -T mode-spec x") or ""
 		local esc = api.cmd("list-keys -T mode-spec Escape") or ""
 		local enter = api.cmd("list-keys -T prefix F8") or ""
+		local sticky = api.cmd("show -s sticky-key-tables") or ""
 		api.cmd("unbind -T mode-spec -a")
 		api.keymap_del("prefix", "F8")
-		if check(done, h:match("switch%-client %-T mode%-spec") ~= nil, h) and
+		if check(done, h:match("switch%-client") == nil, h) and
+		    check(done, sticky:match("mode%-spec") ~= nil, sticky) and
 		    check(done, x:match("switch%-client") == nil, x) and
 		    check(done, esc:match("%-T root") ~= nil, esc) and
 		    check(done, enter:match("mode%-spec") ~= nil, enter) then

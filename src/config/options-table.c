@@ -543,6 +543,18 @@ const struct options_table_entry options_table[] = {
 		  "paste buffers with an escape sequence ('on' only)."
 	},
 
+	{ .name = "sticky-key-tables",
+	  .type = OPTIONS_TABLE_STRING,
+	  .scope = OPTIONS_TABLE_SERVER,
+	  .flags = OPTIONS_TABLE_IS_ARRAY,
+	  .default_str = "",
+	  .separator = ",",
+	  .text = "Key tables that keep the client after each key: a bound "
+		  "key does not return to the root table, a mouse event "
+		  "uses the root table's bindings and any other key is "
+		  "discarded."
+	},
+
 	{ .name = "terminal-overrides",
 	  .type = OPTIONS_TABLE_STRING,
 	  .scope = OPTIONS_TABLE_SERVER,

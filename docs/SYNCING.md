@@ -247,6 +247,14 @@ Recorded so an upstream cherry-pick that touches the same lines is ported, not m
   (hook, Lua event, `%client-key-table-changed` in control mode) when the table name
   changes, and `src/cmd/session/switch.c` sets `switch-client -T` through it instead of
   assigning `tc->keytable` directly, so every table change is observed.
+- `src/server/client.c` `server_client_key_callback`: for a client whose table is named in
+  the `sticky-key-tables` server option (`server_client_key_table_is_sticky`), a bound
+  key that does not repeat does not reset the client to the root table before the
+  dispatch, and in the "not found in key table" branch a mouse event is looked up in the
+  default table without changing the client's table while any other key is swallowed.
+  Both branches are guarded by the option, empty by default, so upstream behaviour holds
+  for every table not listed. A cherry-pick into this function is ported by hand around
+  the two guards.
 - `src/server/server.c` `server_send_exit` fires `server-exit` (a hook) before destroying
   the sessions. `src/cmd/session/attach.c`: when `-t` names a session that does not exist,
   `attach-session` asks Lua (`termo_lua_session_revive`) to restore it from its resurrect

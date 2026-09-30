@@ -287,6 +287,26 @@ server_client_is_default_key_table(struct client *c, struct key_table *table)
 	return (strcmp(table->name, server_client_get_key_table(c)) == 0);
 }
 
+/* Is the client's key table one that keeps the client after each key? */
+static bool
+server_client_key_table_is_sticky(struct client *c)
+{
+	struct options_entry		*o;
+	struct options_array_item	*a;
+	union options_value		*ov;
+
+	o = options_get_only(global_options, "sticky-key-tables");
+	if (o == nullptr)
+		return (false);
+	for (a = options_array_first(o); a != nullptr;
+	    a = options_array_next(a)) {
+		ov = options_array_item_value(a);
+		if (strcmp(ov->string, c->keytable->name) == 0)
+			return (true);
+	}
+	return (false);
+}
+
 /* Create a new client. */
 struct client *
 server_client_create(int fd)
@@ -1625,7 +1645,8 @@ try_again:
 			evtimer_add(&c->repeat_timer, &tv);
 		} else {
 			c->flags &= ~CLIENT_REPEAT;
-			server_client_set_key_table(c, NULL);
+			if (!server_client_key_table_is_sticky(c))
+				server_client_set_key_table(c, NULL);
 		}
 		server_status_client(c);
 
@@ -1660,6 +1681,22 @@ try_again:
 	 * switch the client back to the root table and try again.
 	 */
 	log_debug("not found in key table %s", table->name);
+
+	/*
+	 * A sticky table keeps the client: a mouse event falls through to the
+	 * default table without leaving it, any other key is swallowed.
+	 */
+	if (server_client_key_table_is_sticky(c) &&
+	    (~c->flags & CLIENT_REPEAT)) {
+		if (!KEYC_IS_MOUSE(key))
+			goto out;
+		if (table != c->keytable)
+			goto forward_key;
+		table = key_bindings_get_table(server_client_get_key_table(c), 1);
+		key0 = (key & (KEYC_MASK_KEY|KEYC_MASK_MODIFIERS));
+		goto try_again;
+	}
+
 	if (!server_client_is_default_key_table(c, table) ||
 	    (c->flags & CLIENT_REPEAT)) {
 		log_debug("trying in root table");

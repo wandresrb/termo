@@ -1,5 +1,5 @@
 local api = termo.api
-local M = { modes = {}, hints = "mode", armed = false, previous = {} }
+local M = { modes = {}, hints = "mode", armed = false, previous = {}, sticky = {} }
 
 local function tname(name)
 	return "mode-" .. name
@@ -40,13 +40,31 @@ local function on_table(ev)
 	end
 end
 
+local function make_sticky(t)
+	if M.sticky[t] then
+		return
+	end
+	M.sticky[t] = true
+	local o = api.get_option("sticky-key-tables")
+	for _, name in pairs(type(o) == "table" and o or {}) do
+		if name == t then
+			return
+		end
+	end
+	api.cmd("set -as sticky-key-tables " .. t)
+end
+
 function M.define(name, spec)
 	local t = tname(name)
+	local sticky = spec.sticky ~= false
 	spec.name = name
 	M.modes[name] = spec
+	if sticky then
+		make_sticky(t)
+	end
 	for key, entry in pairs(spec.keys or {}) do
 		local rhs, label = entry[1], entry[2]
-		if not entry.once then
+		if not entry.once and not sticky then
 			if type(rhs) == "string" then
 				rhs = rhs .. " ; switch-client -T " .. t
 			else
@@ -59,7 +77,9 @@ function M.define(name, spec)
 		end
 		api.keymap_set(t, key, rhs, { note = label })
 	end
-	api.keymap_set(t, "Any", "switch-client -T " .. t, { note = "stay in " .. name })
+	if not sticky then
+		api.keymap_set(t, "Any", "switch-client -T " .. t, { note = "stay in " .. name })
+	end
 	for _, key in ipairs(spec.leave or { "Escape" }) do
 		api.keymap_set(t, key, "switch-client -T root", { note = "leave " .. name })
 	end

@@ -2,7 +2,7 @@ local api = termo.api
 local mode = termo.mode
 
 describe("termo.mode", function()
-	it_async("binds sticky keys, Any and the leave key in the mode table", function(done)
+	it_async("makes the mode table sticky and binds the leave key", function(done)
 		mode.define("specm", {
 			key = "M",
 			keys = {
@@ -11,9 +11,10 @@ describe("termo.mode", function()
 			},
 		})
 		local keys = api.cmd("list-keys -T mode-specm")
-		eq(keys:find("select%-pane %-L \\; switch%-client %-T mode%-specm") ~= nil, true)
-		eq(keys:find("Any%s+switch%-client %-T mode%-specm") ~= nil, true)
+		eq(keys:find("select%-pane %-L\n") ~= nil, true)
+		eq(keys:find("Any") == nil, true)
 		eq(keys:find("Escape%s+switch%-client %-T root") ~= nil, true)
+		eq(api.cmd("show -s sticky-key-tables"):find("mode%-specm") ~= nil, true)
 		eq(keys:find("kill%-pane \\;") == nil, true)
 		local prefix = api.cmd("list-keys -T prefix M")
 		eq(prefix:find("switch%-client %-T mode%-specm") ~= nil, true)
@@ -26,6 +27,18 @@ describe("termo.mode", function()
 		mode.hints = "always"
 		eq(mode.line("root"):find(" M #%[noreverse%] specm") ~= nil, true)
 		mode.hints = "mode"
+		done()
+	end)
+
+	it_async("keeps a sticky = false table out of the list, with Any", function(done)
+		mode.define("specone", {
+			sticky = false,
+			keys = { h = { "select-pane -L", "left" } },
+		})
+		local keys = api.cmd("list-keys -T mode-specone")
+		eq(keys:find("select%-pane %-L \\; switch%-client %-T mode%-specone") ~= nil, true)
+		eq(keys:find("Any%s+switch%-client %-T mode%-specone") ~= nil, true)
+		eq(api.cmd("show -s sticky-key-tables"):find("mode%-specone") == nil, true)
 		done()
 	end)
 

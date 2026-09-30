@@ -103,6 +103,34 @@ def test_mode_is_sticky_swallows_unbound_keys_and_shows_hints(server, ui):
     expect_fmt(server, "#{@root_fired}", "yes")
 
 
+def test_mode_keys_do_not_pass_through_root(server, ui):
+    ctl = server.attach_control()
+    name = server.out("list-clients", "-F", "#{client_name}",
+                      "-f", "#{!=:#{client_control_mode},1}")
+    ui.send_keys("C-b", "M")
+    ctl.expect("%client-key-table-changed",
+               lambda n: n.args == [name, "mode-spec"])
+    mark = ctl.mark()
+    ui.send_keys("h", "h", "h", "Escape")
+    ctl.expect("%client-key-table-changed", lambda n: n.args == [name, "root"])
+    seen = [n.args[1] for n in ctl.notes(mark, "%client-key-table-changed")
+            if n.args[0] == name]
+    assert seen == ["root"]
+    assert server.option("@mode_h") == "hit"
+
+
+def test_mouse_in_a_mode_uses_root_bindings_and_stays(server, ui):
+    server.cmd("set", "-g", "mouse", "on")
+    server.cmd("split-window", "-h")
+    server.cmd("select-pane", "-t", "{left}")
+    expect_fmt(server, "#{pane_index}", "0")
+    ui.send_keys("C-b", "M")
+    expect_table(server, "mode-spec")
+    ui.send_text("\x1b[<0;70;5M\x1b[<0;70;5m")
+    expect_fmt(server, "#{pane_index}", "1")
+    expect_table(server, "mode-spec")
+
+
 def test_hints_always_keeps_the_second_row(server, ui):
     server.cmd("run-lua", 'termo.mode.setup{ hints = "always" }')
     expect_fmt(server, "#{status}", "2")
