@@ -37,14 +37,10 @@ def windows(server, session):
     return out
 
 
-def kill_and_wait(server):
+def restart(server, conf):
     server.cmd("kill-server")
     expect(lambda: server.cmd("list-sessions", check=False).returncode != 0,
            what="the server to exit")
-
-
-def restart(server, conf):
-    kill_and_wait(server)
     server.start(session="boot", conf=conf, lua_init=FIXTURES / "resurrect_init.lua")
 
 
@@ -112,7 +108,7 @@ def test_writes_wait_for_the_delay_and_exit_writes_at_once(make_server, tmp_path
     server.cmd("run-lua", "termo.session.delay = 30000")
     server.cmd("split-window", "-t", "work")
     assert not saved(tmp_path, "work").exists()
-    kill_and_wait(server)
+    server.cmd("kill-server")
     assert saved(tmp_path, "work").exists()
     mtime = os.stat(saved(tmp_path, "work")).st_mtime_ns
     server.start(session="other", conf=conf)
@@ -163,5 +159,5 @@ def test_screen_mode_restores_the_pane_contents(make_server, tmp_path):
 def test_off_saves_nothing(make_server, tmp_path):
     server, conf = resurrect_server(make_server, tmp_path, "off")
     server.start(session="work", conf=conf)
-    kill_and_wait(server)
+    server.cmd("kill-server")
     assert not saved(tmp_path, "work").exists()
