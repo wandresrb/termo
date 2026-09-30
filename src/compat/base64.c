@@ -189,7 +189,7 @@ b64_pton(char const *src, unsigned char *target, size_t targsize)
 	size_t tarindex;
 	int state, ch;
 	unsigned char nextbyte;
-	char *pos;
+	const char *pos;
 
 	state = 0;
 	tarindex = 0;
