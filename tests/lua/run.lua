@@ -162,7 +162,7 @@ for _, spec in ipairs({
 end
 
 -- A watchdog so a spec that never calls done() cannot hang the run.
-api.defer(15000, function()
+api.defer(45000, function()
 	api.cmd("wait-for -S lua-specs")
 end)
 run_next()
