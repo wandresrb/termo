@@ -38,19 +38,25 @@ lua_cmd_start([[maybe_unused]] struct cmdq_item *item, void *data)
 /*
  * Inside a running command, consecutive cmd() calls must run in order:
  * each one goes after the last one inserted, not straight after the
- * command. The anchor is valid while that command is still running.
+ * command. The anchor is valid while that command is still running, so it
+ * is keyed by the firing number as well as the address: once the command
+ * is freed, a later one allocated at the same address is a different
+ * firing and must not follow the freed anchor_last.
  */
 static struct cmdq_item	*anchor_item;
+static u_int		 anchor_number;
 static struct cmdq_item	*anchor_last;
 
 struct cmdq_item *
 termo_lua_cmd_insert(struct cmdq_item *item, struct cmdq_item *first)
 {
 	struct cmdq_item	*after = item;
+	u_int			 number = cmdq_get_number(item);
 
-	if (anchor_item == item)
+	if (anchor_item == item && anchor_number == number)
 		after = anchor_last;
 	anchor_item = item;
+	anchor_number = number;
 	anchor_last = cmdq_insert_after(after, first);
 	return (anchor_last);
 }

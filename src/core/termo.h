@@ -3263,6 +3263,7 @@ struct cmd_find_state *cmdq_get_source(struct cmdq_item *);
 struct key_event *cmdq_get_event(struct cmdq_item *);
 struct cmd_find_state *cmdq_get_current(struct cmdq_item *);
 int		  cmdq_get_flags(struct cmdq_item *);
+u_int		  cmdq_get_number(struct cmdq_item *);
 struct cmdq_item *cmdq_get_command(struct cmd_list *, struct cmdq_state *);
 #define cmdq_get_callback(cb, data) cmdq_get_callback1(#cb, cb, data)
 struct cmdq_item *cmdq_get_callback1(const char *, cmdq_cb, void *);

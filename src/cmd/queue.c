@@ -213,6 +213,13 @@ cmdq_get_flags(struct cmdq_item *item)
 	return (item->state->flags);
 }
 
+/* Get the number the item was given when it fired, unique per firing. */
+u_int
+cmdq_get_number(struct cmdq_item *item)
+{
+	return (item->number);
+}
+
 /* Create a new state. */
 struct cmdq_state *
 cmdq_new_state(struct cmd_find_state *current, struct key_event *event,

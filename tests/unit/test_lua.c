@@ -292,6 +292,52 @@ TEST(lua, timers_fire_from_the_loop)
  * finished, goes through cmdq_error with a null command: it must land in
  * the message log, not dereference the command.
  */
+static enum cmd_retval
+two_cmds(struct cmdq_item *item, [[maybe_unused]] void *data)
+{
+	char	*result = nullptr;
+
+	termo_lua_eval("termo.api.cmd('set -ag @seq a') "
+	    "termo.api.cmd('set -ag @seq b')", item, &result, false);
+	free(result);
+	return (CMD_RETURN_NORMAL);
+}
+
+/*
+ * The anchor that keeps consecutive cmd() calls in order outlived the
+ * command that set it: a later command allocated at the same address took
+ * the freed anchor for its own and cmdq_insert_after wrote through it. The
+ * allocator reuses the address without sanitizers; under ASan the
+ * quarantine prevents it and the order check is all that runs.
+ */
+TEST(lua, cmd_order_survives_a_reused_item_address)
+{
+	struct cmdq_item	*first, *item, *spare[64];
+	u_int			 nspare = 0, i;
+
+	start();
+	first = cmdq_get_callback(two_cmds, nullptr);
+	cmdq_append(nullptr, first);
+	while (cmdq_next(nullptr) != 0)
+		;
+
+	item = cmdq_get_callback(two_cmds, nullptr);
+	while (item != first && nspare < nitems(spare)) {
+		spare[nspare++] = item;
+		item = cmdq_get_callback(two_cmds, nullptr);
+	}
+	cmdq_append(nullptr, item);
+	while (cmdq_next(nullptr) != 0)
+		;
+	for (i = 0; i < nspare; i++)
+		cmdq_append(nullptr, spare[i]);
+	while (cmdq_next(nullptr) != 0)
+		;
+
+	EXPECT("return termo.api.get_option('@seq'):sub(1, 4)", "abab");
+	termo_lua_free();
+}
+
 TEST(lua, errors_in_callback_items_reach_the_message_log)
 {
 	struct message_entry	*msg;
