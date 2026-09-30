@@ -82,7 +82,6 @@ int LLVMFuzzerTestOneInput(const unsigned char *d, unsigned long n) { (void)d; (
       include_directories: inc_dirs,
       dependencies: deps,
       c_args: c_args + ['-fsanitize=fuzzer-no-link'],
-      link_with: rs_link,
     )
     foreach t : ['cmd-parse', 'format', 'input', 'style']
       fuzz_exe = executable(t + '-fuzzer', 'fuzz/' + t + '-fuzzer.c', files('unit/harness.c'),
@@ -100,53 +99,5 @@ int LLVMFuzzerTestOneInput(const unsigned char *d, unsigned long n) { (void)d; (
         timeout: 300,
       )
     endforeach
-    if have_rust
-      termo_c_utf8 = static_library('termo_c_utf8', utf8_sources,
-        include_directories: inc_dirs,
-        dependencies: deps,
-        c_args: c_args + ['-fsanitize=fuzzer-no-link',
-                          '-include', meson.current_source_dir() / 'fuzz/utf8-c-prefix.h'],
-      )
-      fuzz_utf8 = executable('utf8-fuzzer', 'fuzz/utf8-fuzzer.c', files('unit/harness.c'),
-        include_directories: [inc_dirs, include_directories('unit')],
-        dependencies: deps,
-        c_args: c_args,
-        link_with: [fuzz_lib, termo_c_utf8],
-        link_args: ['-fsanitize=fuzzer'],
-      )
-      test('fuzz_utf8', fuzz_utf8,
-        args: ['-runs=2000', '-max_len=512',
-               '-dict=' + meson.current_source_dir() / 'fuzz/utf8-fuzzer.dict',
-               meson.current_source_dir() / 'fuzz/corpus/utf8'],
-        suite: 'fuzz',
-        timeout: 300,
-      )
-    endif
-  endif
-endif
-
-# The Rust unit tests: through Meson when the tree links without sanitizers (rustc
-# cannot link a test binary with -fsanitize, Meson #11741), through cargo otherwise.
-if have_rust
-  if get_option('b_sanitize') in ['none', '']
-    rust.test('rs', termo_rs,
-      link_with: termo_lib,
-      dependencies: deps,
-      rust_args: ['-Cpanic=unwind'],
-      suite: 'unit',
-      timeout: 60,
-    )
-  else
-    cargo = find_program('cargo', required: false)
-    if cargo.found()
-      test('unit-rs', cargo,
-        args: ['test', '--quiet', '--manifest-path',
-               meson.project_source_root() / 'src/rs/Cargo.toml'],
-        env: {'TERMO_BUILD_DIR': meson.project_build_root()},
-        depends: termo_bindings,
-        suite: 'unit',
-        timeout: 300,
-      )
-    endif
   endif
 endif
