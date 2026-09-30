@@ -1,0 +1,92 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: '33 3 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 45
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: ubuntu-24.04-x64
+            runner: ubuntu-24.04
+          - name: ubuntu-24.04-arm64
+            runner: ubuntu-24.04-arm
+          - name: macos-26-arm64
+            runner: macos-26
+
+    env:
+      CCACHE_DIR: ${{ github.workspace }}/.ccache
+      CCACHE_MAXSIZE: 400M
+      HOMEBREW_NO_AUTO_UPDATE: '1'
+      HOMEBREW_NO_INSTALL_CLEANUP: '1'
+
+    steps:
+      - name: checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            bison ccache gcc-14 libevent-dev libluajit-5.1-dev \
+            libncurses-dev libutf8proc-dev ninja-build pkg-config \
+            python3-pytest
+          pipx install meson
+          echo "CC=gcc-14" >> "$GITHUB_ENV"
+
+      - name: dependencies
+        if: runner.os == 'macOS'
+        run: |
+          brew install bison ccache libevent luajit meson ncurses ninja \
+            pkgconf utf8proc
+          python3 -m venv .venv
+          .venv/bin/pip install --quiet pytest
+          echo "$PWD/.venv/bin" >> "$GITHUB_PATH"
+
+      - name: cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .ccache
+          key: ccache-${{ matrix.name }}-${{ github.sha }}
+          restore-keys: ccache-${{ matrix.name }}-
+
+      - name: build
+        run: |
+          meson setup build -Db_sanitize=address,undefined \
+            -Dbuildtype=debugoptimized -Dwerror=true -De2e=enabled
+          meson compile -C build
+
+      - name: test
+        run: meson test -C build --print-errorlogs
+
+      - name: logs
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: logs-${{ matrix.name }}
+          path: |
+            build/meson-logs/testlog.txt
+            /tmp/termo-asan.*
+            /tmp/termo-ubsan.*
+          if-no-files-found: ignore

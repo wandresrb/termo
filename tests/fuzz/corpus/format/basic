@@ -1,0 +1,1 @@
+#{session_name}:#{window_index}.#{pane_index} #{?window_zoomed_flag,Z,} #{=|10|...:pane_title}
