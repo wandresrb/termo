@@ -2,7 +2,7 @@ name: ci
 
 on:
   push:
-    branches: [refactor/to-termo]
+    branches: [main]
   pull_request:
   schedule:
     - cron: '33 3 * * *'
