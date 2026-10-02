@@ -1,0 +1,16 @@
+option('utf8proc', type: 'feature', value: 'disabled',
+  description: 'Anchos Unicode con utf8proc (en macOS se recomienda mucho)')
+option('systemd', type: 'feature', value: 'disabled',
+  description: 'Integración con systemd')
+option('cgroups', type: 'feature', value: 'auto',
+  description: 'Paneles en cgroups nuevos; con auto sigue a systemd')
+option('utempter', type: 'feature', value: 'disabled',
+  description: 'Registrar paneles con utempter')
+option('sixel', type: 'boolean', value: false,
+  description: 'Imágenes sixel')
+option('socket_path', type: 'string', value: '',
+  description: 'Lista de directorios de socket separados por ":" (un $ inicial es una variable de entorno)')
+option('default_term', type: 'string', value: '',
+  description: 'TERM por defecto (debe empezar por screen o tmux); vacío = el mejor disponible')
+option('debug_checks', type: 'boolean', value: false,
+  description: 'Define DEBUG (equivale a --enable-debug de autotools); no es lo mismo que -Dbuildtype=debug')
